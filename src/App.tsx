@@ -58,7 +58,7 @@ export default function App() {
               <SongCard />
               <ClipBin />
             </aside>
-            <section className="relative flex min-h-[78vh] min-w-0 flex-col border-t border-line lg:min-h-0 lg:border-t-0">
+            <section className="relative order-first flex min-h-[78vh] min-w-0 flex-col border-b border-line lg:order-none lg:min-h-0 lg:border-b-0">
               <Player />
               <StageHint />
               <Drafts />

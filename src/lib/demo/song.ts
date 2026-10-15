@@ -11,6 +11,8 @@ export interface DemoSong {
   samples: Float32Array
   sampleRate: number
   bpm: number
+  /** Where the guitar riff's strums are, seconds. */
+  strums: number[]
   parts: (DemoSongPart & { start: number; end: number })[]
 }
 
@@ -99,6 +101,27 @@ export function synthesizeDemoSong(sampleRate = 44100, bpm = 128, structure = DE
       return 0.22 * p * p * lp + 0.05 * p * Math.sin(2 * Math.PI * (200 + 1800 * p * p) * t)
     })
   }
+  // A strummed chord: six plucked strings, a few milliseconds apart, bright attack and quick decay.
+  const strum = (t0: number, freqs: number[], gain = 1) => {
+    const strings = [...freqs, ...freqs.map((f) => f * 2)]
+    strings.forEach((f, k) =>
+      add(t0 + k * 0.008, 0.9, (t) => {
+        const env = Math.exp(-t * 5) * Math.min(1, t * 900)
+        return (
+          gain *
+          0.09 *
+          env *
+          (Math.sin(2 * Math.PI * f * t) + 0.5 * Math.sin(4 * Math.PI * f * t) * Math.exp(-t * 9) + 0.25 * rnd() * Math.exp(-t * 60))
+        )
+      }),
+    )
+  }
+  /** The riff: three strums, the last two off the beat. */
+  const riff = (t0: number, freqs: number[]) => {
+    strum(t0, freqs, 1)
+    strum(t0 + beat * 1.5, freqs, 0.9)
+    strum(t0 + beat * 2.5, freqs, 1)
+  }
   const impact = (t0: number) =>
     add(
       t0,
@@ -120,12 +143,14 @@ export function synthesizeDemoSong(sampleRate = 44100, bpm = 128, structure = DE
         case 'outro': {
           pad(bt, bar, CHORDS[chord], part.label === 'outro' ? 1 - b / part.bars : 1)
           for (let i = 0; i < 4; i++) hat(bt + i * beat + beat / 2, 0.6)
+          if (part.label === 'intro' && b === 2) riff(bt, CHORDS[chord])
           if (part.label === 'intro') kick(bt, 0.35)
           break
         }
         case 'break': {
           pad(bt, bar, CHORDS[chord], 1.2)
           bass(bt, bar * 0.9, ROOTS[chord] * 2, 0.35)
+          if (b === 1) riff(bt, CHORDS[chord])
           break
         }
         case 'build': {
@@ -170,5 +195,9 @@ export function synthesizeDemoSong(sampleRate = 44100, bpm = 128, structure = DE
 
   // Gentle limiter so the stacked layers never clip.
   for (let i = 0; i < length; i++) out[i] = Math.tanh(out[i] * 1.1) * 0.9
-  return { samples: out, sampleRate, bpm, parts }
+  const riffAt = [parts.find((p) => p.label === 'intro'), parts.find((p) => p.label === 'break')]
+    .filter((p) => p !== undefined)
+    .map((p) => p.start + bar * (p.label === 'intro' ? 2 : 1))
+  const strums = riffAt.flatMap((t0) => [t0, t0 + beat * 1.5, t0 + beat * 2.5])
+  return { samples: out, sampleRate, bpm, parts, strums }
 }

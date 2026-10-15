@@ -190,6 +190,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
       style,
       length: s.settings.length,
       order: s.settings.order,
+      hitCuts: s.settings.hitCuts,
       variety: s.settings.variety,
       seed: newSeed(),
       window: s.windowOverride ?? undefined,

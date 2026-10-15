@@ -21,6 +21,8 @@ export interface Settings {
   aspect: AspectId
   fit: FitMode
   order: 'best' | 'story'
+  /** Cut on standout hits in the music (strums, stabs, fills), not only the beat. */
+  hitCuts: boolean
   variety: number
   /** 'style' follows the edit style's look. */
   grade: Grade | 'style'
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aspect: '9:16',
   fit: 'fill',
   order: 'best',
+  hitCuts: true,
   variety: 0.6,
   grade: 'style',
   grain: 'style',

@@ -19,6 +19,8 @@ export interface PlanOptions {
   /** Shots from the previous version that the user locked. */
   locked?: Shot[]
   captions?: CaptionLine[]
+  /** Cut on standout hits in the music, not only on the beat grid. Defaults to on. */
+  hitCuts?: boolean
 }
 
 const FX_SCALE: Record<Slot['role'], number> = { tease: 1, intro: 0.35, build: 0.8, hero: 1, flurry: 1, ride: 0.6, outro: 0.3 }
@@ -76,7 +78,7 @@ function fxFor(slot: Slot, style: StylePreset): ShotFx {
     pulse: style.fx.pulse * k,
     shake: loud ? style.fx.shake * k : 0,
     rgb: slot.role === 'hero' || slot.role === 'flurry' || slot.role === 'tease' ? style.fx.rgb * k : 0,
-    flash: slot.dropStart ? style.fx.flash : slot.role === 'tease' ? style.fx.flash * 0.6 : 0,
+    flash: slot.dropStart ? style.fx.flash : slot.role === 'tease' ? style.fx.flash * 0.6 : slot.hit ? style.fx.flash * 0.25 : 0,
     push: style.fx.push * (loud ? 0.5 : 1),
     // Black and white until the drop brings the colour back.
     mono: slot.role === 'intro' || slot.role === 'build' || slot.role === 'tease' ? style.intro.mono : 0,
@@ -93,7 +95,7 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
   const window = opts.window ?? chooseWindow(song, opts.length)
   const beatPeriod = 60 / Math.max(40, song.bpm)
 
-  const slots = buildSlots(song, window, style, rng)
+  const slots = buildSlots(song, window, style, rng, { hitCuts: opts.hitCuts })
   const speeds = slots.map((s) => speedFor(s, style, beatPeriod))
 
   // Locked shots keep their footage if their slot still exists.
@@ -134,12 +136,19 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     songStart: window.start,
     songEnd: window.end,
     shots,
-    hits: markHeroHits(buildHits(song, window), slots),
+    hits: markHeroHits(addHitPunches(buildHits(song, window), slots), slots),
     bpm: song.bpm,
     fadeOut: style.outro.fade,
     captions: opts.captions ?? [],
     seed: opts.seed,
   }
+}
+
+/** Each cut on a hit gets its own punch, even off the beat grid. */
+function addHitPunches(hits: Hit[], slots: Slot[]): Hit[] {
+  for (const s of slots)
+    if (s.hit && !hits.some((h) => Math.abs(h.time - s.start) < 0.05)) hits.push({ time: s.start, strength: 0.8, kind: 'beat' })
+  return hits.sort((a, b) => a.time - b.time)
 }
 
 /** Every hero slot is a drop, even when the song analysis didn't flag one there: punch it like one. */

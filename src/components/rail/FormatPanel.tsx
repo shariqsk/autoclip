@@ -1,7 +1,7 @@
 import { makeEdit } from '../../state/actions'
 import { ASPECTS, LENGTHS } from '../../state/settings'
 import { getState, setState, updateSettings, useApp } from '../../state/store'
-import { Seg, Slider } from '../ui'
+import { Seg, Slider, Toggle } from '../ui'
 
 const recut = () => getState().song?.analysis && getState().drafts.length && makeEdit({ recut: true })
 
@@ -67,6 +67,16 @@ export function FormatPanel() {
           ]}
         />
       </div>
+
+      <Toggle
+        label="Cut on hits"
+        hint="Strums, stabs and fills get their own cuts, not just the beat"
+        checked={s.hitCuts}
+        onChange={(hitCuts) => {
+          updateSettings({ hitCuts })
+          recut()
+        }}
+      />
 
       <Slider
         label="Remix variety"

@@ -1,13 +1,14 @@
 // 02 FOOTAGE: the bin, as an editor's list. Each row shows the clip, how long it is, where the action
 // is (the line) and which moments are on screen in the current take (the blocks).
 
-import { ArrowDown, ArrowUp, Ban, Crown, Link2, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { ArrowDown, ArrowUp, Ban, Crown, Link2, Plus, Scissors, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
 import { sourceDuration } from '../lib/edit/speed'
+import { MOMENT_MIN_CLIP } from '../lib/video/moments'
 import type { Clip } from '../lib/types'
 import { desktop } from '../lib/desktop'
 import { addClips, moveClip, openLinkDialog, pinClip, removeClip } from '../state/actions'
-import { activeDraft, useApp } from '../state/store'
+import { activeDraft, setState, useApp } from '../state/store'
 import { cx } from './format'
 import { Progress } from './ui'
 
@@ -52,8 +53,18 @@ function Row({ clip, index, count, used }: { clip: Clip; index: number; count: n
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="min-w-0 flex-1 truncate text-[0.82rem] font-semibold">{clip.name}</span>
+          {clip.momentOf && <span className="tag">Moment</span>}
           {clip.pin === 'hero' && <span className="tag text-signal">Hero</span>}
           {clip.pin === 'skip' && <span className="tag">Benched</span>}
+          {clip.status === 'ready' && clip.kind === 'video' && !clip.momentOf && (clip.analysis?.duration ?? 0) >= MOMENT_MIN_CLIP && (
+            <button
+              className="clip-moments tag flex shrink-0 items-center gap-1 text-signal hover:underline"
+              title="Find the best moments in this clip and pick which to use"
+              onClick={() => setState({ moments: { clipId: clip.id } })}
+            >
+              <Scissors className="size-3" /> Moments
+            </button>
+          )}
         </div>
         {clip.status === 'ready' ? (
           <ActionLine clip={clip} used={used} />

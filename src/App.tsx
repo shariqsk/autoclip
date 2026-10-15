@@ -3,6 +3,7 @@ import { ExportDialog } from './components/ExportDialog'
 import { HelpDialog } from './components/HelpDialog'
 import { LearnDialog } from './components/LearnDialog'
 import { LinkDialog } from './components/LinkDialog'
+import { MomentsDialog } from './components/MomentsDialog'
 import { BeatPulse } from './components/shell/common'
 import { DeckShell } from './components/shell/Deck'
 import { FlyerShell } from './components/shell/Flyer'
@@ -35,6 +36,7 @@ export default function App() {
       <HelpDialog />
       <LinkDialog />
       <LearnDialog />
+      <MomentsDialog />
       <DropOverlay />
       <Toasts />
     </div>

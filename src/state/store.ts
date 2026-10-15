@@ -76,6 +76,8 @@ export interface AppState {
   helpOpen: boolean
   /** The learn-a-style dialog: open fresh, or to add references to a learned style. */
   learn: { styleId: StyleId | null } | null
+  /** The moments picker for a long clip. */
+  moments: { clipId: string } | null
   selectedShotId: string | null
   selectedCaptionId: string | null
   demoLoading: number | null
@@ -102,6 +104,7 @@ const initial: AppState = {
   exportOpen: false,
   helpOpen: false,
   learn: null,
+  moments: null,
   selectedShotId: null,
   selectedCaptionId: null,
   demoLoading: null,

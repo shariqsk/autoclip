@@ -13,6 +13,7 @@ import type { CaptionLine, Clip, EditPlan } from '../lib/types'
 import { clearSaved } from './persist'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
+import { sliceAnalysis } from '../lib/video/moments'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -127,6 +128,39 @@ export function removeClip(id: string) {
   }
   setState((s) => ({ clips: s.clips.filter((c) => c.id !== id) }))
 }
+
+/**
+ * Add moments of a long clip as clips of their own. They share the clip's file (nothing is
+ * re-encoded); each keeps its slice of the analysis and where it starts in the file. With
+ * `benchSource`, the full clip is benched so the edit uses only the moments.
+ */
+export function addMoments(sourceId: string, moments: { start: number; end: number; poster?: string }[], benchSource: boolean) {
+  const src = getState().clips.find((c) => c.id === sourceId)
+  if (!src?.analysis || !moments.length) return
+  const base = src.offset ?? 0
+  const added: Clip[] = moments.map((m) => ({
+    id: `clip${Date.now().toString(36)}${(clipCounter++).toString(36)}`,
+    name: `${src.name} · ${fmtClock(base + m.start)}`,
+    kind: 'video',
+    file: src.file,
+    url: URL.createObjectURL(src.file),
+    thumbs: m.poster ? [m.poster] : [],
+    analysis: sliceAnalysis(src.analysis!, m.start, m.end),
+    status: 'ready',
+    progress: 1,
+    offset: base + m.start,
+    momentOf: src.momentOf ?? src.id,
+  }))
+  setState((s) => {
+    const at = s.clips.findIndex((c) => c.id === sourceId)
+    const clips = s.clips.map((c) => (c.id === sourceId && benchSource ? { ...c, pin: 'skip' as const } : c))
+    clips.splice(at + 1, 0, ...added)
+    return { clips }
+  })
+  toast(`${added.length} moment${added.length === 1 ? '' : 's'} added${benchSource ? `; the full clip is benched` : ''}.`, 'success')
+}
+
+const fmtClock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
 export function pinClip(id: string, pin: Clip['pin']) {
   const clip = getState().clips.find((c) => c.id === id)

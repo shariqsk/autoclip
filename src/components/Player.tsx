@@ -17,20 +17,13 @@ import { cx, fmtTime, PHASE_NAMES, timecode } from './format'
 
 function Hud({ plan }: { plan: EditPlan }) {
   const { time, playing } = usePlayhead(1 / 30)
-  const bpm = useApp((s) => s.song?.analysis?.bpm)
-  const i = shotIndexAt(plan.shots, time)
-  const shot = plan.shots[Math.max(0, i)]
-  const beatOn = plan.hits.some((h) => time >= h.time && time - h.time < 0.09)
-  const dropOn = plan.hits.some((h) => h.kind === 'drop' && time >= h.time && time - h.time < 0.25)
+  const shot = plan.shots[Math.max(0, shotIndexAt(plan.shots, time))]
   return (
-    <div className="hud" data-drop={dropOn}>
-      <span className={cx('hud-dot', playing && 'tally')} data-on={playing} />
-      <span className="hud-onair">{playing ? 'On air' : 'Ready'}</span>
+    <div className="hud">
+      <span className="hud-dot" data-on={playing} />
       <span className="hud-time">{timecode(time)}</span>
       <span className="hud-spacer" />
-      {bpm && <span className="hud-bpm">{Math.round(bpm)} BPM</span>}
       <span className={cx('hud-phase', shot?.phase === 'hero' && 'hud-phase-drop')}>{shot?.phase ? PHASE_NAMES[shot.phase] : ''}</span>
-      <span className="hud-beat" data-on={beatOn} data-drop={dropOn} title="Beat" />
     </div>
   )
 }

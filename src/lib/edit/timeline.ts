@@ -23,6 +23,10 @@ export interface FrameFx {
   flash: number
   /** 0–1 chromatic aberration. */
   rgb: number
+  /** 0–1 colour drained to black and white. */
+  mono: number
+  /** 0–1 darkening: strobes and the final fade. */
+  dim: number
 }
 
 export interface FrameState {
@@ -82,7 +86,12 @@ function hitsNear(hits: Hit[], t: number, window = 0.6): Hit[] {
 
 export function frameAt(plan: EditPlan, t: number, clipDurations: Record<string, number> = {}): FrameState {
   const { shots } = plan
-  const none: FrameState = { a: null, b: null, transition: null, fx: { zoom: 0, shakeX: 0, shakeY: 0, rotate: 0, flash: 0, rgb: 0 } }
+  const none: FrameState = {
+    a: null,
+    b: null,
+    transition: null,
+    fx: { zoom: 0, shakeX: 0, shakeY: 0, rotate: 0, flash: 0, rgb: 0, mono: 0, dim: 0 },
+  }
   if (!shots.length) return none
   const i = Math.max(0, shotIndexAt(shots, t))
   const cur = shots[i]
@@ -129,6 +138,21 @@ export function frameAt(plan: EditPlan, t: number, clipDurations: Record<string,
   const progress = active === a.shot ? a.progress : (b?.progress ?? 0)
   zoom += fx.push * progress
   const seed = active.start * 13.7
+
+  // Colour comes back across a transition, not in a jump.
+  const monoA = a.shot.fx.mono ?? 0
+  const monoB = b ? (b.shot.fx.mono ?? 0) : monoA
+  const mono = transition ? monoA + (monoB - monoA) * Math.min(1, Math.max(0, transition.progress)) : (active.fx.mono ?? 0)
+
+  // Tempo-locked flicker on eighth notes, and the fade to black at the very end.
+  let dim = 0
+  const strobe = active.fx.strobe ?? 0
+  if (strobe > 0) {
+    const eighth = 60 / Math.max(40, plan.bpm ?? 120) / 2
+    if ((t / eighth) % 1 > 0.5) dim = 0.55 * strobe
+  }
+  const total = plan.songEnd - plan.songStart
+  if (plan.fadeOut && t > total - plan.fadeOut) dim = Math.max(dim, (t - (total - plan.fadeOut)) / plan.fadeOut)
   return {
     a,
     b,
@@ -140,6 +164,8 @@ export function frameAt(plan: EditPlan, t: number, clipDurations: Record<string,
       rotate: shake * 0.012 * wobble(t + 7.7, seed + 4.2),
       flash: Math.min(1, flash),
       rgb: Math.min(1, rgb),
+      mono: Math.min(1, Math.max(0, mono)),
+      dim: Math.min(1, dim),
     },
   }
 }

@@ -1,6 +1,6 @@
 // The auto-editor: song analysis + clip analyses + a style → a complete edit plan.
 
-import type { CaptionLine, EditPlan, Shot, ShotFx, SongAnalysis, SpeedRamp, Transition, TransitionType } from '../types'
+import type { CaptionLine, EditPlan, Hit, Shot, ShotFx, SongAnalysis, SpeedRamp, Transition, TransitionType } from '../types'
 import { assignFootage, type AssignableClip, type Assignment } from './assign'
 import { getStyle, type StyleId, type StylePreset } from './presets'
 import { createRng, weightedPick, type Rng } from './rng'
@@ -21,22 +21,48 @@ export interface PlanOptions {
   captions?: CaptionLine[]
 }
 
-const FX_SCALE: Record<Slot['role'], number> = { hero: 1, drop: 1, build: 0.85, normal: 0.6, intro: 0.45, calm: 0.3 }
+const FX_SCALE: Record<Slot['role'], number> = { tease: 1, intro: 0.35, build: 0.8, hero: 1, flurry: 1, ride: 0.6, outro: 0.3 }
 
 function speedFor(slot: Slot, style: StylePreset, beatPeriod: number): SpeedRamp {
   const beats = (slot.end - slot.start) / beatPeriod
-  if (slot.role === 'hero') return style.heroSpeed
-  if (style.velocity && slot.role === 'drop' && beats >= 1.9) return { kind: 'velocity', fast: 1.6, slow: 0.35 }
-  if (slot.role === 'calm' || slot.role === 'intro') return { kind: 'constant', speed: style.calmSpeed }
-  return { kind: 'constant', speed: 1 }
+  switch (slot.role) {
+    case 'hero':
+      return style.hero.speed
+    case 'intro':
+      return { kind: 'constant', speed: style.intro.speed }
+    case 'outro':
+      return { kind: 'constant', speed: style.outro.speed }
+    case 'flurry':
+      if (style.velocity && beats >= 1.9) return { kind: 'velocity', fast: 1.6, slow: 0.35 }
+      return { kind: 'constant', speed: 1 }
+    default:
+      return { kind: 'constant', speed: 1 }
+  }
 }
 
 function transitionFor(slots: Slot[], i: number, style: StylePreset, beatPeriod: number, rng: Rng): Transition {
   if (i === 0) return { type: 'cut', duration: 0 }
   const slot = slots[i]
-  const weights = slot.dropStart ? style.transitions.drop : slot.sectionStart ? style.transitions.section : style.transitions.within
-  // Builds stay as hard cuts; the acceleration is the effect.
-  const type: TransitionType = slot.role === 'build' ? 'cut' : weightedPick(rng, weights)
+  let weights: Partial<Record<TransitionType, number>>
+  switch (slot.role) {
+    case 'hero':
+      weights = style.hero.transition
+      break
+    case 'intro':
+    case 'outro':
+      weights = style.intro.transition
+      break
+    case 'flurry':
+      weights = style.flurry.transition
+      break
+    case 'ride':
+      weights = style.ride.transition
+      break
+    default:
+      // Builds and the cold open are hard cuts: the acceleration is the effect.
+      weights = { cut: 1 }
+  }
+  const type: TransitionType = weightedPick(rng, weights)
   if (type === 'cut') return { type, duration: 0 }
   const shortest = Math.min(slot.end - slot.start, slots[i - 1].end - slots[i - 1].start)
   const duration = Math.max(0.08, Math.min(style.transitionBeats * beatPeriod, shortest * 0.45))
@@ -45,13 +71,16 @@ function transitionFor(slots: Slot[], i: number, style: StylePreset, beatPeriod:
 
 function fxFor(slot: Slot, style: StylePreset): ShotFx {
   const k = FX_SCALE[slot.role]
-  const loud = slot.role === 'hero' || slot.role === 'drop' || slot.role === 'build'
+  const loud = slot.role === 'hero' || slot.role === 'flurry' || slot.role === 'build' || slot.role === 'tease'
   return {
     pulse: style.fx.pulse * k,
     shake: loud ? style.fx.shake * k : 0,
-    rgb: slot.role === 'hero' || slot.role === 'drop' ? style.fx.rgb * k : 0,
-    flash: slot.dropStart ? style.fx.flash : 0,
+    rgb: slot.role === 'hero' || slot.role === 'flurry' || slot.role === 'tease' ? style.fx.rgb * k : 0,
+    flash: slot.dropStart ? style.fx.flash : slot.role === 'tease' ? style.fx.flash * 0.6 : 0,
     push: style.fx.push * (loud ? 0.5 : 1),
+    // Black and white until the drop brings the colour back.
+    mono: slot.role === 'intro' || slot.role === 'build' || slot.role === 'tease' ? style.intro.mono : 0,
+    strobe: slot.role === 'build' ? style.build.strobe * (0.3 + 0.7 * (slot.buildProgress ?? 0)) : 0,
   }
 }
 
@@ -97,6 +126,7 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
       reason: slot.reason,
       locked: !!kept,
       energy: slot.energy,
+      phase: slot.role,
     })
   })
 
@@ -104,10 +134,24 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     songStart: window.start,
     songEnd: window.end,
     shots,
-    hits: buildHits(song, window),
+    hits: markHeroHits(buildHits(song, window), slots),
+    bpm: song.bpm,
+    fadeOut: style.outro.fade,
     captions: opts.captions ?? [],
     seed: opts.seed,
   }
+}
+
+/** Every hero slot is a drop, even when the song analysis didn't flag one there: punch it like one. */
+function markHeroHits(hits: Hit[], slots: Slot[]): Hit[] {
+  for (const s of slots.filter((x) => x.role === 'hero')) {
+    const h = hits.find((x) => Math.abs(x.time - s.start) < 0.05)
+    if (h) {
+      h.kind = 'drop'
+      h.strength = 1
+    } else hits.push({ time: s.start, strength: 1, kind: 'drop' })
+  }
+  return hits.sort((a, b) => a.time - b.time)
 }
 
 export { type SongWindow }

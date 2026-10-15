@@ -26,11 +26,17 @@ const SAMPLE_WIDTH = 96
 const MAX_SAMPLES = 900
 const THUMB_COUNT = 4
 
-type Ctx2D = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D
+// Frames from the decoder are copied into one small canvas made for frequent reads.
+let scratch: OffscreenCanvas | null = null
+let scratchCtx: OffscreenCanvasRenderingContext2D | null = null
 
 function readGray(canvas: OffscreenCanvas | HTMLCanvasElement): Gray {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true }) as Ctx2D
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  if (!scratch || scratch.width !== canvas.width || scratch.height !== canvas.height) {
+    scratch = new OffscreenCanvas(canvas.width, canvas.height)
+    scratchCtx = scratch.getContext('2d', { willReadFrequently: true })!
+  }
+  scratchCtx!.drawImage(canvas, 0, 0)
+  const img = scratchCtx!.getImageData(0, 0, canvas.width, canvas.height)
   return toGray(img.data, canvas.width, canvas.height)
 }
 

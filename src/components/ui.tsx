@@ -1,6 +1,5 @@
-// Small shared controls, styled by the semantic classes in components.css.
+// Shared controls, drawn with the kit in components.css: square, outlined, filled when on.
 
-import { ChevronDown } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 import { cx } from './format'
 
@@ -16,10 +15,11 @@ export function Seg<T extends string | number>({
   className?: string
 }) {
   return (
-    <div className={cx('seg', className)} role="radiogroup">
+    <div className={cx('segs', className)} role="radiogroup">
       {options.map((o) => (
         <button
           key={String(o.value)}
+          className="opt"
           role="radio"
           aria-checked={o.value === value}
           data-on={o.value === value}
@@ -40,7 +40,7 @@ export function Slider({
   max = 1,
   step = 0.01,
   onChange,
-  format = (v) => `${Math.round(v * 100)}%`,
+  format = (v) => `${Math.round(v * 100)}`,
   hint,
 }: {
   label: string
@@ -55,12 +55,12 @@ export function Slider({
   const id = useId()
   const fill = `${((value - min) / (max - min)) * 100}%`
   return (
-    <div className="space-y-1">
+    <div>
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="text-xs font-medium text-ink-2" title={hint}>
+        <label htmlFor={id} className="tag" title={hint}>
           {label}
         </label>
-        <span className="font-mono text-[0.7rem] text-ink-3">{format(value)}</span>
+        <span className="mono text-[0.68rem] text-ink-2">{format(value)}</span>
       </div>
       <input
         id={id}
@@ -89,37 +89,37 @@ export function Toggle({
   hint?: ReactNode
 }) {
   return (
-    <label className="flex items-start justify-between gap-3 py-1">
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="group flex w-full items-start justify-between gap-3 py-1 text-left"
+    >
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-ink">{label}</span>
+        <span className="block text-sm font-semibold text-ink">{label}</span>
         {hint && <span className="block text-xs leading-snug text-ink-3">{hint}</span>}
       </span>
-      <button
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
+      <span
         className={cx(
-          'relative mt-0.5 h-5 w-9 shrink-0 rounded-full border border-line-strong transition-colors',
-          checked ? 'border-accent bg-accent' : 'bg-well',
+          'mono mt-0.5 shrink-0 border px-1.5 py-0.5 text-[0.6rem] font-bold tracking-widest',
+          checked ? 'border-signal bg-signal text-signal-ink' : 'border-line-2 text-ink-3',
         )}
       >
-        <span
-          className={cx(
-            'absolute top-0.5 left-0.5 size-3.5 rounded-full bg-ink transition-transform',
-            checked && 'translate-x-4 bg-on-accent',
-          )}
-        />
-      </button>
-    </label>
+        {checked ? 'ON' : 'OFF'}
+      </span>
+    </button>
   )
 }
 
+/** A numbered, collapsible section of a rail: "04  FORMAT ————— +". */
 export function Section({
+  n,
   title,
   children,
   defaultOpen = true,
   aside,
 }: {
+  n: string
   title: string
   children: ReactNode
   defaultOpen?: boolean
@@ -127,49 +127,35 @@ export function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="border-t border-line first:border-t-0">
-      <div className="flex items-center gap-2 px-4 py-3">
-        <button className="label flex flex-1 items-center gap-1.5 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
-          <ChevronDown className={cx('size-3.5 transition-transform', !open && '-rotate-90')} />
-          {title}
+    <section className="border-b border-line">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2.5">
+        <button className="rule-head flex-1 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
+          <span className="tag text-signal">{n}</span>
+          <span className="head text-lg">{title}</span>
         </button>
         {aside}
+        <button
+          className="tag w-4 text-center text-ink-2 hover:text-ink"
+          onClick={() => setOpen(!open)}
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+        >
+          {open ? '−' : '+'}
+        </button>
       </div>
-      {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
+      {open && <div className="space-y-3.5 px-4 pb-4">{children}</div>}
     </section>
   )
 }
 
-export function Ring({
-  value,
-  size = 18,
-  stroke = 2.5,
-  className,
-}: {
-  value: number | null
-  size?: number
-  stroke?: number
-  className?: string
-}) {
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
+/** A tiny striped progress bar: indeterminate when value is null. */
+export function Progress({ value, className }: { value: number | null; className?: string }) {
   return (
-    <svg width={size} height={size} className={cx(value === null && 'animate-spin', className)} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeOpacity={0.2} strokeWidth={stroke} />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={c}
-        strokeDashoffset={c * (1 - (value ?? 0.25))}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+    <div className={cx('h-1 w-full bg-line', className)}>
+      <div
+        className="loading-bar h-full transition-[width] duration-300"
+        style={{ width: value === null ? '100%' : `${Math.max(3, value * 100)}%` }}
       />
-    </svg>
+    </div>
   )
 }
 

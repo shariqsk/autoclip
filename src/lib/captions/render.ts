@@ -31,6 +31,8 @@ export interface CaptionOptions {
   scale: number
   /** Highlight color for karaoke and accents. */
   accent: string
+  /** "@handle" watermark in the corner, or empty. */
+  handle?: string
 }
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -43,7 +45,7 @@ const easeOutBack = (x: number) => {
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 
 export function activeLine(lines: CaptionLine[], t: number): CaptionLine | null {
-  for (const l of lines) if (t >= l.start && t < l.end) return l
+  for (const l of lines) if (!l.nameplate && t >= l.start && t < l.end) return l
   return null
 }
 
@@ -71,8 +73,89 @@ function baseY(position: CaptionPosition, h: number, blockHeight: number): numbe
 }
 
 /** Draws the caption for time `t`. Returns false when nothing is on screen (so the layer can be skipped). */
+/**
+ * Draws everything on the caption layer at time `t`: the current caption or title card, any fighter
+ * nameplate, and the handle watermark. Returns false when the layer is empty (so it can be skipped).
+ */
 export function drawCaptions(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOptions, w: number, h: number): boolean {
   ctx.clearRect(0, 0, w, h)
+  let drawn = false
+  for (const plate of lines) {
+    if (plate.nameplate && t >= plate.start && t < plate.end) {
+      drawNameplate(ctx, plate, t, opts, w, h)
+      drawn = true
+    }
+  }
+  if (opts.handle) {
+    drawHandle(ctx, opts.handle, w, h)
+    drawn = true
+  }
+  return drawLine(ctx, lines, t, opts, w, h) || drawn
+}
+
+function drawHandle(ctx: Ctx, handle: string, w: number, h: number) {
+  const size = Math.min(w, h) * 0.028
+  ctx.save()
+  ctx.font = `700 ${size}px ${CAPTION_FONTS.mono}`
+  ctx.textAlign = 'right'
+  ctx.textBaseline = 'alphabetic'
+  ctx.globalAlpha = 0.75
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'
+  ctx.shadowBlur = size * 0.4
+  ctx.fillStyle = '#fff'
+  ctx.fillText(handle.startsWith('@') ? handle : `@${handle}`, w - size * 1.2, h - size * 1.4)
+  ctx.restore()
+}
+
+/** A broadcast-style lower third that slams in: the name on a signal-colour bar, the record under it. */
+function drawNameplate(ctx: Ctx, line: CaptionLine, t: number, opts: CaptionOptions, w: number, h: number) {
+  const age = t - line.start
+  const left = line.end - t
+  const unit = Math.min(w, h)
+  const name = line.words
+    .map((x) => x.text)
+    .join(' ')
+    .toUpperCase()
+  const sub = (line.nameplate?.sub ?? '').toUpperCase()
+  const size = unit * 0.095
+  ctx.save()
+  ctx.font = `${size}px ${CAPTION_FONTS.display}`
+  const nameW = Math.min(w * 0.84, ctx.measureText(name).width)
+  const padX = size * 0.35
+  const x0 = w * 0.07
+  const y0 = h * 0.66
+  // Bar wipes in from the left, name slams down, everything wipes out at the end.
+  const wipe = clamp01(age / 0.18)
+  const out = clamp01(left / 0.15)
+  ctx.globalAlpha = out
+  ctx.fillStyle = opts.accent
+  ctx.fillRect(x0, y0 - size * 0.62, (nameW + padX * 2) * easeOutBack(wipe), size * 1.18)
+  if (age > 0.08) {
+    const s = 1 + 0.25 * (1 - clamp01((age - 0.08) / 0.14))
+    ctx.save()
+    ctx.translate(x0 + padX, y0)
+    ctx.scale(s, s)
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#0a0a0a'
+    ctx.fillText(name, 0, size * 0.04, w * 0.84)
+    ctx.restore()
+  }
+  if (sub && age > 0.2) {
+    const subSize = unit * 0.034
+    ctx.font = `700 ${subSize}px ${CAPTION_FONTS.mono}`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    const subW = ctx.measureText(sub).width + subSize
+    ctx.fillStyle = 'rgba(10,10,10,0.88)'
+    ctx.fillRect(x0, y0 + size * 0.62, subW * clamp01((age - 0.2) / 0.15), subSize * 1.7)
+    ctx.fillStyle = '#fff'
+    if (age > 0.28) ctx.fillText(sub, x0 + subSize * 0.5, y0 + size * 0.62 + subSize * 0.35)
+  }
+  ctx.restore()
+}
+
+function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOptions, w: number, h: number): boolean {
   const line = activeLine(lines, t)
   if (!line || !line.words.length) return false
   // A line that's a single word (beat text, shouted lyrics) gets to be big.

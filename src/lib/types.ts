@@ -174,6 +174,8 @@ export interface CaptionLine {
   words: CaptionWord[]
   /** Title cards are big, centered and always styled 'impact'. */
   title?: boolean
+  /** A fighter nameplate: the words are the name, `sub` the line under it (record, nickname). */
+  nameplate?: { sub: string }
 }
 
 export interface EditPlan {

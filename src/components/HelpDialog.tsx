@@ -1,3 +1,4 @@
+import { CAPTION_MODELS, TTS_MODEL } from '../lib/ml/models'
 import { setState, useApp } from '../state/store'
 import { Modal } from './Modal'
 import { Kbd } from './ui'
@@ -57,6 +58,18 @@ export function HelpDialog() {
           </div>
         ))}
       </div>
+      <h3 className="tag mt-6 mb-2">Built on</h3>
+      <p className="text-xs leading-relaxed text-ink-3">
+        <a className="underline hover:text-ink" href={CAPTION_MODELS[0].url} target="_blank" rel="noreferrer">
+          Whisper
+        </a>{' '}
+        by OpenAI (MIT) for lyrics,{' '}
+        <a className="underline hover:text-ink" href={TTS_MODEL.url} target="_blank" rel="noreferrer">
+          {TTS_MODEL.name}
+        </a>{' '}
+        by {TTS_MODEL.maker} (Apache 2.0) for the announcer, both run on your device through Transformers.js and ONNX Runtime Web. Video is
+        decoded and encoded with Mediabunny and WebCodecs. Type: Anton, Inter Tight, JetBrains Mono.
+      </p>
     </Modal>
   )
 }

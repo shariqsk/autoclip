@@ -1,0 +1,116 @@
+/*
+ * Looks. Every visual decision is a CSS variable set per [data-theme] on <html>, so a look changes
+ * type, shape, borders and shadows, not just colour.
+ *
+ *   arena   (default) fight-night dark: charcoal, broadcast red and a gold accent
+ *   neon    after-hours: deep violet with cyan and magenta glow
+ *   paper   daylight: warm paper, black ink, chunky sticker shadows
+ */
+
+:root,
+[data-theme='arena'] {
+  --bg: #0b0b0d;
+  --panel: #141417;
+  --panel-2: #1b1b20;
+  --well: #0f0f12;
+  --line: #24242b;
+  --line-strong: #34343d;
+  --ink: #f4f1ea;
+  --ink-2: #b9b5ab;
+  --ink-3: #75726b;
+  --accent: #ff3b2f;
+  --accent-2: #ffc93c;
+  --on-accent: #ffffff;
+  --hot: #ff3b2f;
+  --good: #3ddc84;
+  --glow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 10px 40px -10px color-mix(in srgb, var(--accent) 55%, transparent);
+  --stage: #050506;
+
+  --bw: 1px;
+  --r-panel: 18px;
+  --r-ctl: 11px;
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 20px 50px -30px rgba(0, 0, 0, 0.8);
+  --shadow-ctl: none;
+  --press: 1px;
+
+  --t-display: 'Unbounded Variable', 'Arial Black', sans-serif;
+  --t-sans: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --t-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --display-weight: 800;
+  --label-tracking: 0.14em;
+  --backdrop:
+    radial-gradient(1200px 600px at 70% -10%, rgba(255, 59, 47, 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(255, 201, 60, 0.05), transparent 60%);
+  color-scheme: dark;
+}
+
+[data-theme='neon'] {
+  --bg: #07061a;
+  --panel: #0f0d2a;
+  --panel-2: #161342;
+  --well: #0a0922;
+  --line: #231f55;
+  --line-strong: #342f78;
+  --ink: #efeaff;
+  --ink-2: #b2a9e6;
+  --ink-3: #6f67a8;
+  --accent: #22e5ff;
+  --accent-2: #ff3df2;
+  --on-accent: #050414;
+  --hot: #ff3df2;
+  --good: #5bffb0;
+  --glow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent), 0 0 30px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+  --stage: #03020c;
+
+  --bw: 1px;
+  --r-panel: 22px;
+  --r-ctl: 14px;
+  --shadow-panel: 0 0 0 1px rgba(124, 108, 255, 0.08), 0 30px 60px -30px rgba(34, 229, 255, 0.25);
+  --shadow-ctl: none;
+  --press: 1px;
+
+  --t-display: 'Unbounded Variable', 'Arial Black', sans-serif;
+  --t-sans: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --t-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --display-weight: 700;
+  --label-tracking: 0.16em;
+  --backdrop:
+    radial-gradient(900px 500px at 85% 0%, rgba(255, 61, 242, 0.14), transparent 60%),
+    radial-gradient(900px 600px at 0% 100%, rgba(34, 229, 255, 0.12), transparent 60%);
+  color-scheme: dark;
+}
+
+[data-theme='paper'] {
+  --bg: #f4ecdd;
+  --panel: #fffaf1;
+  --panel-2: #fbf2e2;
+  --well: #efe3cd;
+  --line: #e2d3b6;
+  --line-strong: #17130e;
+  --ink: #17130e;
+  --ink-2: #4a4033;
+  --ink-3: #8a7c66;
+  --accent: #ff4a1c;
+  --accent-2: #2747ff;
+  --on-accent: #ffffff;
+  --hot: #ff4a1c;
+  --good: #0f8a47;
+  --glow: 4px 4px 0 var(--ink);
+  --stage: #17130e;
+
+  --bw: 2px;
+  --r-panel: 22px;
+  --r-ctl: 12px;
+  --shadow-panel: 5px 5px 0 var(--ink);
+  --shadow-ctl: 2px 2px 0 var(--ink);
+  --press: 2px;
+
+  --t-display: 'Unbounded Variable', 'Arial Black', sans-serif;
+  --t-sans: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --t-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --display-weight: 800;
+  --label-tracking: 0.1em;
+  --backdrop: radial-gradient(color-mix(in srgb, var(--ink) 16%, transparent) 1px, transparent 1.3px) 0 0 / 22px 22px;
+  color-scheme: light;
+}

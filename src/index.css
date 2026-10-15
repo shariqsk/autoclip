@@ -1,0 +1,85 @@
+@import '@fontsource-variable/unbounded/index.css';
+@import '@fontsource-variable/space-grotesk/index.css';
+@import '@fontsource-variable/jetbrains-mono/index.css';
+@import '@fontsource-variable/bricolage-grotesque/index.css';
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource/anton/400.css';
+@import '@fontsource/bebas-neue/400.css';
+@import 'tailwindcss';
+@import './styles/themes.css';
+@import './styles/components.css';
+
+@custom-variant dark (&:where([data-theme='arena'], [data-theme='arena'] *, [data-theme='neon'], [data-theme='neon'] *));
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-well: var(--well);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-on-accent: var(--on-accent);
+  --color-hot: var(--hot);
+  --color-good: var(--good);
+  --font-display: var(--t-display);
+  --font-sans: var(--t-sans);
+  --font-mono: var(--t-mono);
+  --radius-panel: var(--r-panel);
+  --radius-ctl: var(--r-ctl);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  background-image: var(--backdrop);
+  color: var(--ink);
+  font-family: var(--t-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'tnum';
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+button,
+[role='button'],
+label[for],
+select,
+summary {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

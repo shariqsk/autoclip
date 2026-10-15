@@ -64,9 +64,9 @@ export const STYLES: StylePreset[] = [
     name: 'Phonk',
     tagline: 'Black-and-white, RGB splits, shake on the cowbell',
     bestFor: 'Aggressive sports edits, car edits, gym edits',
-    pacing: { low: 2, mid: 1, high: 1 },
+    pacing: { low: 4, mid: 2, high: 1 },
     buildRoll: true,
-    doubleTime: 0.32,
+    doubleTime: 0.2,
     heroBeats: 2,
     transitions: {
       within: { cut: 8, glitch: 2, flash: 1 },

@@ -3,6 +3,7 @@
 
 import type { Beat, SongAnalysis } from '../types'
 import { ANALYSIS_RATE, computeFeatures, normalize, ONSET_LATENCY, smooth } from './features'
+import { findHits } from './hits'
 import { findBoundaries, labelSections, type BarFeatures } from './structure'
 import { bpmFromBeats, downbeatPhase, estimateTempo, fitBeatGrid, fixOffbeat, trackBeats } from './tempo'
 
@@ -151,5 +152,17 @@ export function analyzeSong(signal: Float32Array, opts: AnalyzeOptions = {}): So
     beats.map((b) => b.time),
     tempo.bpm,
   )
-  return { duration, bpm: Math.round(bpm * 10) / 10, confidence: tempo.confidence, beats, sections, drops, envelope, envelopeRate, peaks }
+  const hits = findHits(f.onset, fr, ONSET_LATENCY, (60 / Math.max(40, bpm)) * 4 * fr)
+  return {
+    duration,
+    bpm: Math.round(bpm * 10) / 10,
+    confidence: tempo.confidence,
+    beats,
+    sections,
+    drops,
+    hits,
+    envelope,
+    envelopeRate,
+    peaks,
+  }
 }

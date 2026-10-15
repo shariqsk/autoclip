@@ -1,20 +1,21 @@
-// Export: pick size, frame rate and quality, then render an MP4 in the browser. Also hands out the
-// captions as .srt and the soundtrack as .wav.
+// Export: pick where it's going (or set size, frame rate and quality by hand), render an MP4 on this
+// device, and take the captions and soundtrack too.
 
-import { Captions, Download, FileAudio, Film, Loader2, X } from 'lucide-react'
+import { Captions, Download, FileAudio, Film } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toSrt } from '../lib/captions/parse'
 import { DEFAULT_MIX, renderMix } from '../lib/audio/mix'
 import { decodeAudioFile } from '../lib/audio/decode'
 import { encodeWav } from '../lib/audio/wav'
+import type { AspectId } from '../lib/types'
 import { useRenderProject } from '../hooks/useRenderProject'
 import { voiceoverAt } from '../state/derive'
 import { playhead } from '../state/playhead'
 import { outputSize, type Settings } from '../state/settings'
 import { getState, setState, toast, updateSettings, useApp } from '../state/store'
-import { Modal } from './Modal'
-import { Seg } from './ui'
 import { cx, fmtTime } from './format'
+import { Modal } from './Modal'
+import { Progress, Seg } from './ui'
 
 const BASE_MBPS: Record<Settings['export']['quality'], number> = { standard: 8, high: 14, max: 24 }
 
@@ -22,6 +23,19 @@ function bitrateFor(width: number, height: number, fps: number, quality: Setting
   const pixels = (width * height) / (1920 * 1080)
   return Math.round(BASE_MBPS[quality] * pixels * Math.sqrt(fps / 30) * 10) / 10
 }
+
+const PRESETS: { id: string; name: string; note: string; aspect: AspectId; ex: Settings['export'] }[] = [
+  {
+    id: 'vertical',
+    name: 'TikTok · Reels · Shorts',
+    note: '1080×1920 · 30',
+    aspect: '9:16',
+    ex: { resolution: 1080, fps: 30, quality: 'high' },
+  },
+  { id: 'youtube', name: 'YouTube', note: '1920×1080 · 60', aspect: '16:9', ex: { resolution: 1080, fps: 60, quality: 'high' } },
+  { id: 'feed', name: 'Instagram feed', note: '1080×1350 · 30', aspect: '4:5', ex: { resolution: 1080, fps: 30, quality: 'high' } },
+  { id: 'master', name: 'Master', note: '4K · 60 · max', aspect: '9:16', ex: { resolution: 2160, fps: 60, quality: 'max' } },
+]
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob)
@@ -40,7 +54,6 @@ const slug = (s: string) =>
 
 async function buildMix(plan: NonNullable<ReturnType<typeof useRenderProject>['plan']>) {
   const s = getState()
-  const song = s.song!.buffer!
   const clipBuffers = new Map<string, AudioBuffer>()
   if (s.settings.clipAudio !== 'off') {
     const used = new Set(plan.shots.map((x) => x.clipId))
@@ -51,7 +64,7 @@ async function buildMix(plan: NonNullable<ReturnType<typeof useRenderProject>['p
   }
   const vo = s.settings.voiceover
   const voiceovers = vo.enabled && s.voice ? [{ buffer: s.voice.buffer, at: voiceoverAt(plan, vo.placement, s.voice.buffer.duration) }] : []
-  return renderMix(song, plan, {
+  return renderMix(s.song!.buffer!, plan, {
     ...DEFAULT_MIX,
     musicVolume: s.settings.musicVolume,
     sfx: s.settings.sfx,
@@ -67,6 +80,7 @@ export function ExportDialog() {
   const ex = useApp((s) => s.settings.export)
   const aspect = useApp((s) => s.settings.aspect)
   const songName = useApp((s) => s.song?.name ?? 'edit')
+  const takeNo = useApp((s) => s.drafts.findIndex((d) => d.id === s.activeDraftId) + 1)
   const { draft, plan, look, captions } = useRenderProject()
   const [progress, setProgress] = useState<{ fraction: number; stage: string } | null>(null)
   const [result, setResult] = useState<{ url: string; blob: Blob; seconds: number } | null>(null)
@@ -75,7 +89,7 @@ export function ExportDialog() {
   const mbps = bitrateFor(size.width, size.height, ex.fps, ex.quality)
   const duration = plan ? plan.songEnd - plan.songStart : 0
   const estimateMb = ((mbps + 0.2) * duration) / 8
-  const name = `${slug(songName)}-${slug(draft?.name ?? 'edit')}`
+  const name = `${slug(songName)}-take-${String(takeNo).padStart(2, '0')}`
 
   useEffect(() => {
     if (!open) abortRef.current?.abort()
@@ -83,6 +97,9 @@ export function ExportDialog() {
   useEffect(() => () => void (result && URL.revokeObjectURL(result.url)), [result])
 
   const set = (patch: Partial<Settings['export']>) => updateSettings((s) => ({ export: { ...s.export, ...patch } }))
+  const preset = PRESETS.find(
+    (p) => p.aspect === aspect && p.ex.resolution === ex.resolution && p.ex.fps === ex.fps && p.ex.quality === ex.quality,
+  )
 
   const start = async () => {
     if (!plan || !look) return
@@ -98,7 +115,7 @@ export function ExportDialog() {
           document.fonts.load(`700 48px "${f}"`),
         ),
       )
-      setProgress({ fraction: 0, stage: 'Mixing audio' })
+      setProgress({ fraction: 0, stage: 'Mixing the sound' })
       const audio = await buildMix(plan)
       const clips = getState()
         .clips.filter((c) => c.analysis)
@@ -139,38 +156,32 @@ export function ExportDialog() {
 
   if (!open) return null
   return (
-    <Modal onClose={() => !progress && setState({ exportOpen: false })} labelledBy="export-title" wide={!!result}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 id="export-title" className="display text-xl">
-            Export
-          </h2>
-          <p className="text-sm text-ink-3">
-            {draft?.name} · {fmtTime(duration)} · {size.width}×{size.height}
-          </p>
-        </div>
-        <button className="btn btn-ghost btn-icon" disabled={!!progress} onClick={() => setState({ exportOpen: false })} aria-label="Close">
-          <X className="size-4" />
-        </button>
-      </div>
-
+    <Modal
+      onClose={() => setState({ exportOpen: false })}
+      closable={!progress}
+      title={result ? 'In the can' : 'Export'}
+      kicker={`Take ${String(takeNo).padStart(2, '0')} · ${draft?.name.replace(/ #\d+$/, '')} · ${fmtTime(duration)}`}
+      wide={!!result}
+    >
       {result ? (
-        <div className="mt-5 grid gap-5 sm:grid-cols-[minmax(0,1fr)_240px]">
-          <video src={result.url} controls autoPlay loop className="max-h-[60vh] w-full rounded-[var(--r-ctl)] bg-black" />
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-good">Done in {result.seconds.toFixed(1)}s</div>
-            <p className="text-xs text-ink-3">
-              {(result.blob.size / 1e6).toFixed(1)} MB · H.264 MP4. Rendered on your device; nothing was uploaded.
+        <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_250px]">
+          <video src={result.url} controls autoPlay loop className="max-h-[62vh] w-full bg-black" />
+          <div className="space-y-2">
+            <div className="head text-5xl text-signal">{result.seconds.toFixed(1)}s</div>
+            <p className="tag">
+              Rendered on this device · {(result.blob.size / 1e6).toFixed(1)} MB · {size.width}×{size.height} · H.264
             </p>
-            <button className="btn btn-primary w-full" onClick={() => download(result.blob, `${name}.mp4`)}>
-              <Download className="size-4" /> Download MP4
+            <button className="slab mt-3 w-full text-xl" onClick={() => download(result.blob, `${name}.mp4`)}>
+              Download <Download className="size-5" />
             </button>
-            {plan && plan.captions.length > 0 && (
+            {plan && plan.captions.some((c) => !c.nameplate) && (
               <button
                 className="btn w-full"
-                onClick={() => download(new Blob([toSrt(plan.captions)], { type: 'text/plain' }), `${name}.srt`)}
+                onClick={() =>
+                  download(new Blob([toSrt(plan.captions.filter((c) => !c.nameplate))], { type: 'text/plain' }), `${name}.srt`)
+                }
               >
-                <Captions className="size-4" /> Captions (.srt)
+                <Captions className="size-3.5" /> Captions .srt
               </button>
             )}
             <button
@@ -180,22 +191,37 @@ export function ExportDialog() {
                 download(encodeWav([mix.getChannelData(0), mix.getChannelData(1)], mix.sampleRate), `${name}.wav`)
               }}
             >
-              <FileAudio className="size-4" /> Soundtrack (.wav)
+              <FileAudio className="size-3.5" /> Soundtrack .wav
             </button>
-            <button className="btn btn-ghost w-full" onClick={() => setResult(null)}>
+            <button className="btn btn-bare w-full" onClick={() => setResult(null)}>
               Export again
             </button>
           </div>
         </div>
       ) : (
-        <div className="mt-5 space-y-4">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-px bg-line-2">
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                className={cx('bg-bg px-3 py-2.5 text-left transition-colors', preset?.id === p.id ? 'bg-ink text-bg' : 'hover:bg-bg-2')}
+                onClick={() => {
+                  updateSettings({ aspect: p.aspect })
+                  set(p.ex)
+                }}
+              >
+                <div className="head text-xl">{p.name}</div>
+                <div className={cx('tag mt-1', preset?.id === p.id && 'text-bg/70')}>{p.note}</div>
+              </button>
+            ))}
+          </div>
           <div className="space-y-1.5">
-            <div className="text-xs font-medium text-ink-2">Resolution</div>
+            <div className="tag">Resolution</div>
             <Seg value={ex.resolution} onChange={(resolution) => set({ resolution })} options={resolutions} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <div className="text-xs font-medium text-ink-2">Frame rate</div>
+              <div className="tag">Frames / sec</div>
               <Seg
                 value={ex.fps}
                 onChange={(fps) => set({ fps })}
@@ -207,7 +233,7 @@ export function ExportDialog() {
               />
             </div>
             <div className="space-y-1.5">
-              <div className="text-xs font-medium text-ink-2">Quality</div>
+              <div className="tag">Quality</div>
               <Seg
                 value={ex.quality}
                 onChange={(quality) => set({ quality })}
@@ -219,31 +245,23 @@ export function ExportDialog() {
               />
             </div>
           </div>
-          <p className="font-mono text-[0.7rem] text-ink-3">
-            ≈ {mbps} Mbps · about {estimateMb < 1 ? estimateMb.toFixed(1) : Math.round(estimateMb)} MB
+          <p className="tag">
+            {size.width}×{size.height} · ≈ {mbps} Mbps · about {estimateMb < 1 ? estimateMb.toFixed(1) : Math.round(estimateMb)} MB
           </p>
-
           {progress ? (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <Loader2 className="size-4 animate-spin" /> {progress.stage}
-                </span>
-                <span className="font-mono text-xs">{Math.round(progress.fraction * 100)}%</span>
+              <div className="flex items-baseline justify-between">
+                <span className="head text-2xl">{progress.stage}</span>
+                <span className="mono text-sm">{Math.round(progress.fraction * 100)}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-well">
-                <div
-                  className="h-full rounded-full bg-accent transition-[width] duration-200"
-                  style={{ width: `${progress.fraction * 100}%` }}
-                />
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => abortRef.current?.abort()}>
+              <Progress value={progress.fraction} className="h-2" />
+              <button className="btn btn-bare btn-sm" onClick={() => abortRef.current?.abort()}>
                 Cancel
               </button>
             </div>
           ) : (
-            <button className={cx('btn btn-primary btn-xl w-full')} onClick={() => void start()} disabled={!plan}>
-              <Film className="size-5" /> Render MP4
+            <button className="slab w-full" onClick={() => void start()} disabled={!plan}>
+              Render <Film className="size-6" />
             </button>
           )}
         </div>

@@ -1,50 +1,50 @@
-import { X } from 'lucide-react'
 import { setState, useApp } from '../state/store'
 import { Modal } from './Modal'
 import { Kbd } from './ui'
 
 const KEYS: [string[], string][] = [
   [['Space'], 'Play / pause'],
-  [['R'], 'Remix (new draft, keeps locked shots)'],
+  [['R'], 'Remix: shoot a new take, locked shots stay'],
+  [['C'], 'Compare: flip to the previous take'],
   [['E'], 'Export'],
-  [['D'], 'Director mode'],
-  [['[', ']'], 'Previous / next draft'],
+  [['D'], 'Director'],
+  [['[', ']'], 'Previous / next take'],
   [['←', '→'], 'Previous / next shot'],
   [['S'], 'Split the shot at the playhead'],
   [['L'], 'Lock / unlock the shot'],
   [['⌫'], 'Remove the shot'],
-  [['⌘', 'Z'], 'Undo (⇧ to redo)'],
+  [['⌘', 'Z'], 'Undo (with ⇧ to redo)'],
   [['⌘', '.'], 'Change the look'],
-  [['?'], 'This help'],
+]
+
+const ARC: [string, string][] = [
+  ['Cold open', 'A split second of the action, so nobody scrolls past.'],
+  ['Intro', 'Long holds on bar lines, slowed and often in black and white: meet the fighter.'],
+  ['Build', 'Cuts tighten into the drop, half-beats at the end, the picture flickering with the track.'],
+  ['Drop', 'The single best moment in your footage lands on it: colour slams back, often a freeze-frame.'],
+  ['Flurry', 'The action after the drop, cut on the strongest beats rather than a fixed count.'],
+  ['Outro', 'One last held shot, slowed, fading out.'],
 ]
 
 export function HelpDialog() {
   const open = useApp((s) => s.helpOpen)
   if (!open) return null
-  const close = () => setState({ helpOpen: false })
   return (
-    <Modal onClose={close} labelledBy="help-title">
-      <div className="flex items-start justify-between">
-        <h2 id="help-title" className="display text-xl">
-          How AutoClip cuts
-        </h2>
-        <button className="btn btn-ghost btn-icon" onClick={close} aria-label="Close">
-          <X className="size-4" />
-        </button>
-      </div>
-      <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-snug text-ink-2">
-        <li>It finds the tempo, beats, bars, sections and drops in your song, and picks the best part for the length you want.</li>
-        <li>
-          It scores every second of your footage for motion, bursts of action, crowd noise and sharpness, and spots cuts already inside
-          clips.
-        </li>
-        <li>
-          Cuts land on the beat: slower in quiet parts, every beat in drops, speeding up through builds. The best moment in all your footage
-          goes on the drop.
-        </li>
-        <li>Effects follow the music: punches on beats, shakes and flashes on hits. Remix for a new take; lock shots you love first.</li>
+    <Modal onClose={() => setState({ helpOpen: false })} title="How it cuts" kicker="The playbook">
+      <ol className="space-y-2.5">
+        {ARC.map(([name, body], i) => (
+          <li key={name} className="grid grid-cols-[2rem_6rem_1fr] items-baseline gap-2 border-b border-line pb-2.5">
+            <span className="tag text-signal">{String(i + 1).padStart(2, '0')}</span>
+            <span className="head text-xl">{name}</span>
+            <span className="text-sm leading-snug text-ink-2">{body}</span>
+          </li>
+        ))}
       </ol>
-      <h3 className="label mt-6 mb-2">Shortcuts</h3>
+      <p className="mt-4 text-sm leading-snug text-ink-2">
+        Wrong drop? Put the playhead on it and press <b>Drop is here</b> on the tape. Want a specific clip on the drop? Mark it <b>Hero</b>{' '}
+        in the footage list.
+      </p>
+      <h3 className="tag mt-6 mb-2">Keys</h3>
       <div className="grid gap-1.5 text-sm">
         {KEYS.map(([keys, what]) => (
           <div key={what} className="flex items-center justify-between gap-4">

@@ -1,6 +1,7 @@
 import { DropOverlay } from './components/DropOverlay'
 import { ExportDialog } from './components/ExportDialog'
 import { HelpDialog } from './components/HelpDialog'
+import { LearnDialog } from './components/LearnDialog'
 import { LinkDialog } from './components/LinkDialog'
 import { BeatPulse } from './components/shell/common'
 import { DeckShell } from './components/shell/Deck'
@@ -13,6 +14,8 @@ import { usePasteLinks } from './hooks/usePasteLinks'
 import { useTakePosters } from './hooks/useTakePosters'
 import { useLook } from './hooks/useTheme'
 import { useApp } from './state/store'
+// Learned styles must be registered before the first plan is made.
+import './state/styles'
 
 const SHELLS = { deck: DeckShell, studio: StudioShell, flyer: FlyerShell, glass: GlassShell }
 
@@ -31,6 +34,7 @@ export default function App() {
       <ExportDialog />
       <HelpDialog />
       <LinkDialog />
+      <LearnDialog />
       <DropOverlay />
       <Toasts />
     </div>

@@ -1,143 +1,158 @@
-// Takes: every version of the edit, laid out like film slates. Remix shoots a new take (locked shots
-// stay), and you can flip between takes, star keepers, rename, duplicate or bin them.
+// Takes: every version of the edit. The Cut / Remix button shoots a new one; the list switches
+// between them (pads on Deck, tabs on Studio, polaroids on Flyer, pills on Glass); one toolbar stars,
+// duplicates, renames and deletes the take on screen.
 
-import { Copy, Download, Star, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Copy, Download, PencilLine, Star, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import type { LayoutId } from '../hooks/useTheme'
 import { getStyle } from '../lib/edit/presets'
 import { deleteDraft, duplicateDraft, makeEdit, selectDraft } from '../state/actions'
-import { playhead } from '../state/playhead'
-import { setState, updateDraft, useApp, type Draft } from '../state/store'
+import { activeDraft, setState, updateDraft, useApp, type Draft } from '../state/store'
 import { cx } from './format'
 
-function Slate({ d, n, active }: { d: Draft; n: number; active: boolean }) {
-  const [editing, setEditing] = useState(false)
-  const locked = d.plan.shots.filter((s) => s.locked).length
+export function CutButton({ className, label }: { className?: string; label?: [string, string] }) {
+  const takes = useApp((s) => s.drafts.length)
+  const canEdit = useApp((s) => !!s.song?.analysis && s.clips.some((c) => c.status === 'ready'))
+  const [first, again] = label ?? ['Cut it', 'Remix']
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => selectDraft(d.id)}
-      onKeyDown={(e) => e.key === 'Enter' && selectDraft(d.id)}
-      className={cx(
-        'group relative flex w-52 shrink-0 border bg-bg-2 transition-colors',
-        active ? 'border-ink' : 'border-line hover:border-line-2',
-      )}
+    <button
+      className={cx('slab', className)}
+      disabled={!canEdit}
+      onClick={() => makeEdit({ remix: takes > 0 })}
+      title="Shoot a new take (R)"
     >
-      <div className="relative w-12 shrink-0 overflow-hidden bg-bg-3">
-        {d.thumb ? <img src={d.thumb} alt="" className="size-full object-cover" /> : <div className="halftone size-full" />}
-      </div>
-      <div className="min-w-0 flex-1">
-        {/* Clapperboard stripes; the active take's are in signal colour. */}
-        <div
-          className="h-1.5"
-          style={{
-            backgroundImage: `repeating-linear-gradient(-45deg, ${active ? 'var(--signal)' : 'var(--ink-3)'} 0 6px, transparent 6px 12px)`,
-          }}
-        />
-        <div className="px-2 pt-1 pb-1">
-          <div className="flex items-center gap-1">
-            <span className="head text-lg">Take {String(n).padStart(2, '0')}</span>
-            {d.starred && <Star className="size-3 fill-signal text-signal" />}
-            {/* Always visible: star, duplicate, delete. */}
-            <span className="ml-auto flex items-center">
-              {[
-                {
-                  icon: Star,
-                  title: d.starred ? 'Unstar' : 'Star: keep this take (a re-cut never replaces it)',
-                  act: () => updateDraft(d.id, { starred: !d.starred }),
-                  hot: false,
-                },
-                { icon: Copy, title: 'Duplicate', act: () => duplicateDraft(d.id), hot: false },
-                { icon: Trash2, title: 'Delete this take (Shift+⌫)', act: () => deleteDraft(d.id), hot: true },
-              ].map(({ icon: Icon, title, act, hot }) => (
-                <button
-                  key={title}
-                  title={title}
-                  aria-label={title}
-                  className={cx(
-                    'grid size-5 place-items-center text-ink-3 transition-colors',
-                    hot ? 'hover:text-signal' : 'hover:text-ink',
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    act()
-                  }}
-                >
-                  <Icon className="size-3" />
-                </button>
-              ))}
-            </span>
-          </div>
-          {editing ? (
-            <input
-              autoFocus
-              className="field h-5 px-1 py-0 text-[0.7rem]"
-              defaultValue={d.name}
-              onClick={(e) => e.stopPropagation()}
-              onBlur={(e) => {
-                updateDraft(d.id, { name: e.target.value.trim() || d.name })
-                setEditing(false)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur()
-                if (e.key === 'Escape') setEditing(false)
-              }}
-            />
-          ) : (
-            <div className="tag truncate" onDoubleClick={() => setEditing(true)} title="Double-click to rename">
-              {d.name.replace(/ #\d+$/, '') || getStyle(d.style).name} · {d.plan.shots.length} shots{d.edited ? ' · edited' : ''}
-              {locked ? ` · ${locked} locked` : ''}
-            </div>
-          )}
-        </div>
-      </div>
+      {takes ? again : first}
+    </button>
+  )
+}
+
+export function ExportButton({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const has = useApp((s) => !!s.activeDraftId)
+  return (
+    <button className={cx('btn', className)} disabled={!has} onClick={() => setState({ exportOpen: true })} title="Export (E)">
+      {children ?? (
+        <>
+          <Download className="size-3.5" /> Export
+        </>
+      )}
+    </button>
+  )
+}
+
+export function TakeActions({ className }: { className?: string }) {
+  const d = useApp((s) => activeDraft(s))
+  const [renaming, setRenaming] = useState(false)
+  if (!d) return null
+  if (renaming)
+    return (
+      <input
+        autoFocus
+        className={cx('field h-7 w-36 py-0 text-xs', className)}
+        defaultValue={d.name}
+        onBlur={(e) => {
+          updateDraft(d.id, { name: e.target.value.trim() || d.name })
+          setRenaming(false)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+          if (e.key === 'Escape') setRenaming(false)
+        }}
+      />
+    )
+  const items = [
+    {
+      icon: Star,
+      title: d.starred ? 'Unstar' : 'Star: keep this take (a re-cut never replaces it)',
+      act: () => updateDraft(d.id, { starred: !d.starred }),
+      on: d.starred,
+    },
+    { icon: PencilLine, title: 'Rename', act: () => setRenaming(true) },
+    { icon: Copy, title: 'Duplicate', act: () => duplicateDraft(d.id) },
+    { icon: Trash2, title: 'Delete this take (Shift+⌫)', act: () => deleteDraft(d.id), danger: true },
+  ]
+  return (
+    <div className={cx('take-actions flex items-center', className)}>
+      {items.map(({ icon: Icon, title, act, on, danger }) => (
+        <button
+          key={title}
+          title={title}
+          aria-label={title}
+          onClick={act}
+          className={cx('btn btn-bare btn-sm btn-sq', on && 'text-signal', danger && 'hover:text-signal')}
+        >
+          <Icon className={cx('size-3.5', on && 'fill-current')} />
+        </button>
+      ))}
     </div>
   )
 }
 
-export function Drafts() {
+const label = (d: Draft) => d.name.replace(/ #\d+$/, '') || getStyle(d.style).name
+
+function TakeItem({ d, n, active, variant }: { d: Draft; n: number; active: boolean; variant: LayoutId }) {
+  const num = String(n).padStart(2, '0')
+  const common = {
+    role: 'tab',
+    'aria-selected': active,
+    onClick: () => selectDraft(d.id),
+    title: `${label(d)} · ${d.plan.shots.length} shots${d.edited ? ' · edited' : ''}`,
+  } as const
+  switch (variant) {
+    case 'deck':
+      return (
+        <button {...common} className="deck-pad" data-on={active}>
+          <span className="deck-pad-led" />
+          <span className="lcd text-lg leading-none">{num}</span>
+          <span className="tag truncate">{label(d)}</span>
+          {d.starred && <Star className="absolute top-1.5 right-1.5 size-2.5 fill-current text-signal" />}
+        </button>
+      )
+    case 'studio':
+      return (
+        <button {...common} className="studio-tab" data-on={active}>
+          {d.thumb ? (
+            <img src={d.thumb} alt="" className="h-6 w-4 rounded-[2px] object-cover" />
+          ) : (
+            <span className="h-6 w-4 rounded-[2px] bg-bg-3" />
+          )}
+          <span className="whitespace-nowrap">Take {n}</span>
+          <span className="text-ink-3">{label(d)}</span>
+          {d.starred && <Star className="size-3 fill-current text-signal" />}
+        </button>
+      )
+    case 'flyer':
+      return (
+        <button {...common} className="flyer-polaroid" data-on={active} style={{ ['--tilt' as string]: `${((n * 37) % 9) - 4}deg` }}>
+          <span className="flyer-polaroid-img">{d.thumb ? <img src={d.thumb} alt="" /> : null}</span>
+          <span className="flyer-polaroid-cap">
+            take {num}
+            {d.starred ? ' ★' : ''}
+          </span>
+        </button>
+      )
+    case 'glass':
+      return (
+        <button {...common} className="glass-pill" data-on={active}>
+          {d.thumb ? (
+            <img src={d.thumb} alt="" className="size-6 rounded-full object-cover" />
+          ) : (
+            <span className="size-6 rounded-full bg-bg-3" />
+          )}
+          <span>{n}</span>
+          {d.starred && <Star className="size-3 fill-current" />}
+        </button>
+      )
+  }
+}
+
+export function TakeList({ variant, className }: { variant: LayoutId; className?: string }) {
   const drafts = useApp((s) => s.drafts)
   const activeId = useApp((s) => s.activeDraftId)
-  const canEdit = useApp((s) => !!s.song?.analysis && s.clips.some((c) => c.status === 'ready'))
-
-  // Give each take a poster: its drop, once that frame has actually rendered.
-  useEffect(() => {
-    const d = drafts.find((x) => x.id === activeId)
-    if (!d || d.thumb) return
-    const hero = d.plan.hits.find((h) => h.kind === 'drop')?.time ?? (d.plan.shots[1]?.start ?? 0) + 0.2
-    let cancelled = false
-    const timer = setTimeout(() => {
-      playhead.engine?.capture(hero + 0.3).then((thumb) => !cancelled && updateDraft(d.id, { thumb }))
-    }, 400)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [activeId, drafts])
-
   return (
-    <div className="flex h-[4.6rem] shrink-0 items-stretch gap-3 border-t border-line px-3 py-2.5">
-      <button
-        className="slab min-w-44"
-        disabled={!canEdit}
-        onClick={() => makeEdit({ remix: drafts.length > 0 })}
-        title="Shoot a new take (R)"
-      >
-        {drafts.length ? 'Remix' : 'Cut it'}
-        <span className="mono text-[0.6rem] tracking-widest opacity-70">R</span>
-      </button>
-      <button className="btn h-auto" disabled={!activeId} onClick={() => setState({ exportOpen: true })} title="Export (E)">
-        <Download className="size-3.5" /> Export
-      </button>
-      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto">
-        {drafts.length === 0 ? (
-          <div className="tag flex flex-1 items-center border border-dashed border-line px-3">
-            Takes line up here. Every remix is kept, so you can compare.
-          </div>
-        ) : (
-          drafts.map((d, i) => <Slate key={d.id} d={d} n={i + 1} active={d.id === activeId} />)
-        )}
-      </div>
+    <div className={cx('take-list', `take-list-${variant}`, className)} role="tablist" aria-label="Takes">
+      {drafts.map((d, i) => (
+        <TakeItem key={d.id} d={d} n={i + 1} active={d.id === activeId} variant={variant} />
+      ))}
     </div>
   )
 }

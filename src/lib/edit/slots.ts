@@ -1,13 +1,23 @@
-// Slots: the empty shots of the edit, before any footage is chosen. This is where the music decides
-// the rhythm: every boundary sits on a beat, quiet parts hold longer, drops cut on every beat, builds
-// accelerate into the drop, and the first shot of each drop is held as the hero moment.
+// Slots: the empty shots of the edit, before any footage is chosen.
+//
+// An edit is planned as an arc, the way people cut fight and sports edits by hand:
+//
+//   tease   a split-second flash of the action to stop the scroll (some styles)
+//   intro   long holds, often slowed and in black and white, to meet the subject
+//   build   the bars before the drop, cutting faster and faster, flickering with tension
+//   hero    the drop itself: the single best moment in the footage, held, often frozen
+//   flurry  the action after the drop, cut on the strongest beats, not on a fixed grid
+//   ride    steadier cutting between drops
+//   outro   one last held shot, slowed, fading out
+//
+// Every boundary sits on a beat (half-beats only in the last moments of a build).
 
-import type { Hit, SectionLabel, SongAnalysis } from '../types'
+import type { Hit, ShotPhase, SongAnalysis } from '../types'
 import type { StylePreset } from './presets'
 import type { Rng } from './rng'
 import type { SongWindow } from './window'
 
-export type SlotRole = 'hero' | 'build' | 'drop' | 'normal' | 'calm' | 'intro'
+export type SlotRole = ShotPhase
 
 export interface Slot {
   /** Seconds from the edit's start. */
@@ -15,147 +25,206 @@ export interface Slot {
   end: number
   /** Loudness under the slot, 0–1. */
   energy: number
-  section: SectionLabel
   role: SlotRole
-  /** First slot of a section: a good place for a bigger transition. */
+  /** First slot of a phase: a good place for a bigger transition. */
   sectionStart: boolean
   /** First slot of a drop. */
   dropStart: boolean
+  /** Seconds after `start` where the strongest beat inside the slot lands: the action should hit here. */
+  accent: number
+  /** 0–1 position inside the build (for ramping effects). */
+  buildProgress?: number
   /** Human-readable "why this cut is here". */
   reason: string
 }
 
-type Level = 'low' | 'mid' | 'high'
-
-function levelOf(label: SectionLabel, energy: number): Level {
-  if (label === 'drop' || energy >= 0.75) return 'high'
-  if (label === 'intro' || label === 'outro' || label === 'break' || energy < 0.45) return 'low'
-  return 'mid'
+interface Region {
+  start: number
+  end: number
+  phase: SlotRole
 }
+
+const MAX_ANCHORS = 3
 
 export function buildSlots(song: SongAnalysis, window: SongWindow, style: StylePreset, rng: Rng): Slot[] {
   const { start: w0, end: w1 } = window
-  const beats = song.beats.filter((b) => b.time >= w0 - 0.01 && b.time < w1 - 0.05)
-  // Every possible cut point, in song time: the edit edges plus every beat inside.
-  const beatTimes = beats.map((b) => b.time)
-  if (!beatTimes.length || beatTimes[0] > w0 + 0.05) beatTimes.unshift(w0)
-  const beatPeriod = 60 / Math.max(40, song.bpm)
+  const W = w1 - w0
+  const bp = 60 / Math.max(40, song.bpm)
+  const bar = bp * 4
 
-  const sectionAt = (t: number) => song.sections.find((s) => t >= s.start - 0.01 && t < s.end) ?? song.sections.at(-1)!
-  const dropTimes = song.drops.map((d) => d.time).filter((t) => t > w0 + 0.1 && t < w1 - 0.1)
-  const isDownbeat = (t: number) => beats.some((b) => b.kind === 'downbeat' && Math.abs(b.time - t) < 0.02)
-  const energyBetween = (a: number, b: number) => {
-    const i0 = Math.floor(a / song.envelopeRate)
-    const i1 = Math.max(i0 + 1, Math.floor(b / song.envelopeRate))
+  const beats = song.beats.filter((b) => b.time >= w0 - 0.02 && b.time < w1 - 0.05).map((b) => ({ ...b, t: Math.max(0, b.time - w0) }))
+  const beatT = beats.map((b) => b.t)
+  if (!beatT.length || beatT[0] > 0.05) beatT.unshift(0)
+  const downT = beats.filter((b) => b.kind === 'downbeat').map((b) => b.t)
+
+  const nearest = (xs: number[], t: number) => xs.reduce((a, b) => (Math.abs(b - t) < Math.abs(a - t) ? b : a), xs[0] ?? t)
+  const snap = (t: number) => (t >= W - 0.05 ? W : nearest(beatT, t))
+  const strengthAt = (t: number) => beats.find((b) => Math.abs(b.t - t) < 0.03)?.strength ?? 0
+  const env = (a: number, b: number) => {
+    const i0 = Math.max(0, Math.floor((a + w0) / song.envelopeRate))
+    const i1 = Math.max(i0 + 1, Math.floor((b + w0) / song.envelopeRate))
     let s = 0
     for (let i = i0; i < i1; i++) s += song.envelope[i] ?? 0
     return s / (i1 - i0)
   }
 
-  // Boundaries in song time, built section by section.
-  const cuts = new Set<number>([w0])
-  const sections = song.sections.filter((s) => s.end > w0 && s.start < w1)
-  for (const sec of sections) {
-    const s0 = Math.max(w0, sec.start)
-    const s1 = Math.min(w1, sec.end)
-    const inSec = beatTimes.filter((t) => t >= s0 - 0.01 && t < s1 - 0.01)
-    if (!inSec.length) continue
-    cuts.add(inSec[0])
-    const level = levelOf(sec.label, sec.energy)
-    const step = style.pacing[level]
-
-    // Long holds start on bar lines so the cuts feel phrased, not just counted.
-    let i = 0
-    if (step >= 4) {
-      const firstDown = inSec.findIndex(isDownbeat)
-      if (firstDown > 0) {
-        cuts.add(inSec[firstDown])
-        i = firstDown
-      }
+  // ——— Anchors: the moments the edit is built around ———
+  let anchors = song.drops
+    .map((d) => ({ t: d.time - w0, strength: d.strength }))
+    .filter((d) => d.t > bar * 0.9 && d.t < W - bar)
+    .sort((a, b) => b.strength - a.strength)
+  if (!anchors.length) {
+    // No detected drop in range: use the biggest lift in loudness, or a third of the way in.
+    let best = { t: nearest(downT.length ? downT : beatT, W * 0.35), strength: 0 }
+    for (const t of downT.length ? downT : beatT) {
+      if (t < W * 0.2 || t > W * 0.6) continue
+      const lift = env(t, t + 2) - env(t - 2, t)
+      if (lift > best.strength) best = { t, strength: lift }
     }
-    for (; i < inSec.length; i += step) {
-      cuts.add(inSec[i])
-      // Accents: in loud parts, a strong beat sometimes gets an extra cut halfway through its shot
-      // (on the next beat for two-beat shots, on the off-beat for one-beat shots).
-      if (level === 'high' && style.doubleTime > 0 && step <= 2 && i + 1 < inSec.length) {
-        const beat = beats.find((b) => Math.abs(b.time - inSec[i]) < 0.02)
-        if (beat && beat.strength > 0.6 && rng() < style.doubleTime) cuts.add(step === 2 ? inSec[i + 1] : (inSec[i] + inSec[i + 1]) / 2)
-      }
-    }
+    anchors = [{ t: best.t, strength: 1 }]
   }
+  const kept: typeof anchors = []
+  for (const a of anchors) if (kept.length < MAX_ANCHORS && kept.every((k) => Math.abs(k.t - a.t) >= bar * 8)) kept.push(a)
+  kept.sort((a, b) => a.t - b.t)
 
-  // Build roll: in the two bars before a drop, cut every two beats, then every beat, then every half beat.
-  const rollZones: [number, number][] = []
-  if (style.buildRoll) {
-    for (const drop of dropTimes) {
-      const rollStart = Math.max(w0, drop - beatPeriod * 8)
-      rollZones.push([rollStart, drop])
-      for (const t of [...cuts]) if (t > rollStart + 0.01 && t < drop - 0.01) cuts.delete(t)
-      for (let k = 8; k >= 1; k--) {
-        const t = drop - k * beatPeriod
-        if (t < rollStart - 0.01) continue
-        if (k > 4 && k % 2 === 1) continue // every two beats in the first bar
-        cuts.add(t)
-        if (k <= 2) cuts.add(t + beatPeriod / 2) // half beats on the final two
-      }
-    }
+  // ——— Regions ———
+  const regions: Region[] = []
+  let cursor = 0
+  // Reserve the ending first, so the action never runs straight into the last frame.
+  // Short edits get a short outro: about a seventh of the edit, in whole bars or half bars.
+  const outroBeats = Math.max(2, Math.min(style.outro.beats, Math.round(((W / bp) * 0.15) / 2) * 2))
+  const lastHero = kept[kept.length - 1].t + style.hero.beats * bp
+  const reserveOutro = W - lastHero > outroBeats * bp + bar
+  const outroAt = reserveOutro ? nearest(downT.length ? downT : beatT, W - outroBeats * bp) : W
+  const teaseLen = style.coldOpen && kept[0].t >= bar * 4 ? snap(bp) : 0
+  if (teaseLen > 0) {
+    regions.push({ start: 0, end: teaseLen, phase: 'tease' })
+    cursor = teaseLen
   }
-
-  // The drop's hero shot: no cuts for `heroBeats` after the drop.
-  for (const drop of dropTimes) {
-    cuts.add(drop)
-    const heroEnd = drop + style.heroBeats * beatPeriod
-    for (const t of [...cuts]) if (t > drop + 0.01 && t < heroEnd - 0.01) cuts.delete(t)
-    if (heroEnd < w1 - 0.05) cuts.add(heroEnd)
-  }
-
-  const sorted = [...cuts].filter((t) => t >= w0 - 0.01 && t < w1 - 0.05).sort((a, b) => a - b)
-  // Never leave a sliver: merge anything shorter than a third of a beat into its neighbour.
-  const merged: number[] = []
-  for (const t of sorted) if (!merged.length || t - merged[merged.length - 1] >= beatPeriod * 0.34) merged.push(t)
-  if (merged.length > 1 && w1 - merged[merged.length - 1] < beatPeriod * 0.5) merged.pop()
-
-  return merged.map((t, i) => {
-    const end = merged[i + 1] ?? w1
-    const sec = sectionAt(t + 0.01)
-    const level = levelOf(sec.label, sec.energy)
-    const dropStart = dropTimes.some((d) => Math.abs(d - t) < 0.02)
-    const inRoll = rollZones.some(([a, b]) => t >= a - 0.01 && t < b - 0.01)
-    const sectionStart = i === 0 || song.sections.some((s) => Math.abs(s.start - t) < 0.05)
-    let role: SlotRole
-    let reason: string
-    const beats = Math.round(((end - t) / beatPeriod) * 2) / 2
-    const beatsLabel = beats === 1 ? '1 beat' : `${beats} beats`
-    if (dropStart) {
-      role = 'hero'
-      reason = `Drop lands here, so the best moment in your footage goes on it (${beatsLabel})`
-    } else if (inRoll) {
-      role = 'build'
-      reason = 'Build-up: cuts speed up into the drop'
-    } else if (i === 0) {
-      role = 'intro'
-      reason = `Opening shot, held for ${beatsLabel}`
-    } else if (level === 'high') {
-      role = 'drop'
-      reason = end - t < beatPeriod * 0.9 ? 'Extra cut on a strong accent' : `Loud part: a cut every ${beatsLabel}`
-    } else if (level === 'low') {
-      role = 'calm'
-      reason = `Quiet part: shot held for ${beatsLabel}`
-    } else {
-      role = 'normal'
-      reason = `Cut on the beat, ${beatsLabel}`
-    }
-    return {
-      start: t - w0,
-      end: end - w0,
-      energy: energyBetween(t, end),
-      section: sec.label,
-      role,
-      sectionStart,
-      dropStart,
-      reason,
-    }
+  kept.forEach((a, i) => {
+    const buildStart = Math.max(cursor, snap(a.t - style.build.bars * bar))
+    if (buildStart - cursor > bp * 0.9) regions.push({ start: cursor, end: buildStart, phase: i === 0 ? 'intro' : 'ride' })
+    if (a.t - buildStart > bp * 0.9) regions.push({ start: buildStart, end: a.t, phase: 'build' })
+    const heroEnd = Math.min(W, snap(a.t + style.hero.beats * bp))
+    regions.push({ start: a.t, end: heroEnd, phase: 'hero' })
+    const nextBuild = kept[i + 1] ? snap(kept[i + 1].t - style.build.bars * bar) : outroAt
+    const flurryEnd = Math.min(nextBuild, W, snap(heroEnd + style.flurry.bars * bar))
+    if (flurryEnd - heroEnd > bp * 0.9) regions.push({ start: heroEnd, end: flurryEnd, phase: 'flurry' })
+    cursor = Math.max(heroEnd, flurryEnd)
   })
+  // The ending: whatever's left rides, then one held outro shot on a bar line.
+  const outroStart = reserveOutro ? Math.max(outroAt, cursor) : W
+  if (outroStart - cursor > bp * 0.9) regions.push({ start: cursor, end: outroStart, phase: 'ride' })
+  if (W - Math.max(cursor, outroStart) > bp * 0.9) regions.push({ start: Math.max(cursor, outroStart), end: W, phase: 'outro' })
+  else if (regions.length) regions[regions.length - 1].end = W
+
+  // ——— Cuts inside each region ———
+  const slots: Slot[] = []
+  const push = (start: number, end: number, role: SlotRole, first: boolean, extra: Partial<Slot> = {}) => {
+    if (end - start < 0.05) return
+    // The strongest beat inside the slot is where the action should land.
+    let accent = 0
+    let accentStrength = -1
+    for (const b of beats) {
+      if (b.t < start - 0.01 || b.t >= end - 0.05) continue
+      if (b.strength > accentStrength + 0.08) {
+        accentStrength = b.strength
+        accent = b.t - start
+      }
+    }
+    slots.push({ start, end, role, energy: env(start, end), sectionStart: first, dropStart: role === 'hero', accent, reason: '', ...extra })
+  }
+
+  for (const r of regions) {
+    switch (r.phase) {
+      case 'tease':
+      case 'hero':
+      case 'outro':
+        push(r.start, r.end, r.phase, true)
+        break
+      case 'intro': {
+        // Long holds starting on bar lines.
+        let t = r.start
+        let first = true
+        while (t < r.end - 0.05) {
+          let next = snap(t + style.intro.beats * bp)
+          const onBar = downT.filter((d) => d > t + bp * 2 && d <= next + bp * 1.5)
+          if (onBar.length) next = onBar[onBar.length - 1]
+          if (next <= t + 0.05 || r.end - next < bp * 1.5) next = r.end
+          push(t, Math.min(next, r.end), 'intro', first)
+          first = false
+          t = next
+        }
+        break
+      }
+      case 'build': {
+        // Lay the acceleration pattern backwards from the drop so the fastest cuts land right before it.
+        const len = r.end - r.start
+        const cuts: number[] = []
+        let t = r.end
+        for (const beatsLen of [...style.build.pattern].reverse()) {
+          const prev = t - beatsLen * bp
+          if (prev < r.start + bp * 0.4) break
+          cuts.unshift(beatsLen >= 1 ? snap(prev) : prev)
+          t = prev
+        }
+        const bounds = [r.start, ...cuts.filter((c) => c > r.start + 0.05 && c < r.end - 0.05), r.end]
+        for (let i = 0; i < bounds.length - 1; i++) {
+          push(bounds[i], bounds[i + 1], 'build', i === 0, { buildProgress: len > 0 ? (bounds[i] - r.start) / len : 0 })
+        }
+        break
+      }
+      case 'flurry':
+      case 'ride': {
+        // Cut on accents: from each cut, try the allowed shot lengths and take the one that lands on
+        // the strongest beat (with a little variety), instead of counting a fixed grid.
+        const quiet = r.phase === 'ride' && env(r.start, r.end) < 0.45
+        const choices = (r.phase === 'flurry' ? style.flurry.choices : style.ride.choices).map((c) => (quiet ? c * 2 : c))
+        let t = r.start
+        let first = true
+        while (t < r.end - 0.05) {
+          let best = { at: r.end, score: -Infinity }
+          for (const c of choices) {
+            const at = snap(t + c * bp)
+            if (at <= t + 0.05) continue
+            const score = strengthAt(at) + rng() * 0.35 + (at >= r.end - 0.05 ? 0.2 : 0)
+            if (score > best.score) best = { at: Math.min(at, r.end), score }
+          }
+          let next = best.at
+          if (r.end - next < bp * 0.6) next = r.end
+          push(t, next, r.phase, first)
+          first = false
+          t = next
+        }
+        break
+      }
+    }
+  }
+
+  // Merge any sliver into its neighbour.
+  for (let i = slots.length - 1; i > 0; i--) {
+    if (slots[i].end - slots[i].start < bp * 0.3 && slots[i].role !== 'build') {
+      slots[i - 1].end = slots[i].end
+      slots.splice(i, 1)
+    }
+  }
+
+  const beatsOf = (s: Slot) => {
+    const n = Math.round(((s.end - s.start) / bp) * 2) / 2
+    return n === 1 ? '1 beat' : `${n} beats`
+  }
+  for (const s of slots) {
+    s.reason = {
+      tease: 'Cold open: a flash of the action to stop the scroll',
+      intro: `Intro: held for ${beatsOf(s)} so the viewer meets the subject`,
+      build: 'Build: cuts tighten into the drop',
+      hero: 'The drop: the best moment in your footage lands right on it',
+      flurry: `After the drop: cut on the strongest beat, ${beatsOf(s)}`,
+      ride: `Riding the track: ${beatsOf(s)}`,
+      outro: 'Outro: one last held shot to land the edit',
+    }[s.role]
+  }
+  return slots
 }
 
 /** Accents inside the edit that drive zoom punches and shakes. */

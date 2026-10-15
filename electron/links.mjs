@@ -193,7 +193,7 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
       let err = ''
       child.stdout.on('data', (d) => {
         out += d
-        if (onLine) for (const l of String(d).split(/\r?\n/)) l && onLine(l)
+        if (onLine) for (const l of String(d).split(/\r?\n/)) if (l) onLine(l)
       })
       child.stderr.on('data', (d) => (err += d))
       const kill = () => child.kill()

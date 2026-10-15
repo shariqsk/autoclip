@@ -1,6 +1,6 @@
 // Plain-node checks for the desktop link importer's pure parts (run by vitest).
 import { describe, expect, it } from 'vitest'
-import { chooseFormats, classifyLink, pickMatch } from './links.mjs'
+import { chooseFormats, classifyLink, isTransient, pickMatch } from './links.mjs'
 
 const f = (id, o) => ({ format_id: id, protocol: 'https', url: 'x', ...o })
 
@@ -46,6 +46,17 @@ describe('desktop link importer', () => {
     expect(chooseFormats({ formats: [f('h264_720', { ext: 'mp4', vcodec: 'h264', acodec: 'aac', height: 1024 })] }, 'video')).toEqual([
       { id: 'h264_720', ext: 'mp4', role: 'av' },
     ])
+  })
+
+  it('retries refused or flaky streams, not links that will never work', () => {
+    const e = (m) => new Error(m)
+    expect(isTransient(e('unable to download video data: HTTP Error 403: Forbidden'))).toBe(true)
+    expect(isTransient(e('HTTP Error 429: Too Many Requests'))).toBe(true)
+    expect(isTransient(e('HTTP Error 503: Service Unavailable'))).toBe(true)
+    expect(isTransient(e('Connection reset by peer'))).toBe(true)
+    expect(isTransient(e('Video unavailable. This video is private'))).toBe(false)
+    expect(isTransient(e('HTTP Error 404: Not Found'))).toBe(false)
+    expect(isTransient(e('Cancelled'))).toBe(false)
   })
 })
 

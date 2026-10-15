@@ -18,6 +18,14 @@ import { unzip } from './unzip.mjs'
 
 const RELEASES = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/'
 const REFRESH_DAYS = 14
+const MAX_TRIES = 3
+
+/** Failures worth another go: refused or throttled streams, server hiccups and dropped connections. */
+export function isTransient(err) {
+  return /HTTP Error (403|429|5\d\d)|Forbidden|timed? ?out|Connection (reset|aborted)|Read timed out|IncompleteRead/i.test(
+    err?.message ?? '',
+  )
+}
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
 
 function assetName() {
@@ -247,7 +255,9 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
     if (!link) throw new Error("That doesn't look like a link")
     onProgress({ stage: 'Getting the downloader ready', fraction: null })
     const exe = await ensure((f) => onProgress({ stage: 'Getting the downloader ready (first time only)', fraction: f }))
-    const run = (args, opts) => runWith(exe, args, { signal, ...opts })
+    // Each try below gets its own signal, so a failed try's other downloads stop with it.
+    let trySignal = signal
+    const run = (args, opts) => runWith(exe, args, { signal: trySignal, ...opts })
 
     let target = link.url
     let title = null
@@ -263,15 +273,14 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
       title = `${track.artists.join(', ')} - ${track.title}`
     }
 
-    const dir = path.join(os.tmpdir(), `autoclip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`)
-    await mkdir(dir, { recursive: true })
     const progress =
       (label, slot = 0, slots = 1) =>
       (l) => {
         const pct = parseFloat(l)
         if (!Number.isNaN(pct)) onProgress({ stage: label, fraction: (slot + pct / 100) / slots })
       }
-    try {
+
+    const attempt = async (dir) => {
       if (mode === 'audio') {
         // Songs: one call. Read the link, pick AAC (or the best audio there is) and download it.
         onProgress({ stage: 'Downloading', fraction: null })
@@ -326,8 +335,30 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
         }),
       )
       return { title: title ?? info.title ?? 'Imported', site: link.site, files }
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => {})
+    }
+
+    // YouTube now and then refuses a stream URL it has just handed out (an HTTP 403), and a fresh
+    // read of the link gets new URLs that work. Each try gets an empty folder: with --no-part, a
+    // half-written file left behind would pass for a finished one.
+    for (let tries = 1; ; tries++) {
+      const dir = path.join(os.tmpdir(), `autoclip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`)
+      await mkdir(dir, { recursive: true })
+      const tryCtl = new AbortController()
+      const stop = () => tryCtl.abort()
+      signal?.addEventListener('abort', stop, { once: true })
+      trySignal = tryCtl.signal
+      try {
+        return await attempt(dir)
+      } catch (e) {
+        if (signal?.aborted || tries >= MAX_TRIES || !isTransient(e)) throw e
+        log(`import try ${tries} failed (${e.message}), retrying`)
+        onProgress({ stage: 'The site refused that stream, trying again', fraction: null })
+        await new Promise((r) => setTimeout(r, 400 * tries))
+      } finally {
+        tryCtl.abort()
+        signal?.removeEventListener('abort', stop)
+        await rm(dir, { recursive: true, force: true }).catch(() => {})
+      }
     }
   }
 

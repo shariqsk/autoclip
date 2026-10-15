@@ -31,7 +31,7 @@ export function Modal({
   }, [onClose, closable])
   return createPortal(
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4"
+      className="modal-scrim fixed inset-0 z-50 grid place-items-center p-4"
       onMouseDown={(e) => e.target === e.currentTarget && closable && onClose()}
     >
       <div
@@ -40,12 +40,12 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cx('slam max-h-[92vh] w-full overflow-y-auto border border-line-2 bg-bg outline-none', wide ? 'max-w-4xl' : 'max-w-lg')}
+        className={cx('modal-card rise max-h-[92vh] w-full overflow-y-auto outline-none', wide ? 'max-w-4xl' : 'max-w-lg')}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 pt-4 pb-3">
+        <div className="modal-head flex items-start justify-between gap-4 px-5 pt-4 pb-3">
           <div>
             {kicker && <div className="tag text-signal">{kicker}</div>}
-            <h2 className="head mt-1 text-4xl">{title}</h2>
+            <h2 className="modal-title head mt-1 text-3xl">{title}</h2>
           </div>
           {closable && (
             <button className="btn btn-bare btn-sq" onClick={onClose} aria-label="Close">

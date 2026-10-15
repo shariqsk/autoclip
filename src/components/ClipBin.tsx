@@ -41,7 +41,7 @@ function ActionLine({ clip, used }: { clip: Clip; used: [number, number][] }) {
 function Row({ clip, index, count, used }: { clip: Clip; index: number; count: number; used: [number, number][] }) {
   const thumb = clip.thumbs[Math.min(1, clip.thumbs.length - 1)]
   return (
-    <li className={cx('group relative flex gap-3 border-b border-line px-4 py-2.5', clip.pin === 'skip' && 'opacity-40')}>
+    <li className={cx('clip-row group relative flex gap-3 border-b border-line px-4 py-2.5', clip.pin === 'skip' && 'opacity-40')}>
       {clip.pin === 'hero' && <span className="absolute inset-y-0 left-0 w-1 bg-signal" />}
       <div className="relative h-11 w-[4.4rem] shrink-0 overflow-hidden bg-bg-3">
         {thumb ? <img src={thumb} alt="" className="size-full object-cover" draggable={false} /> : <div className="halftone size-full" />}
@@ -108,11 +108,11 @@ export function ClipBin() {
       .map((s) => [s.srcStart, s.srcStart + sourceDuration(s.speed, s.end - s.start)] as [number, number]) ?? []
 
   return (
-    <section className="flex min-h-0 flex-col">
-      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <div className="rule-head flex-1">
-          <span className="tag text-signal">02</span>
-          <span className="head text-lg">Footage</span>
+    <section className="pane block-footage flex min-h-0 flex-col">
+      <div className="block-top flex items-center gap-2">
+        <div className="block-head flex-1">
+          <span className="block-num">02</span>
+          <h2 className="block-title">Footage</h2>
           <span className="tag">
             {clips.length}
             {watching > 0 && ` · ${watching} in review`}
@@ -148,7 +148,7 @@ export function ClipBin() {
           <Progress value={demo} />
         </div>
       )}
-      <ul className="min-h-0 overflow-y-auto border-t border-line">
+      <ul className="clip-list min-h-0 overflow-y-auto border-t border-line">
         {clips.map((c, i) => (
           <Row key={c.id} clip={c} index={i} count={clips.length} used={usedBy(c.id)} />
         ))}

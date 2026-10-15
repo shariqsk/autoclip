@@ -38,7 +38,7 @@ function Waveform({ plan, width }: { plan: EditPlan; width: number }) {
   )
 }
 
-export function Tape() {
+export function Tape({ className }: { className?: string }) {
   const { draft, plan: rendered } = useRenderProject()
   const director = useApp((s) => s.director)
   const clips = useApp((s) => s.clips)
@@ -128,8 +128,8 @@ export function Tape() {
   }
 
   return (
-    <div className={cx('flex shrink-0 flex-col border-t border-line', director ? 'h-[46vh] min-h-[340px]' : 'h-auto')}>
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-3">
+    <div className={cx('tape flex shrink-0 flex-col', director ? 'h-[46vh] min-h-[340px]' : 'h-auto', className)} data-director={director}>
+      <div className="tape-bar flex h-9 shrink-0 items-center gap-1 border-b border-line px-3">
         <span className="tag mr-1 text-signal">Tape</span>
         <span className="tag hidden lg:inline">Arc · song · shots{plan.captions.length ? ' · text' : ''}</span>
         <div className="ml-auto flex items-center">

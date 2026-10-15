@@ -92,6 +92,17 @@ export function Tape() {
     return out
   }, [plan])
 
+  // Bring the selected shot into view when it changes.
+  useEffect(() => {
+    const el = scrollRef.current
+    const shot = plan?.shots.find((s) => s.id === selected)
+    if (!el || !director || !shot) return
+    const left = shot.start * pxPerSec
+    if (left < el.scrollLeft || left > el.scrollLeft + el.clientWidth - 60) el.scrollLeft = Math.max(0, left - el.clientWidth * 0.3)
+    // Only on selection or zoom changes, not on every plan edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, director, pxPerSec])
+
   // Keep the playhead in view while playing, when zoomed in.
   useEffect(() => {
     const el = scrollRef.current

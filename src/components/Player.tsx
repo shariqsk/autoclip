@@ -22,17 +22,16 @@ function Overlay({ plan, box }: { plan: EditPlan; box: { w: number; h: number } 
   const dropOn = plan.hits.some((h) => h.kind === 'drop' && time >= h.time && time - h.time < 0.25)
   return (
     <div className="pointer-events-none absolute" style={{ width: box.w, height: box.h }}>
-      <div className="mono absolute -top-7 left-0 flex items-center gap-2 text-[0.66rem] tracking-[0.14em] text-ink-2 uppercase">
-        <span className={cx('size-2', playing ? 'tally bg-signal' : 'bg-ink-3')} />
-        {playing ? 'On air' : 'Standby'}
-        <span className="text-ink-3">·</span>
+      <div className="mono absolute -top-7 right-0 left-0 flex items-center gap-2 text-[0.66rem] tracking-[0.14em] whitespace-nowrap text-ink-2 uppercase">
+        <span className={cx('size-2 shrink-0', playing ? 'tally bg-signal' : 'bg-ink-3')} />
+        {box.w > 300 && <span>{playing ? 'On air' : 'Standby'}</span>}
         <span className="text-ink">{timecode(time)}</span>
-      </div>
-      <div className="mono absolute -top-7 right-0 flex items-center gap-2 text-[0.66rem] tracking-[0.14em] uppercase">
-        {shot?.phase && <span className={cx(shot.phase === 'hero' ? 'text-signal' : 'text-ink-2')}>{PHASE_NAMES[shot.phase]}</span>}
+        <span className="ml-auto truncate">
+          {shot?.phase && <span className={cx(shot.phase === 'hero' ? 'text-signal' : 'text-ink-2')}>{PHASE_NAMES[shot.phase]}</span>}
+        </span>
         <span
           className={cx(
-            'size-2 border border-ink-3 transition-colors duration-75',
+            'size-2 shrink-0 border border-ink-3 transition-colors duration-75',
             beatOn && 'border-ink bg-ink',
             dropOn && 'border-signal bg-signal',
           )}

@@ -9,8 +9,7 @@ import { activeDraft, getState, setState } from '../state/store'
 export function useHotkeys(cycleTheme: () => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (el.closest('input, textarea, select, [contenteditable]')) return
+      if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return
       const s = getState()
       if (s.exportOpen) return
       const mod = e.metaKey || e.ctrlKey

@@ -233,10 +233,25 @@ export function compareTakes() {
 }
 
 export function deleteDraft(id: string) {
-  setState((s) => {
-    const drafts = s.drafts.filter((d) => d.id !== id)
-    const activeDraftId = s.activeDraftId === id ? (drafts.at(-1)?.id ?? null) : s.activeDraftId
-    return { drafts, activeDraftId }
+  const s = getState()
+  const index = s.drafts.findIndex((d) => d.id === id)
+  if (index < 0) return
+  const removed = s.drafts[index]
+  const wasActive = s.activeDraftId === id
+  setState((st) => {
+    const drafts = st.drafts.filter((d) => d.id !== id)
+    // Land on the neighbouring take, not the last one.
+    const activeDraftId = st.activeDraftId === id ? (drafts[Math.min(index, drafts.length - 1)]?.id ?? null) : st.activeDraftId
+    return { drafts, activeDraftId, selectedShotId: null }
+  })
+  toast(`Take ${String(index + 1).padStart(2, '0')} deleted.`, 'info', {
+    label: 'Undo',
+    run: () =>
+      setState((st) => {
+        const drafts = [...st.drafts]
+        drafts.splice(Math.min(index, drafts.length), 0, removed)
+        return { drafts, activeDraftId: wasActive ? removed.id : st.activeDraftId }
+      }),
   })
 }
 

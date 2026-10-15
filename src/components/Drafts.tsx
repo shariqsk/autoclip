@@ -19,7 +19,7 @@ function Slate({ d, n, active }: { d: Draft; n: number; active: boolean }) {
       onClick={() => selectDraft(d.id)}
       onKeyDown={(e) => e.key === 'Enter' && selectDraft(d.id)}
       className={cx(
-        'group relative flex w-48 shrink-0 border bg-bg-2 transition-colors',
+        'group relative flex w-52 shrink-0 border bg-bg-2 transition-colors',
         active ? 'border-ink' : 'border-line hover:border-line-2',
       )}
     >
@@ -34,10 +34,39 @@ function Slate({ d, n, active }: { d: Draft; n: number; active: boolean }) {
             backgroundImage: `repeating-linear-gradient(-45deg, ${active ? 'var(--signal)' : 'var(--ink-3)'} 0 6px, transparent 6px 12px)`,
           }}
         />
-        <div className="px-2 pt-1 pb-1.5">
-          <div className="flex items-baseline gap-1.5">
+        <div className="px-2 pt-1 pb-1">
+          <div className="flex items-center gap-1">
             <span className="head text-lg">Take {String(n).padStart(2, '0')}</span>
             {d.starred && <Star className="size-3 fill-signal text-signal" />}
+            {/* Always visible: star, duplicate, delete. */}
+            <span className="ml-auto flex items-center">
+              {[
+                {
+                  icon: Star,
+                  title: d.starred ? 'Unstar' : 'Star: keep this take (a re-cut never replaces it)',
+                  act: () => updateDraft(d.id, { starred: !d.starred }),
+                  hot: false,
+                },
+                { icon: Copy, title: 'Duplicate', act: () => duplicateDraft(d.id), hot: false },
+                { icon: Trash2, title: 'Delete this take (Shift+⌫)', act: () => deleteDraft(d.id), hot: true },
+              ].map(({ icon: Icon, title, act, hot }) => (
+                <button
+                  key={title}
+                  title={title}
+                  aria-label={title}
+                  className={cx(
+                    'grid size-5 place-items-center text-ink-3 transition-colors',
+                    hot ? 'hover:text-signal' : 'hover:text-ink',
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    act()
+                  }}
+                >
+                  <Icon className="size-3" />
+                </button>
+              ))}
+            </span>
           </div>
           {editing ? (
             <input
@@ -61,30 +90,6 @@ function Slate({ d, n, active }: { d: Draft; n: number; active: boolean }) {
             </div>
           )}
         </div>
-      </div>
-      <div className="absolute top-2.5 right-1 flex flex-col opacity-0 transition-opacity group-hover:opacity-100">
-        {[
-          {
-            icon: Star,
-            title: d.starred ? 'Unstar' : 'Star: keep this take (a re-cut never replaces it)',
-            act: () => updateDraft(d.id, { starred: !d.starred }),
-          },
-          { icon: Copy, title: 'Duplicate', act: () => duplicateDraft(d.id) },
-          { icon: Trash2, title: 'Bin this take', act: () => deleteDraft(d.id) },
-        ].map(({ icon: Icon, title, act }) => (
-          <button
-            key={title}
-            title={title}
-            aria-label={title}
-            className="grid size-5 place-items-center text-ink-3 hover:text-ink"
-            onClick={(e) => {
-              e.stopPropagation()
-              act()
-            }}
-          >
-            <Icon className="size-3" />
-          </button>
-        ))}
       </div>
     </div>
   )

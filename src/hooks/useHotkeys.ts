@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { removeShot, splitShot, updateShot } from '../lib/edit/ops'
-import { compareTakes, editPlan, makeEdit, redo, selectDraft, undo } from '../state/actions'
+import { compareTakes, deleteDraft, editPlan, makeEdit, redo, selectDraft, undo } from '../state/actions'
 import { playhead } from '../state/playhead'
 import { activeDraft, getState, setState } from '../state/store'
 
@@ -55,6 +55,8 @@ export function useHotkeys(cycleTheme: () => void) {
         editPlan((p) => splitShot(p, shot.id, playhead.time))
       } else if ((e.key === 'l' || e.key === 'L') && shot) {
         editPlan((p) => updateShot(p, shot.id, { locked: !shot.locked }))
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && e.shiftKey && d) {
+        deleteDraft(d.id)
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && shot) {
         editPlan((p) => removeShot(p, shot.id))
         setState({ selectedShotId: null })

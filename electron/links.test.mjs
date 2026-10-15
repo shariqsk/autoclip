@@ -48,3 +48,69 @@ describe('desktop link importer', () => {
     ])
   })
 })
+
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { deflateRawSync } from 'node:zlib'
+import { unzip } from './unzip.mjs'
+
+/** Build a tiny zip by hand: one deflated file (mode 755) and one stored file. */
+function makeZip(entries) {
+  const locals = []
+  const centrals = []
+  let offset = 0
+  for (const { name, data, mode, deflate } of entries) {
+    const body = deflate ? deflateRawSync(data) : data
+    const nameBuf = Buffer.from(name)
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(deflate ? 8 : 0, 8)
+    local.writeUInt32LE(body.length, 18)
+    local.writeUInt32LE(data.length, 22)
+    local.writeUInt16LE(nameBuf.length, 26)
+    locals.push(local, nameBuf, body)
+    const central = Buffer.alloc(46)
+    central.writeUInt32LE(0x02014b50, 0)
+    central.writeUInt16LE(deflate ? 8 : 0, 10)
+    central.writeUInt32LE(body.length, 20)
+    central.writeUInt32LE(data.length, 24)
+    central.writeUInt16LE(nameBuf.length, 28)
+    central.writeUInt32LE((mode << 16) >>> 0, 38)
+    central.writeUInt32LE(offset, 42)
+    centrals.push(central, nameBuf)
+    offset += 30 + nameBuf.length + body.length
+  }
+  const cd = Buffer.concat(centrals)
+  const end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0)
+  end.writeUInt16LE(entries.length, 10)
+  end.writeUInt32LE(cd.length, 12)
+  end.writeUInt32LE(offset, 16)
+  return Buffer.concat([...locals, cd, end])
+}
+
+describe('unzip', () => {
+  it('extracts stored and deflated files and keeps the executable bit', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'autoclip-zip-'))
+    const zip = path.join(dir, 'a.zip')
+    const text = Buffer.from('hello hello hello hello')
+    await writeFile(
+      zip,
+      makeZip([
+        { name: 'tool/run', data: text, mode: 0o100755, deflate: true },
+        { name: 'tool/lib.txt', data: Buffer.from('x'), mode: 0o100644 },
+      ]),
+    )
+    await unzip(zip, path.join(dir, 'out'))
+    expect(String(await readFile(path.join(dir, 'out/tool/run')))).toBe(String(text))
+    if (process.platform !== 'win32') expect((await import('node:fs')).statSync(path.join(dir, 'out/tool/run')).mode & 0o111).toBeTruthy()
+  })
+
+  it('refuses paths that escape the folder', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'autoclip-zip-'))
+    const zip = path.join(dir, 'bad.zip')
+    await writeFile(zip, makeZip([{ name: '../evil', data: Buffer.from('x'), mode: 0o100644 }]))
+    await expect(unzip(zip, path.join(dir, 'out'))).rejects.toThrow(/Unsafe/)
+  })
+})

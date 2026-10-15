@@ -58,6 +58,8 @@ app.whenReady().then(() => {
     nodePath: process.execPath,
     log: (m) => console.log(`[links] ${m}`),
   })
+  // Get the downloader installed and warm in the background, so the first link imports straight away.
+  setTimeout(() => importer.warm().catch((e) => console.log(`[links] warm-up failed: ${e.message}`)), 3000)
   const running = new Map()
   const fromApp = (event) => event.senderFrame?.url.startsWith(ORIGIN)
   ipcMain.handle('links:import', async (event, { id, url, mode }) => {

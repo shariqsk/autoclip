@@ -120,7 +120,7 @@ export function ClipBin() {
       .map((s) => [s.srcStart, s.srcStart + sourceDuration(s.speed, s.end - s.start)] as [number, number]) ?? []
 
   return (
-    <div className="panel flex min-h-0 flex-col overflow-hidden">
+    <div className="panel flex flex-col overflow-hidden lg:min-h-0">
       <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5">
         <span className="label">Footage</span>
         <span className="font-mono text-[0.7rem] text-ink-3">
@@ -158,7 +158,7 @@ export function ClipBin() {
           Drop videos or photos here
         </button>
       ) : clips.length === 0 ? null : (
-        <div className="grid min-h-0 grid-cols-2 gap-2 overflow-y-auto px-4 pb-4">
+        <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto px-4 pb-4 sm:grid-cols-3 lg:max-h-none lg:min-h-0 lg:grid-cols-2">
           {clips.map((c, i) => (
             <ClipTile key={c.id} clip={c} index={i} count={clips.length} used={usedBy(c.id)} />
           ))}

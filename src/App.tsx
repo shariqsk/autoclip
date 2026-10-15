@@ -52,12 +52,12 @@ export default function App() {
       ) : (
         <main
           className={cx(
-            'grid min-h-0 flex-1 gap-3 overflow-y-auto px-3 pb-3 sm:px-4 sm:pb-4 lg:overflow-hidden',
+            'grid min-h-0 flex-1 auto-rows-max gap-3 overflow-y-auto px-3 pb-3 sm:px-4 sm:pb-4 lg:auto-rows-auto lg:overflow-hidden',
             'lg:grid-cols-[290px_minmax(0,1fr)_330px]',
             director ? 'lg:grid-rows-[minmax(0,1fr)_minmax(250px,40vh)]' : 'lg:grid-rows-[minmax(0,1fr)]',
           )}
         >
-          <aside className="flex min-h-0 flex-col gap-3">
+          <aside className="flex flex-col gap-3 lg:min-h-0">
             <SongCard />
             <ClipBin />
           </aside>

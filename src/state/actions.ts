@@ -484,12 +484,25 @@ function dropDownload(id: string, delay = 0) {
 }
 
 /** Import a song (`audio`) or a clip (`video`) from a link, through the desktop app. */
-export async function importFromLink(raw: string, mode: 'audio' | 'video') {
-  if (!desktop) return toast('Importing from links works in the desktop app.', 'error')
+/**
+ * Download a link through the desktop app, showing it in the downloads list. Resolves with the file,
+ * or null when it failed (the reason stays in the list for a few seconds) or was cancelled.
+ */
+export async function downloadLink(raw: string, mode: 'audio' | 'video'): Promise<{ file: File; title: string; site: string } | null> {
+  if (!desktop) {
+    toast('Importing from links works in the desktop app.', 'error')
+    return null
+  }
   const problem = linkProblem(raw)
-  if (problem) return toast(problem, 'error')
+  if (problem) {
+    toast(problem, 'error')
+    return null
+  }
   const link = parseLink(raw)
-  if (!link) return toast("That doesn't look like a link.", 'error')
+  if (!link) {
+    toast("That doesn't look like a link.", 'error')
+    return null
+  }
   const id = `dl${Date.now().toString(36)}${linkCounter++}`
   setState((s) => ({ downloads: [...s.downloads, { id, site: link.site, mode, stage: 'Starting', fraction: null }] }))
   const off = desktop.onImportProgress((p) => p.id === id && updateDownload(id, { stage: p.stage, fraction: p.fraction }))
@@ -497,19 +510,28 @@ export async function importFromLink(raw: string, mode: 'audio' | 'video') {
     const result = await desktop.importLink(id, link.url, mode)
     if (result.files.length > 1) updateDownload(id, { stage: 'Putting picture and sound together', fraction: null })
     const file = await toFile(result, mode)
-    if (mode === 'audio') void setSongFile(file)
-    else addClips([file])
-    toast(`${mode === 'audio' ? 'Song' : 'Footage'} in from ${result.site}: ${result.title}`, 'success')
     dropDownload(id)
+    return { file, title: result.title, site: result.site }
   } catch (err) {
     // Electron wraps errors from the main process; keep just the reason.
     const message = (err instanceof Error ? err.message : String(err)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-    if (message === 'Cancelled') return dropDownload(id)
-    updateDownload(id, { error: message, stage: message, fraction: null })
-    dropDownload(id, 8000)
+    if (message === 'Cancelled') dropDownload(id)
+    else {
+      updateDownload(id, { error: message, stage: message, fraction: null })
+      dropDownload(id, 8000)
+    }
+    return null
   } finally {
     off()
   }
+}
+
+export async function importFromLink(raw: string, mode: 'audio' | 'video') {
+  const got = await downloadLink(raw, mode)
+  if (!got) return
+  if (mode === 'audio') void setSongFile(got.file)
+  else addClips([got.file])
+  toast(`${mode === 'audio' ? 'Song' : 'Footage'} in from ${got.site}: ${got.title}`, 'success')
 }
 
 export function cancelDownload(id: string) {

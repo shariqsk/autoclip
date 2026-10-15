@@ -1,10 +1,11 @@
 // 01 SOUND: the song as AutoClip hears it. Tale-of-the-tape stats, the full waveform with its
 // sections, drops and bar ticks, and the stretch of song the edit uses (drag it to move the edit).
 
-import { RefreshCw } from 'lucide-react'
+import { Link2, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SongAnalysis } from '../lib/types'
-import { makeEdit, setSongFile } from '../state/actions'
+import { desktop } from '../lib/desktop'
+import { makeEdit, openLinkDialog, setSongFile } from '../state/actions'
 import { playhead } from '../state/playhead'
 import { activeDraft, setState, useApp } from '../state/store'
 import { cx, fmtTime } from './format'
@@ -151,6 +152,15 @@ export function SongCard() {
           <span className="tag text-signal">01</span>
           <span className="head text-lg">Sound</span>
         </div>
+        {desktop && (
+          <button
+            className="btn btn-bare btn-sm btn-sq"
+            title="Song from a link: Spotify, YouTube, SoundCloud…"
+            onClick={() => openLinkDialog('', 'audio')}
+          >
+            <Link2 className="size-3" />
+          </button>
+        )}
         <button className="btn btn-bare btn-sm btn-sq" title="Replace the song" onClick={() => fileRef.current?.click()}>
           <RefreshCw className="size-3" />
         </button>

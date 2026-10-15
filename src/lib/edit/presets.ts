@@ -42,9 +42,9 @@ export const STYLES: StylePreset[] = [
     name: 'Hype',
     tagline: 'Hard cuts, flashes and punches on every hit',
     bestFor: 'UFC, boxing, basketball, football highlights',
-    pacing: { low: 4, mid: 2, high: 1 },
+    pacing: { low: 4, mid: 4, high: 2 },
     buildRoll: true,
-    doubleTime: 0.18,
+    doubleTime: 0.35,
     heroBeats: 2,
     transitions: {
       within: { cut: 10, flash: 1, zoom: 1 },

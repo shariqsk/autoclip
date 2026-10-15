@@ -75,10 +75,11 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
     }
     for (; i < inSec.length; i += step) {
       cuts.add(inSec[i])
-      // Off-grid accents: in loud parts, strong beats sometimes get a cut halfway to the next.
-      if (level === 'high' && style.doubleTime > 0 && step === 1 && i + 1 < inSec.length) {
+      // Accents: in loud parts, a strong beat sometimes gets an extra cut halfway through its shot
+      // (on the next beat for two-beat shots, on the off-beat for one-beat shots).
+      if (level === 'high' && style.doubleTime > 0 && step <= 2 && i + 1 < inSec.length) {
         const beat = beats.find((b) => Math.abs(b.time - inSec[i]) < 0.02)
-        if (beat && beat.strength > 0.6 && rng() < style.doubleTime) cuts.add((inSec[i] + inSec[i + 1]) / 2)
+        if (beat && beat.strength > 0.6 && rng() < style.doubleTime) cuts.add(step === 2 ? inSec[i + 1] : (inSec[i] + inSec[i + 1]) / 2)
       }
     }
   }

@@ -21,7 +21,7 @@ function Rhythm({ style }: { style: StylePreset }) {
     <div className="space-y-[3px]">
       {(['low', 'mid', 'high'] as const).map((level, li) => (
         <div key={level} className="flex h-1.5 gap-[2px]">
-          {lane(style.pacing[level]).map((b, i) => (
+          {lane({ low: style.intro.beats, mid: style.ride.choices[0], high: style.flurry.choices[0] }[level]).map((b, i) => (
             <div
               key={i}
               className="rounded-[2px]"

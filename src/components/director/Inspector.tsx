@@ -19,7 +19,7 @@ type SpeedMode = 'normal' | 'slow' | 'velocity' | 'hit'
 
 function speedMode(s: SpeedRamp): SpeedMode {
   if (s.kind === 'velocity') return 'velocity'
-  if (s.kind === 'ease-in') return 'hit'
+  if (s.kind === 'ease-in' || s.kind === 'freeze') return 'hit'
   return s.speed < 0.95 ? 'slow' : 'normal'
 }
 

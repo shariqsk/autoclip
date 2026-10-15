@@ -32,8 +32,13 @@ export interface AssignOptions {
   fixed?: Map<number, Assignment>
 }
 
-const TARGET_MOTION: Record<SlotRole, number> = { hero: 1, drop: 0.85, build: 0.75, normal: 0.55, calm: 0.3, intro: 0.4 }
-const PRIORITY: Record<SlotRole, number> = { hero: 5, drop: 3, build: 2, intro: 1.5, normal: 1, calm: 0.5 }
+// How much movement each part of the arc wants, and the order slots are filled in: the drop gets
+// first pick of everything, the cold open gets the next-best flash of action, and so on.
+const TARGET_MOTION: Record<SlotRole, number> = { tease: 0.95, intro: 0.22, build: 0.65, hero: 1, flurry: 0.85, ride: 0.55, outro: 0.3 }
+const PRIORITY: Record<SlotRole, number> = { hero: 6, tease: 4, flurry: 3, build: 2, intro: 1.6, outro: 1.5, ride: 1 }
+
+/** Which scene of a clip a time falls in (clips that are already edits have several). */
+const sceneOf = (cuts: number[], t: number) => cuts.filter((c) => c <= t + 0.02).length
 
 interface Indexed {
   clip: AssignableClip
@@ -76,12 +81,13 @@ function meanOver(p: Float64Array, dt: number, from: number, to: number): number
   return (p[i1] - p[i0]) / (i1 - i0)
 }
 
-/** The source time where the action should line up with the start of the slot's music. */
-function alignmentOffset(speed: SpeedRamp, duration: number): number {
-  // Slow-motion valleys should hold the peak of the action.
+/** Seconds into the source where the peak of the action should be, so it lands on the slot's accent. */
+function alignmentOffset(speed: SpeedRamp, duration: number, accent: number): number {
+  // Slow-motion valleys and freeze-frames should hold the peak of the action.
   if (speed.kind === 'velocity') return sourceOffset(speed, duration / 2, duration)
   if (speed.kind === 'ease-in') return sourceOffset(speed, duration * 0.2, duration)
-  return Math.min(0.12, duration * 0.15)
+  if (speed.kind === 'freeze') return sourceOffset(speed, duration * speed.at, duration)
+  return sourceOffset(speed, accent, duration) + 0.04
 }
 
 interface Candidate {
@@ -118,12 +124,22 @@ export function assignFootage(
   const orderIdx = slots.map((_, i) => i).filter((i) => !result[i])
   orderIdx.sort((a, b) => PRIORITY[slots[b].role] + slots[b].energy - (PRIORITY[slots[a].role] + slots[a].energy))
 
+  const sceneKey = (a: Assignment | null | undefined) => {
+    if (!a) return null
+    const c = pool.find((p) => p.clip.id === a.clipId)
+    return c ? `${a.clipId}#${sceneOf(c.clip.analysis.cuts, a.srcStart)}` : a.clipId
+  }
+
   for (const si of orderIdx) {
     const slot = slots[si]
     const dur = slot.end - slot.start
     const target = TARGET_MOTION[slot.role]
-    const neighbours = [result[si - 1]?.clipId, result[si + 1]?.clipId]
+    const neighbours = [result[si - 1], result[si + 1]]
+    const neighbourClips = neighbours.map((n) => n?.clipId)
+    const neighbourScenes = neighbours.map(sceneKey)
     const slotPos = slots.length > 1 ? si / (slots.length - 1) : 0
+    const action = slot.role === 'hero' || slot.role === 'tease' || slot.role === 'flurry'
+    const calm = slot.role === 'intro' || slot.role === 'outro'
     let best: Candidate | null = null
 
     for (const c of pool) {
@@ -131,13 +147,13 @@ export function assignFootage(
       let speed = speeds[si]
       let srcDur = sourceDuration(speed, dur)
       let base = 0
-      if (neighbours.includes(c.clip.id)) base -= 0.55
-      base -= (c.clip.kind === 'image' ? 0.18 : 0.07) * c.uses
+      if (neighbourClips.includes(c.clip.id)) base -= 0.15
+      base -= (c.clip.kind === 'image' ? 0.18 : 0.06) * c.uses
       if (c.clip.pin === 'hero') base += slot.role === 'hero' ? 0.6 : 0.08
       if (opts.order === 'story' && pool.length > 1) base -= 0.9 * Math.abs(c.order / (pool.length - 1) - slotPos)
 
       if (c.clip.kind === 'image') {
-        const score = base + 0.38 + (1 - Math.abs(0.15 - target)) * 0.25 + rng() * 0.12 * opts.variety
+        const score = base + 0.38 + (1 - Math.abs(0.15 - target)) * 0.25 + (calm ? 0.1 : -0.1) + rng() * 0.12 * opts.variety
         if (!best || score > best.score) best = { clipId: c.clip.id, score, srcStart: 0, speed: { kind: 'constant', speed: 1 } }
         continue
       }
@@ -151,7 +167,7 @@ export function assignFootage(
       }
 
       const step = Math.max(0.1, c.dt / 2)
-      const align = alignmentOffset(speed, dur)
+      const align = alignmentOffset(speed, dur, slot.accent)
       for (let s = 0; s + srcDur <= a.duration - 0.04; s += step) {
         const e = s + srcDur
         if (a.cuts.some((cut) => cut > s + 0.04 && cut < e - 0.04)) continue
@@ -163,17 +179,23 @@ export function assignFootage(
         const hitPoint = s + align
         const hitInterest = meanOver(c.prefix.interest, c.dt, hitPoint - c.dt, hitPoint + c.dt)
 
-        let score =
-          base +
-          0.42 * interest +
-          0.22 * (1 - Math.abs(motion - target)) +
-          0.12 * sharp +
-          (slot.role === 'hero' || slot.role === 'drop' ? 0.45 : 0.15) * hitInterest -
-          (bright < 0.1 ? 0.35 : bright < 0.18 ? 0.1 : 0)
+        let score = base - (bright < 0.1 ? 0.35 : bright < 0.18 ? 0.1 : 0)
+        if (calm) {
+          // Intros and outros want steady, crisp shots: faces, walkouts, the crowd, the arena.
+          score += 0.32 * (1 - Math.abs(motion - target)) + 0.3 * sharp + 0.12 * interest
+        } else {
+          score += 0.4 * interest + 0.2 * (1 - Math.abs(motion - target)) + 0.1 * sharp + (action ? 0.6 : 0.2) * hitInterest
+        }
 
+        // Never the same scene twice in a row, and no near-repeats of moments already on screen.
+        if (neighbourScenes.includes(`${c.clip.id}#${sceneOf(a.cuts, s)}`)) score -= 0.6
         let overlap = 0
-        for (const [u0, u1] of c.used) overlap = Math.max(overlap, Math.max(0, Math.min(e, u1) - Math.max(s, u0)) / srcDur)
-        score -= reusePenalty * overlap
+        let near = false
+        for (const [u0, u1] of c.used) {
+          overlap = Math.max(overlap, Math.max(0, Math.min(e, u1) - Math.max(s, u0)) / srcDur)
+          if (Math.abs(s - u0) < 0.8) near = true
+        }
+        score -= reusePenalty * overlap + (near ? 0.3 : 0)
         score += rng() * 0.12 * opts.variety
         if (!best || score > best.score) best = { clipId: c.clip.id, score, srcStart: s, speed }
       }

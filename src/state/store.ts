@@ -46,6 +46,8 @@ export interface AppState {
   clips: Clip[]
   drafts: Draft[]
   activeDraftId: string | null
+  /** The take you were on before this one, for quick A/B comparing. */
+  prevDraftId: string | null
   settings: Settings
   /** Word timings from Whisper, in song time, keyed by the song range they cover. */
   words: { key: string; words: CaptionWord[] } | null
@@ -72,6 +74,7 @@ const initial: AppState = {
   clips: [],
   drafts: [],
   activeDraftId: null,
+  prevDraftId: null,
   settings: loadSettings(),
   words: null,
   fileCaptions: null,

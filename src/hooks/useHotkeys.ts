@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { removeShot, splitShot, updateShot } from '../lib/edit/ops'
-import { editPlan, makeEdit, redo, selectDraft, undo } from '../state/actions'
+import { compareTakes, editPlan, makeEdit, redo, selectDraft, undo } from '../state/actions'
 import { playhead } from '../state/playhead'
 import { activeDraft, getState, setState } from '../state/store'
 
@@ -35,6 +35,8 @@ export function useHotkeys(cycleTheme: () => void) {
         if (d) setState({ exportOpen: true })
       } else if (e.key === 'd' || e.key === 'D') {
         if (d) setState({ director: !s.director })
+      } else if (e.key === 'c' || e.key === 'C') {
+        compareTakes()
       } else if (e.key === '?') {
         setState({ helpOpen: !s.helpOpen })
       } else if (e.key === '[' || e.key === ']') {

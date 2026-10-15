@@ -209,14 +209,22 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
       past: [],
       future: [],
     }
-    setState((st) => ({ drafts: [...st.drafts, draft], activeDraftId: draft.id, selectedShotId: null }))
+    setState((st) => ({ drafts: [...st.drafts, draft], activeDraftId: draft.id, prevDraftId: st.activeDraftId, selectedShotId: null }))
   }
   if (s.settings.captions.source === 'auto') void runAutoCaptions()
   if (s.settings.voiceover.enabled) void generateVoice()
 }
 
 export function selectDraft(id: string) {
-  setState({ activeDraftId: id, selectedShotId: null })
+  const current = getState().activeDraftId
+  if (id === current) return
+  setState({ activeDraftId: id, prevDraftId: current, selectedShotId: null })
+}
+
+/** Flip back to the take you were on before: a quick A/B. */
+export function compareTakes() {
+  const s = getState()
+  if (s.prevDraftId && s.drafts.some((d) => d.id === s.prevDraftId)) selectDraft(s.prevDraftId)
 }
 
 export function deleteDraft(id: string) {

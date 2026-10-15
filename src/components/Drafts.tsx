@@ -92,25 +92,19 @@ export function Drafts() {
   const activeId = useApp((s) => s.activeDraftId)
   const canEdit = useApp((s) => !!s.song?.analysis && s.clips.some((c) => c.status === 'ready'))
 
-  // Give each draft a poster from the preview once it has rendered a meaningful frame.
+  // Give each draft a poster: its first drop, once that frame has actually rendered.
   useEffect(() => {
     const d = drafts.find((x) => x.id === activeId)
     if (!d || d.thumb) return
     const hero = d.plan.hits.find((h) => h.kind === 'drop')?.time ?? (d.plan.shots[1]?.start ?? 0) + 0.2
+    let cancelled = false
     const timer = setTimeout(() => {
-      const engine = playhead.engine
-      if (!engine) return
-      const wasPlaying = engine.playing
-      const t = engine.currentTime
-      if (!wasPlaying) {
-        engine.seek(hero + 0.25)
-        setTimeout(() => {
-          updateDraft(d.id, { thumb: engine.snapshot() })
-          engine.seek(t)
-        }, 450)
-      } else updateDraft(d.id, { thumb: engine.snapshot() })
-    }, 900)
-    return () => clearTimeout(timer)
+      playhead.engine?.capture(hero + 0.3).then((thumb) => !cancelled && updateDraft(d.id, { thumb }))
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }, [activeId, drafts])
 
   return (

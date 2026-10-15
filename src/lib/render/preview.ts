@@ -43,6 +43,7 @@ export class PreviewEngine {
   private offset = 0
   private raf = 0
   private dirty = true
+  private captures: ((dataUrl: string) => void)[] = []
   playing = false
   loop = true
   onTime: (t: number) => void = () => {}
@@ -263,6 +264,10 @@ export class PreviewEngine {
     }
     this.compositor.render({ a, b, transition: state.transition, fx: state.fx, look: project.look, time: t })
     this.dirty = false
+    if (this.captures.length && a) {
+      const shot = this.snapshot()
+      for (const resolve of this.captures.splice(0)) resolve(shot)
+    }
     this.onTime(t)
   }
 
@@ -274,6 +279,22 @@ export class PreviewEngine {
     c.height = Math.round(this.canvas.height * scale)
     c.getContext('2d')!.drawImage(this.canvas, 0, 0, c.width, c.height)
     return c.toDataURL('image/jpeg', 0.75)
+  }
+
+  /**
+   * A poster frame at time `t`, taken once that frame has really rendered (videos seeked and
+   * decoded). While playing, the next rendered frame is used instead so playback isn't disturbed.
+   */
+  capture(t: number): Promise<string> {
+    const back = this.currentTime
+    const wasPlaying = this.playing
+    if (!wasPlaying) this.seek(t)
+    return new Promise((resolve) =>
+      this.captures.push((img) => {
+        if (!wasPlaying) this.seek(back)
+        resolve(img)
+      }),
+    )
   }
 
   invalidate() {

@@ -1,17 +1,48 @@
-// The stage: live preview of the active draft, sized to the output's aspect ratio, with the
-// transport and a scrubber that shows every shot, every drop and every caption.
+// The stage: the live preview of the current take, framed like a broadcast monitor, with a tally
+// light, timecode, the part of the arc you're in and a light that blinks on every beat.
 
-import { Clapperboard, Maximize2, Pause, Play, Repeat, SkipBack, Volume2, VolumeX } from 'lucide-react'
+import { Maximize2, Pause, Play, Repeat, SkipBack, Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { audioContext } from '../lib/audio/decode'
+import { shotIndexAt } from '../lib/edit/timeline'
 import { PreviewEngine } from '../lib/render/preview'
+import type { EditPlan } from '../lib/types'
 import { useMix } from '../hooks/useMix'
 import { useRenderProject } from '../hooks/useRenderProject'
 import { playhead, usePlayhead } from '../state/playhead'
 import { ASPECTS, outputSize } from '../state/settings'
-import { setState, useApp } from '../state/store'
-import { Kbd } from './ui'
-import { clipColor, cx, fmtTime } from './format'
+import { useApp } from '../state/store'
+import { cx, fmtTime, PHASE_NAMES, timecode } from './format'
+
+function Overlay({ plan, box }: { plan: EditPlan; box: { w: number; h: number } }) {
+  const { time, playing } = usePlayhead(1 / 30)
+  const i = shotIndexAt(plan.shots, time)
+  const shot = plan.shots[Math.max(0, i)]
+  const beatOn = plan.hits.some((h) => time >= h.time && time - h.time < 0.09)
+  const dropOn = plan.hits.some((h) => h.kind === 'drop' && time >= h.time && time - h.time < 0.25)
+  return (
+    <div className="pointer-events-none absolute" style={{ width: box.w, height: box.h }}>
+      <div className="mono absolute -top-7 left-0 flex items-center gap-2 text-[0.66rem] tracking-[0.14em] text-ink-2 uppercase">
+        <span className={cx('size-2', playing ? 'tally bg-signal' : 'bg-ink-3')} />
+        {playing ? 'On air' : 'Standby'}
+        <span className="text-ink-3">·</span>
+        <span className="text-ink">{timecode(time)}</span>
+      </div>
+      <div className="mono absolute -top-7 right-0 flex items-center gap-2 text-[0.66rem] tracking-[0.14em] uppercase">
+        {shot?.phase && <span className={cx(shot.phase === 'hero' ? 'text-signal' : 'text-ink-2')}>{PHASE_NAMES[shot.phase]}</span>}
+        <span
+          className={cx(
+            'size-2 border border-ink-3 transition-colors duration-75',
+            beatOn && 'border-ink bg-ink',
+            dropOn && 'border-signal bg-signal',
+          )}
+          title="Beat"
+        />
+      </div>
+      <div className={cx('absolute inset-0 border transition-colors duration-100', dropOn ? 'border-signal' : 'border-transparent')} />
+    </div>
+  )
+}
 
 export function Player() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -19,19 +50,15 @@ export function Player() {
   const engineRef = useRef<PreviewEngine | null>(null)
   const clips = useApp((s) => s.clips)
   const aspect = useApp((s) => s.settings.aspect)
-  const director = useApp((s) => s.director)
-  const selected = useApp((s) => s.selectedShotId)
   const { plan, look, captions } = useRenderProject()
   const mix = useMix(plan)
-  const { time, playing } = usePlayhead(0.05)
+  const { time, playing } = usePlayhead(0.1)
   const [box, setBox] = useState({ w: 0, h: 0 })
   const [loop, setLoop] = useState(true)
   const [muted, setMuted] = useState(false)
 
-  // Engine lifecycle.
   useEffect(() => {
-    const canvas = canvasRef.current!
-    const engine = new PreviewEngine(canvas, audioContext())
+    const engine = new PreviewEngine(canvasRef.current!, audioContext())
     engine.onTime = (t) => playhead.set(t, engine.playing)
     engine.onEnded = () => playhead.set(engine.currentTime, false)
     engineRef.current = engine
@@ -43,14 +70,14 @@ export function Player() {
     }
   }, [])
 
-  // Fit the stage to the available space at the output's aspect ratio.
+  // Fit the frame to the space available, at the output's aspect ratio, leaving room for the labels.
   useEffect(() => {
     const el = stageRef.current!
     const a = ASPECTS.find((x) => x.id === aspect)!
     const fit = () => {
       const r = el.getBoundingClientRect()
-      const scale = Math.min(r.width / a.w, r.height / a.h)
-      setBox({ w: Math.floor(a.w * scale), h: Math.floor(a.h * scale) })
+      const scale = Math.min((r.width - 40) / a.w, (r.height - 64) / a.h)
+      setBox({ w: Math.max(0, Math.floor(a.w * scale)), h: Math.max(0, Math.floor(a.h * scale)) })
     }
     fit()
     const ro = new ResizeObserver(fit)
@@ -58,13 +85,11 @@ export function Player() {
     return () => ro.disconnect()
   }, [aspect])
 
-  // Render resolution: crisp on the screen, capped so the GPU keeps up.
   useEffect(() => {
     const engine = engineRef.current
     if (!engine || !box.w) return
     const dpr = Math.min(2, window.devicePixelRatio || 1)
-    const short = Math.min(1080, Math.round(Math.min(box.w, box.h) * dpr))
-    const size = outputSize(aspect, Math.max(240, short))
+    const size = outputSize(aspect, Math.max(240, Math.min(1080, Math.round(Math.min(box.w, box.h) * dpr))))
     engine.resize(size.width, size.height)
   }, [box, aspect])
 
@@ -88,110 +113,38 @@ export function Player() {
   }, [muted])
 
   const duration = plan ? plan.songEnd - plan.songStart : 0
-  const clipIds = clips.map((c) => c.id)
-
-  const scrub = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    playhead.seek(((e.clientX - rect.left) / rect.width) * duration)
-  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div ref={stageRef} className="relative grid min-h-0 flex-1 place-items-center">
-        <div
-          className="relative overflow-hidden rounded-[calc(var(--r-panel)-4px)] bg-[var(--stage)] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
-          style={{ width: box.w, height: box.h }}
-        >
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={stageRef} className="halftone relative grid min-h-0 flex-1 place-items-center">
+        <div className="crop relative bg-[var(--stage)]" style={{ width: box.w, height: box.h }}>
           <canvas ref={canvasRef} className="size-full" onClick={() => plan && playhead.toggle()} />
-          {!plan && <div className="stripes absolute inset-0" />}
+          {!plan && <div className="hazard absolute inset-0 opacity-[0.06]" />}
         </div>
+        {plan && box.w > 0 && <Overlay plan={plan} box={box} />}
       </div>
 
       {plan && (
-        <div className="panel px-3 pt-2.5 pb-3">
-          {/* Scrubber: shots as colored blocks, drops as markers, captions as a thin lane. */}
-          <div
-            className="group relative h-9 cursor-pointer touch-none select-none"
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId)
-              scrub(e)
-            }}
-            onPointerMove={(e) => e.buttons === 1 && scrub(e)}
-          >
-            <div className="absolute inset-x-0 top-0 flex h-6 gap-px overflow-hidden rounded-md">
-              {plan.shots.map((s) => (
-                <div
-                  key={s.id}
-                  className={cx(
-                    'h-full opacity-80 transition-opacity hover:opacity-100',
-                    selected === s.id && 'opacity-100 ring-2 ring-white ring-inset',
-                  )}
-                  style={{ width: `${((s.end - s.start) / duration) * 100}%`, background: clipColor(clipIds, s.clipId) }}
-                  title={`${clips.find((c) => c.id === s.clipId)?.name ?? ''} · ${s.reason}`}
-                  onDoubleClick={() => setState({ director: true, selectedShotId: s.id })}
-                />
-              ))}
-            </div>
-            {plan.hits
-              .filter((h) => h.kind === 'drop')
-              .map((h) => (
-                <div key={h.time} className="absolute top-0 h-6 w-0.5 bg-accent" style={{ left: `${(h.time / duration) * 100}%` }} />
-              ))}
-            <div className="absolute inset-x-0 bottom-0 h-1.5">
-              {plan.captions.map((c) => (
-                <div
-                  key={c.id}
-                  className="absolute h-full rounded-full bg-ink-3"
-                  style={{ left: `${(c.start / duration) * 100}%`, width: `${((c.end - c.start) / duration) * 100}%` }}
-                />
-              ))}
-            </div>
-            <div
-              className="pointer-events-none absolute -top-1 h-8 w-0.5 rounded-full bg-ink"
-              style={{ left: `${(time / Math.max(0.001, duration)) * 100}%` }}
-            >
-              <div className="absolute -top-1 -left-[5px] size-3 rounded-full bg-ink" />
-            </div>
-          </div>
-
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <button className="btn btn-ghost btn-sm btn-icon" title="Back to start" onClick={() => playhead.seek(0)}>
-              <SkipBack className="size-4" />
+        <div className="flex h-11 shrink-0 items-center gap-1 border-t border-line px-3">
+          <button className="btn btn-bare btn-sq" title="Back to the top" onClick={() => playhead.seek(0)}>
+            <SkipBack className="size-3.5" />
+          </button>
+          <button className="btn btn-signal btn-sq" title="Play / pause (Space)" onClick={() => playhead.toggle()}>
+            {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+          </button>
+          <span className="mono ml-2 text-xs whitespace-nowrap">
+            {fmtTime(time)} <span className="text-ink-3">/ {fmtTime(duration)}</span>
+          </span>
+          <div className="ml-auto flex items-center">
+            <button className={cx('btn btn-bare btn-sq', loop && 'text-signal')} title="Loop" onClick={() => setLoop(!loop)}>
+              <Repeat className="size-3.5" />
             </button>
-            <button className="btn btn-primary btn-icon shrink-0" title="Play / pause (Space)" onClick={() => playhead.toggle()}>
-              {playing ? <Pause className="size-4" /> : <Play className="size-4 translate-x-px" />}
+            <button className="btn btn-bare btn-sq" title={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(!muted)}>
+              {muted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
             </button>
-            <span className="ml-1 font-mono text-xs whitespace-nowrap text-ink-2 tabular-nums">
-              {fmtTime(time)} <span className="text-ink-3">/ {fmtTime(duration)}</span>
-            </span>
-            <span className="ml-2 hidden truncate font-mono text-[0.7rem] whitespace-nowrap text-ink-3 2xl:inline">
-              {plan.shots.length} shots · avg {(duration / Math.max(1, plan.shots.length)).toFixed(2)}s
-            </span>
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              <button className={cx('btn btn-ghost btn-sm btn-icon', loop && 'text-accent')} title="Loop" onClick={() => setLoop(!loop)}>
-                <Repeat className="size-4" />
-              </button>
-              <button className="btn btn-ghost btn-sm btn-icon" title={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(!muted)}>
-                {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-              </button>
-              <button
-                className="btn btn-ghost btn-sm btn-icon"
-                title="Full screen"
-                onClick={() => canvasRef.current?.requestFullscreen?.()}
-              >
-                <Maximize2 className="size-4" />
-              </button>
-              <button
-                className={cx('btn btn-sm', director ? 'btn-primary' : 'btn-ghost')}
-                title="Director mode: fine-tune every shot by hand (D)"
-                onClick={() => setState({ director: !director })}
-              >
-                <Clapperboard className="size-3.5" /> <span className="hidden md:inline">Director</span>
-                <span className="hidden 2xl:inline">
-                  <Kbd>D</Kbd>
-                </span>
-              </button>
-            </div>
+            <button className="btn btn-bare btn-sq" title="Full screen" onClick={() => canvasRef.current?.requestFullscreen?.()}>
+              <Maximize2 className="size-3.5" />
+            </button>
           </div>
         </div>
       )}

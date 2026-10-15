@@ -20,12 +20,6 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource-variable/space-grotesk':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/unbounded':
-        specifier: ^5.3.0
-        version: 5.3.0
       '@fontsource/anton':
         specifier: ^5.3.0
         version: 5.3.0
@@ -669,12 +663,6 @@ packages:
 
   '@fontsource-variable/jetbrains-mono@5.3.0':
     resolution: {integrity: sha512-F32xpS2NsGYoQi2ADSkKTgpJj7ozajsGgDJ8woTnqjmIB+dxDIqImjl4pXZVEExu8UFZ2ndhmX18EBS/hdz3Lw==}
-
-  '@fontsource-variable/space-grotesk@5.3.0':
-    resolution: {integrity: sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw==}
-
-  '@fontsource-variable/unbounded@5.3.0':
-    resolution: {integrity: sha512-ea565Ncn4r7gPdBEHcmaF31V11hDfkL7b/JCklLobQbMfbu2ZZQrVWNgdeEFWFLqNh36yhieZWOgxdAnMTzrLg==}
 
   '@fontsource/anton@5.3.0':
     resolution: {integrity: sha512-OR1D5n124n2XRs66SbX7IjcOSptljEJE8FcDNnlni2y1/M6KpTx7cU2PIWzTSsBj4WFkHPw24On8qw3qkQZuTw==}
@@ -4440,10 +4428,6 @@ snapshots:
   '@fontsource-variable/inter@5.3.0': {}
 
   '@fontsource-variable/jetbrains-mono@5.3.0': {}
-
-  '@fontsource-variable/space-grotesk@5.3.0': {}
-
-  '@fontsource-variable/unbounded@5.3.0': {}
 
   '@fontsource/anton@5.3.0': {}
 

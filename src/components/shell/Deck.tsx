@@ -23,7 +23,6 @@ function Plate() {
         <span className="deck-model tag hidden sm:inline">AC-1 · beat sampler</span>
       </div>
       <div className="deck-lcd hidden min-w-0 flex-1 md:flex">
-        <span className="deck-beat-led" />
         <Status className="lcd text-lg" />
       </div>
       <TopActions className="ml-auto" />
@@ -103,7 +102,7 @@ export function DeckShell({ started }: { started: boolean }) {
               </div>
             </section>
             <aside className="deck-col deck-col-right">
-              <Rail className="space-y-3" />
+              <Rail />
             </aside>
           </main>
         )}

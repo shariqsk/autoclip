@@ -143,8 +143,7 @@ export function StudioShell({ started }: { started: boolean }) {
               <Transport className="studio-transport" />
             </section>
             <aside className="studio-pane">
-              <PaneHead title="Inspector" />
-              <Rail className="min-h-0 flex-1 overflow-y-auto" />
+              <Rail className="flex-1" />
             </aside>
           </main>
           {hasTake && <Tape className="studio-tape" />}

@@ -1,33 +1,68 @@
-// Every creative choice, in sections. Shells decide where these go; `only` picks a subset.
+// Every creative choice, one tab at a time: a nav bar across the top, the chosen section below.
 
+import { Aperture, AudioLines, Crop, Mic, Sparkles, Type, type LucideIcon } from 'lucide-react'
+import { useState } from 'react'
+import { cx } from '../format'
 import { FormatPanel } from './FormatPanel'
 import { LookPanel } from './LookPanel'
 import { SoundPanel } from './SoundPanel'
 import { StyleList } from './StyleList'
 import { TextPanel } from './TextPanel'
 import { VoicePanel } from './VoicePanel'
-import { Section } from '../ui'
 
-export type RailPart = 'style' | 'format' | 'look' | 'text' | 'voice' | 'sound'
+export type RailTab = 'style' | 'format' | 'look' | 'text' | 'voice' | 'sound'
 
-const PARTS: Record<RailPart, { n: string; title: string; body: () => React.ReactNode; open: boolean }> = {
-  style: { n: '03', title: 'Style', body: () => <StyleList />, open: true },
-  format: { n: '04', title: 'Format', body: () => <FormatPanel />, open: true },
-  look: { n: '05', title: 'Look', body: () => <LookPanel />, open: false },
-  text: { n: '06', title: 'Text', body: () => <TextPanel />, open: false },
-  voice: { n: '07', title: 'Voice', body: () => <VoicePanel />, open: false },
-  sound: { n: '08', title: 'Sound', body: () => <SoundPanel />, open: false },
+const TABS: { id: RailTab; label: string; icon: LucideIcon; body: () => React.ReactNode }[] = [
+  { id: 'style', label: 'Style', icon: Sparkles, body: () => <StyleList /> },
+  { id: 'format', label: 'Format', icon: Crop, body: () => <FormatPanel /> },
+  { id: 'look', label: 'Look', icon: Aperture, body: () => <LookPanel /> },
+  { id: 'text', label: 'Text', icon: Type, body: () => <TextPanel /> },
+  { id: 'voice', label: 'Voice', icon: Mic, body: () => <VoicePanel /> },
+  { id: 'sound', label: 'Sound', icon: AudioLines, body: () => <SoundPanel /> },
+]
+
+const KEY = 'autoclip:rail'
+
+function saved(): RailTab {
+  const v = localStorage.getItem(KEY)
+  return TABS.some((t) => t.id === v) ? (v as RailTab) : 'style'
 }
 
-export function Rail({ only, open, className }: { only?: RailPart[]; open?: boolean; className?: string }) {
-  const parts = only ?? (Object.keys(PARTS) as RailPart[])
+export function Rail({ className }: { className?: string }) {
+  const [tab, setTab] = useState(saved)
+  const pick = (id: RailTab) => {
+    setTab(id)
+    localStorage.setItem(KEY, id)
+  }
+  const current = TABS.find((t) => t.id === tab)!
   return (
-    <div className={className}>
-      {parts.map((p) => (
-        <Section key={p} n={PARTS[p].n} title={PARTS[p].title} defaultOpen={open ?? PARTS[p].open} className={`section-${p}`}>
-          {PARTS[p].body()}
-        </Section>
-      ))}
+    <div className={cx('rail flex min-h-0 flex-col', className)}>
+      <nav className="rail-nav" role="tablist" aria-label="Edit settings">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            role="tab"
+            id={`rail-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls="rail-panel"
+            data-on={tab === id}
+            className="rail-tab"
+            onClick={() => pick(id)}
+          >
+            <Icon className="rail-tab-icon" />
+            <span className="rail-tab-label">{label}</span>
+          </button>
+        ))}
+      </nav>
+      <div
+        id="rail-panel"
+        role="tabpanel"
+        aria-labelledby={`rail-tab-${tab}`}
+        className={cx('rail-body space-y-3.5', `rail-body-${tab}`)}
+        key={tab}
+      >
+        {current.body()}
+      </div>
     </div>
   )
 }

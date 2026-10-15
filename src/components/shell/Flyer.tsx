@@ -118,7 +118,7 @@ export function FlyerShell({ started }: { started: boolean }) {
               <TakeList variant="flyer" />
             </section>
             <aside className="flyer-col">
-              <Rail className="space-y-4" />
+              <Rail />
             </aside>
           </main>
           {hasTake && <Tape className="flyer-tape" />}

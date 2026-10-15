@@ -156,7 +156,7 @@
     gap: 1.1rem;
   }
   .pane,
-  .section,
+  .rail,
   .flyer-card {
     border: 2px solid var(--hard);
     border-radius: 22px;
@@ -616,5 +616,41 @@
   }
   to {
     transform: translate(4%, 3%) rotate(8deg);
+  }
+}
+
+/* The settings rail: a strip of stickers. */
+[data-layout='flyer'] {
+  .rail {
+    overflow: hidden;
+  }
+  .rail-nav {
+    gap: 6px;
+    padding: 12px 12px 6px;
+  }
+  .rail-tab {
+    padding: 8px 2px 6px;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    color: var(--ink-2);
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .rail-tab:hover {
+    border-color: var(--hard);
+    background: var(--bg);
+  }
+  .rail-tab[data-on='true'] {
+    border-color: var(--hard);
+    background: var(--signal);
+    color: var(--signal-ink);
+    box-shadow: 2px 2px 0 var(--hard);
+    transform: rotate(-3deg);
+  }
+  @media (min-width: 1024px) {
+    .flyer-col > .rail {
+      flex: 1;
+    }
   }
 }

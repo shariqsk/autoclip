@@ -97,7 +97,7 @@
 
   /* Panels inside panes: plain headed groups. */
   .pane,
-  .section {
+  .rail {
     border-bottom: 1px solid var(--line);
   }
   .block-num {
@@ -114,16 +114,12 @@
     text-transform: uppercase;
     color: var(--ink-2);
   }
-  .block-top,
-  .section-head {
+  .block-top {
     padding: 0.55rem 0.9rem;
   }
   .block-body,
-  .section-body {
+  .rail-body {
     padding: 0.2rem 0.9rem 0.9rem;
-  }
-  .section-head:hover {
-    background: color-mix(in srgb, var(--ink) 4%, transparent);
   }
   .clip-row {
     padding-left: 0.9rem;
@@ -360,5 +356,33 @@
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+/* The settings rail: inspector tabs. */
+[data-layout='studio'] {
+  .rail {
+    border-bottom: 0;
+  }
+  .rail-nav {
+    gap: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-3);
+  }
+  .rail-tab {
+    padding: 8px 2px 7px;
+    border-radius: 0;
+    font-size: 0.64rem;
+    font-weight: 550;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .rail-tab[data-on='true'] {
+    background: var(--bg-2);
+    box-shadow: inset 0 -2px 0 var(--signal);
+  }
+  .rail-tab[data-on='true'] .rail-tab-icon {
+    color: var(--signal);
   }
 }

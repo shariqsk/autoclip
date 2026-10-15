@@ -1,7 +1,7 @@
 // Shared controls. They look different per layout through the kit's tokens; on the Deck layout,
 // sliders become rotary knobs.
 
-import { useId, useRef, useState, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import { useLook } from '../hooks/useTheme'
 import { cx } from './format'
 
@@ -189,34 +189,6 @@ export function Toggle({
         />
       </span>
     </button>
-  )
-}
-
-/** A numbered, collapsible section. */
-export function Section({
-  n,
-  title,
-  children,
-  defaultOpen = true,
-  aside,
-  className,
-}: {
-  n?: string
-  title: string
-  children: ReactNode
-  defaultOpen?: boolean
-  aside?: ReactNode
-  className?: string
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <section className={cx('section', className)} data-open={open}>
-      <button className="section-head flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
-        <BlockHead n={n} title={title} aside={aside} className="flex-1" />
-        <span className="tag w-4 text-center text-ink-2">{open ? '−' : '+'}</span>
-      </button>
-      {open && <div className="section-body space-y-3.5">{children}</div>}
-    </section>
   )
 }
 

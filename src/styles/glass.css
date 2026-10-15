@@ -158,7 +158,7 @@
     }
   }
   .pane,
-  .section {
+  .rail {
     border-bottom: 1px solid var(--line);
   }
   .glass-panel > :last-child {
@@ -414,5 +414,38 @@
   }
   to {
     transform: translate(8vmax, 6vmax) scale(1.15);
+  }
+}
+
+/* The settings rail: a segmented glass control. */
+[data-layout='glass'] {
+  .glass-panel:has(> .rail) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .rail {
+    flex: 1;
+    border-bottom: 0;
+  }
+  .rail-nav {
+    gap: 2px;
+    margin: 10px 10px 2px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--bg-3);
+  }
+  .rail-tab {
+    border-radius: 14px;
+    font-size: 0.62rem;
+  }
+  .rail-tab[data-on='true'] {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  &[data-theme='glass-neon'] .rail-tab[data-on='true'] {
+    background: var(--signal);
+    color: var(--signal-ink);
   }
 }

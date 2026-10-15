@@ -9,14 +9,14 @@
       name="description"
       content="Drop in a song and your clips. AutoClip hears the beats and drops, finds the highlights in your footage and cuts a beat-synced edit on its own, in your browser."
     />
-    <meta name="theme-color" content="#0b0b0d" />
+    <meta name="theme-color" content="#0a0a0a" />
     <!-- Apply the saved look before first paint so there's no flash of the default theme. -->
     <script>
       try {
         const t = localStorage.getItem('autoclip:theme')
-        document.documentElement.dataset.theme = ['arena', 'neon', 'paper'].includes(t) ? t : 'arena'
+        document.documentElement.dataset.theme = ['fight', 'press', 'afterhours'].includes(t) ? t : 'fight'
       } catch {
-        document.documentElement.dataset.theme = 'arena'
+        document.documentElement.dataset.theme = 'fight'
       }
     </script>
     <title>AutoClip · beat-synced edits, cut for you</title>

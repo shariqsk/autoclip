@@ -107,6 +107,8 @@ export type SpeedRamp =
   | { kind: 'velocity'; fast: number; slow: number }
   /** Starts slow and snaps to speed: lands a hit in slow motion. */
   | { kind: 'ease-in'; from: number; to: number }
+  /** Slow motion into the impact, then the frame freezes: the "aura" hold on a knockout. */
+  | { kind: 'freeze'; from: number; at: number }
 
 export interface ShotFx {
   /** Push-in punches on every beat inside the shot. */
@@ -119,7 +121,14 @@ export interface ShotFx {
   flash: number
   /** Slow push-in across the whole shot, as a fraction of the frame (0.08 = 8%). */
   push: number
+  /** Drain the colour, 0–1. Intros often run in black and white until the drop hits. */
+  mono?: number
+  /** Tempo-locked flicker, 0–1, for tension in builds. */
+  strobe?: number
 }
+
+/** Where a shot sits in the edit's arc. */
+export type ShotPhase = 'tease' | 'intro' | 'build' | 'hero' | 'flurry' | 'ride' | 'outro'
 
 export interface Shot {
   id: string
@@ -139,6 +148,7 @@ export interface Shot {
   locked?: boolean
   /** The energy of the music under this shot, 0–1. */
   energy: number
+  phase?: ShotPhase
 }
 
 /** A rhythmic accent inside the edit: drives zoom punches, shakes and flashes. */
@@ -174,6 +184,10 @@ export interface EditPlan {
   hits: Hit[]
   captions: CaptionLine[]
   seed: number
+  /** Tempo, for tempo-locked effects. */
+  bpm?: number
+  /** Seconds of fade to black at the very end. */
+  fadeOut?: number
 }
 
 export type AspectId = '9:16' | '16:9' | '1:1' | '4:5'

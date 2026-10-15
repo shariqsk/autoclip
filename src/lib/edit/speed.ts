@@ -19,6 +19,9 @@ export function speedAt(ramp: SpeedRamp, x: number): number {
     }
     case 'ease-in':
       return ramp.from + (ramp.to - ramp.from) * smoothstep(0.3, 0.8, x)
+    case 'freeze':
+      // Slow motion right up to the impact, then a held frame.
+      return ramp.from * (1 - smoothstep(ramp.at - 0.06, ramp.at, x))
   }
 }
 
@@ -53,5 +56,7 @@ export function describeSpeed(ramp: SpeedRamp): string {
       return `Velocity ramp (${ramp.fast}× → ${ramp.slow}× → ${ramp.fast}×)`
     case 'ease-in':
       return `Slow-mo into ${ramp.to}×`
+    case 'freeze':
+      return `Slow-mo ${ramp.from}× into a freeze-frame`
   }
 }

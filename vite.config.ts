@@ -34,8 +34,15 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The speech and voice workers are big and optional: cache them when first used instead.
+        globIgnores: ['**/ml.worker-*.js', '**/tts.worker-*.js'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: /(ml|tts)\.worker-.*\.js$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'model-workers', expiration: { maxEntries: 6 } },
+          },
           {
             // The ONNX runtime's WebAssembly is large; cache it on first use instead of precaching.
             urlPattern: /\.wasm$/,

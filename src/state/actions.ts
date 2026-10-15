@@ -216,9 +216,12 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
 }
 
 export function selectDraft(id: string) {
-  const current = getState().activeDraftId
+  const s = getState()
+  const current = s.activeDraftId
   if (id === current) return
-  setState({ activeDraftId: id, prevDraftId: current, selectedShotId: null })
+  const style = s.drafts.find((d) => d.id === id)?.style ?? s.settings.style
+  // The style list follows the take on screen, so a remix carries on in the same style.
+  setState({ activeDraftId: id, prevDraftId: current, selectedShotId: null, settings: { ...s.settings, style } })
 }
 
 /** Flip back to the take you were on before: a quick A/B. */

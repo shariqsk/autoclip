@@ -579,6 +579,53 @@
     border-top: 1px solid var(--line);
   }
 
+  /* Learning a style from reference edits. */
+  .learn-drop-zone {
+    border: 1.5px dashed var(--line-2);
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--ink) 3%, transparent);
+  }
+  .learn-refs > * + * {
+    border-top: 1px solid var(--line);
+  }
+  .learn-strip {
+    border-radius: 3px;
+  }
+  .learn-shot {
+    border-radius: 1px;
+  }
+  .learn-shot-intro {
+    background: color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+  .learn-shot-cold,
+  .learn-shot-build {
+    background: color-mix(in srgb, var(--ink) 45%, transparent);
+  }
+  .learn-shot-hero {
+    background: var(--signal);
+  }
+  .learn-shot-flurry {
+    background: color-mix(in srgb, var(--signal) 55%, var(--ink));
+  }
+  .learn-shot-ride {
+    background: color-mix(in srgb, var(--ink) 70%, transparent);
+  }
+  .learn-drop {
+    background: var(--ink);
+    box-shadow: 0 0 0 1px var(--bg);
+  }
+  .learn-result {
+    border: 1px solid var(--line-2);
+    border-radius: var(--r);
+    background: var(--bg-2);
+  }
+  .learn-bar {
+    padding-top: 0.25rem;
+  }
+  .learn-open {
+    border-style: dashed;
+  }
+
   .loading-bar {
     background: repeating-linear-gradient(-45deg, var(--signal) 0 6px, color-mix(in srgb, var(--signal) 45%, transparent) 6px 12px);
     background-size: 17px 17px;

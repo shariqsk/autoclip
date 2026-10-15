@@ -1,11 +1,12 @@
-// The six styles, drawn for each layout: keys with an LED on Deck, a list on Studio, round
+// The styles (the six built in, then any learned from your edits), drawn for each layout: keys with an LED on Deck, a list on Studio, round
 // stickers on Flyer, chips on Glass. Picking one re-cuts the current take.
 
-import { Check } from 'lucide-react'
+import { Check, Sparkles, Trash2 } from 'lucide-react'
 import { useLook } from '../../hooks/useTheme'
-import { STYLES, type StylePreset } from '../../lib/edit/presets'
+import { type StylePreset } from '../../lib/edit/presets'
 import { makeEdit } from '../../state/actions'
-import { updateSettings, useApp } from '../../state/store'
+import { setState, updateSettings, useApp } from '../../state/store'
+import { getSavedStyle, removeLearnedStyle, useAllStyles, useSavedStyles } from '../../state/styles'
 import { cx } from '../format'
 
 /** A small sketch of a style's arc: intro holds, the build tightening, the drop, the flurry. */
@@ -24,8 +25,9 @@ export function ArcSketch({ style, className }: { style: StylePreset; className?
   )
 }
 
-export function StyleList() {
+function StyleGrid() {
   const { layout } = useLook()
+  const styles = useAllStyles()
   const current = useApp((s) => s.settings.style)
   const hasSong = useApp((s) => !!s.song?.analysis)
   const pick = (id: StylePreset['id']) => {
@@ -37,7 +39,7 @@ export function StyleList() {
   if (layout === 'deck')
     return (
       <div className="grid grid-cols-3 gap-2">
-        {STYLES.map((s, i) => (
+        {styles.map((s, i) => (
           <button
             key={s.id}
             className="deck-key"
@@ -56,7 +58,7 @@ export function StyleList() {
   if (layout === 'flyer')
     return (
       <div className="flex flex-wrap justify-center gap-3 py-1">
-        {STYLES.map((s, i) => (
+        {styles.map((s, i) => (
           <button
             key={s.id}
             className="flyer-sticker"
@@ -74,7 +76,7 @@ export function StyleList() {
   if (layout === 'glass')
     return (
       <div className="grid grid-cols-2 gap-2">
-        {STYLES.map((s) => (
+        {styles.map((s) => (
           <button key={s.id} className="glass-chip" data-on={current === s.id} onClick={() => pick(s.id)} title={`Best for: ${s.bestFor}`}>
             <span className="text-sm font-semibold">{s.name}</span>
             <span className="line-clamp-2 text-[0.7rem] leading-snug opacity-70">{s.tagline}</span>
@@ -86,7 +88,7 @@ export function StyleList() {
   // Studio: a list, like a preset browser.
   return (
     <div className="studio-list">
-      {STYLES.map((s) => (
+      {styles.map((s) => (
         <button key={s.id} className="studio-row" data-on={current === s.id} onClick={() => pick(s.id)} title={`Best for: ${s.bestFor}`}>
           <span className="min-w-0 flex-1">
             <span className="block text-[0.82rem] font-semibold">{s.name}</span>
@@ -97,5 +99,52 @@ export function StyleList() {
         </button>
       ))}
     </div>
+  )
+}
+
+/** Under the styles: learn a new one, or teach (or delete) the learned one that's selected. */
+function LearnBar() {
+  const current = useApp((s) => s.settings.style)
+  const hasSong = useApp((s) => !!s.song?.analysis)
+  useSavedStyles()
+  const mine = getSavedStyle(current)
+  return (
+    <div className="learn-bar space-y-2">
+      {mine && (
+        <div className="learn-mine flex items-center gap-2 text-xs">
+          <span className="min-w-0 flex-1 truncate text-ink-2">
+            Learned from {mine.references.length} edit{mine.references.length === 1 ? '' : 's'}
+          </span>
+          <button className="btn btn-bare btn-sm" onClick={() => setState({ learn: { styleId: mine.preset.id } })}>
+            Teach it more
+          </button>
+          <button
+            className="btn btn-bare btn-sm btn-sq"
+            title={`Delete ${mine.preset.name}`}
+            aria-label={`Delete ${mine.preset.name}`}
+            onClick={() => {
+              if (!confirm(`Delete the ${mine.preset.name} style?`)) return
+              removeLearnedStyle(mine.preset.id)
+              updateSettings({ style: 'hype' })
+              if (hasSong) makeEdit({ recut: true })
+            }}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      )}
+      <button className="btn learn-open w-full" onClick={() => setState({ learn: { styleId: null } })}>
+        <Sparkles className="size-3.5" /> Learn a style from your edits
+      </button>
+    </div>
+  )
+}
+
+export function StyleList() {
+  return (
+    <>
+      <StyleGrid />
+      <LearnBar />
+    </>
   )
 }

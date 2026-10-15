@@ -178,6 +178,9 @@ export function assignFootage(
         // How strong the action is right where the music hits.
         const hitPoint = s + align
         const hitInterest = meanOver(c.prefix.interest, c.dt, hitPoint - c.dt, hitPoint + c.dt)
+        // Impact: how much the action jumps at the hit compared with the second before it. A punch
+        // landing reads harder than motion that was there all along.
+        const impact = Math.max(0, hitInterest - meanOver(c.prefix.interest, c.dt, hitPoint - 1.4, hitPoint - 0.3))
 
         let score = base - (bright < 0.1 ? 0.35 : bright < 0.18 ? 0.1 : 0)
         if (calm) {
@@ -185,6 +188,7 @@ export function assignFootage(
           score += 0.32 * (1 - Math.abs(motion - target)) + 0.3 * sharp + 0.12 * interest
         } else {
           score += 0.4 * interest + 0.2 * (1 - Math.abs(motion - target)) + 0.1 * sharp + (action ? 0.6 : 0.2) * hitInterest
+          if (slot.role === 'hero' || slot.role === 'tease') score += 0.9 * impact
         }
 
         // Never the same scene twice in a row, and no near-repeats of moments already on screen.

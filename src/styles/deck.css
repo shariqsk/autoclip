@@ -1,0 +1,623 @@
+/* Deck: a hardware sampler. One moulded chassis; modules screen-printed with small caps; a screen in a
+   black bezel; rubber pads that light up; keys with LEDs; knobs. */
+
+[data-theme='deck-bone'] {
+  --hi: rgba(255, 255, 255, 0.75);
+  --lo: rgba(70, 60, 40, 0.22);
+  --chassis: #e4dfd3;
+  --pad: #3a3936;
+  --pad-ink: #d8d3c7;
+  --key: #f4f1ea;
+}
+[data-theme='deck-graphite'] {
+  --hi: rgba(255, 255, 255, 0.07);
+  --lo: rgba(0, 0, 0, 0.55);
+  --chassis: #1c1d20;
+  --pad: #2c2d32;
+  --pad-ink: #a9a7a1;
+  --key: #2a2b30;
+}
+[data-theme='deck-neon'] {
+  --hi: rgba(43, 245, 255, 0.08);
+  --lo: rgba(0, 0, 0, 0.8);
+  --chassis: #0b0b12;
+  --pad: #11111b;
+  --pad-ink: #4f6675;
+  --key: #12121c;
+}
+
+[data-layout='deck'] {
+  /* The room the device sits in. */
+  .deck-room {
+    min-height: 100%;
+    padding: 14px;
+    background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--hi) 60%, transparent), transparent 60%), var(--bg);
+  }
+  .deck-chassis {
+    display: flex;
+    min-height: calc(100vh - 28px);
+    flex-direction: column;
+    border-radius: 28px;
+    background: var(--chassis);
+    box-shadow:
+      inset 0 1.5px 0 var(--hi),
+      inset 0 -2px 0 var(--lo),
+      0 1px 0 var(--hi),
+      0 30px 60px -25px var(--lo),
+      0 8px 18px -8px var(--lo);
+    overflow: hidden;
+  }
+  @media (min-width: 1024px) {
+    .deck-room {
+      height: 100%;
+    }
+    .deck-chassis {
+      height: 100%;
+      min-height: 0;
+    }
+  }
+
+  /* The name plate across the top. */
+  .deck-plate {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.85rem 1.2rem 0.6rem;
+  }
+  .deck-brand {
+    font-family: 'Space Grotesk Variable', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+  }
+  .deck-brand::after {
+    content: '';
+    display: inline-block;
+    width: 0.42em;
+    height: 0.42em;
+    margin-left: 0.12em;
+    border-radius: 50%;
+    background: var(--signal);
+  }
+  .deck-model {
+    color: var(--ink-3);
+  }
+  .deck-lcd {
+    max-width: 30rem;
+    align-items: center;
+    gap: 0.7rem;
+    height: 2.3rem;
+    padding: 0 0.9rem;
+    border-radius: 9px;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px), #0d100c;
+    box-shadow:
+      inset 0 2px 6px rgba(0, 0, 0, 0.7),
+      0 1px 0 var(--hi);
+  }
+  .deck-lcd .status {
+    font-family: 'VT323', monospace;
+    font-size: 1.15rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--lcd);
+    text-shadow: 0 0 6px color-mix(in srgb, var(--lcd) 60%, transparent);
+  }
+  .deck-lcd .status-dot {
+    display: none;
+  }
+  .deck-beat-led {
+    width: 0.55rem;
+    height: 0.55rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--signal);
+    opacity: calc(0.18 + var(--beat, 0) * 0.82);
+    box-shadow: 0 0 calc(var(--beat, 0) * 14px) var(--signal);
+  }
+
+  /* Modules: every panel is a recessed area on the chassis, its title screen-printed. */
+  .deck-main {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    gap: 12px;
+    padding: 4px 14px 14px;
+  }
+  @media (min-width: 1024px) {
+    .deck-main {
+      grid-template-columns: 300px minmax(0, 1fr) 330px;
+    }
+  }
+  .deck-col {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 12px;
+  }
+  @media (min-width: 1024px) {
+    .deck-col {
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+  }
+  .pane,
+  .section,
+  .deck-module {
+    border-radius: 18px;
+    background: var(--bg-2);
+    box-shadow:
+      inset 0 1px 2px var(--lo),
+      inset 0 -1px 0 var(--hi);
+  }
+  .deck-module {
+    padding: 1rem;
+  }
+  .block-footage {
+    flex: 1;
+    min-height: 220px;
+    overflow: hidden;
+  }
+  .block-title {
+    font-family: var(--font-label);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .block-num {
+    display: grid;
+    place-items: center;
+    min-width: 1.6rem;
+    height: 1.1rem;
+    border-radius: 4px;
+    border: 1px solid var(--ink-3);
+    color: var(--ink-2);
+    font-size: 0.56rem;
+  }
+  .block-rule {
+    background: transparent;
+    border-top: 1px dashed var(--line-2);
+    opacity: 0.6;
+  }
+  .clip-list {
+    border-top: 1px dashed var(--line-2);
+  }
+  .clip-row {
+    border-bottom-style: dashed;
+    border-color: var(--line);
+  }
+  .clip-row img,
+  .clip-row .halftone {
+    border-radius: 6px;
+  }
+
+  /* The screen. */
+  .deck-centre {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .deck-screen {
+    border-radius: 20px;
+    padding: 10px;
+    background: #0a0b0a;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 3px 10px rgba(0, 0, 0, 0.9),
+      0 1px 0 var(--hi),
+      0 0 calc(var(--beat, 0) * 34px) color-mix(in srgb, var(--glow) 100%, transparent);
+    color: #e8e8e3;
+  }
+  .deck-screen .hud {
+    font-family: 'VT323', monospace;
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--lcd);
+    padding: 0.1rem 0.4rem 0.45rem;
+    min-height: 0;
+  }
+  .deck-screen .hud-time {
+    font-family: 'VT323', monospace;
+    color: var(--lcd);
+    font-size: 1.2rem;
+    text-shadow: 0 0 6px color-mix(in srgb, var(--lcd) 60%, transparent);
+  }
+  .deck-screen .hud-beat {
+    border-color: color-mix(in srgb, var(--lcd) 50%, transparent);
+  }
+  .deck-screen .hud-beat[data-on='true'] {
+    background: var(--lcd);
+  }
+  .deck-screen .stage-frame {
+    border-radius: 8px;
+  }
+  .deck-screen .stage-hint .tag,
+  .deck-screen .stage-hint-big {
+    font-family: 'VT323', monospace;
+    color: var(--lcd);
+    text-transform: uppercase;
+    text-shadow: 0 0 10px color-mix(in srgb, var(--lcd) 60%, transparent);
+  }
+  .deck-screen .stage-hint .tag {
+    font-size: 1.1rem;
+    letter-spacing: 0.06em;
+  }
+
+  /* Controls: hardware buttons with a moulded lip. */
+  .btn {
+    background: var(--key);
+    border: 0;
+    border-radius: 9px;
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 2px 0 var(--lo),
+      0 3px 6px -2px var(--lo);
+    font-family: var(--font-label);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 0 0 var(--lo);
+  }
+  .btn-bare {
+    background: transparent;
+    box-shadow: none;
+  }
+  .btn-bare:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+  .btn-signal {
+    background: var(--signal);
+    color: var(--signal-ink);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 2px 0 color-mix(in srgb, var(--signal) 55%, black),
+      0 0 18px -2px var(--glow);
+  }
+  .deck-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 16px;
+    background: var(--bg-2);
+    box-shadow:
+      inset 0 1px 2px var(--lo),
+      inset 0 -1px 0 var(--hi);
+  }
+  .transport .btn {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+  .transport .btn-bare {
+    background: var(--key);
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 2px 0 var(--lo);
+  }
+  .transport-time {
+    font-family: 'VT323', monospace;
+    font-size: 1.3rem;
+    color: var(--ink);
+  }
+
+  @media (max-width: 640px) {
+    .transport .btn {
+      width: 2.05rem;
+      height: 2.05rem;
+    }
+    .transport-time {
+      font-size: 1.05rem;
+    }
+    .deck-cut {
+      width: 6.5rem;
+      font-size: 1.2rem;
+    }
+  }
+
+  /* The big rubber button. */
+  .slab {
+    border-radius: 14px;
+    font-family: 'Space Grotesk Variable', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+      0 4px 0 color-mix(in srgb, var(--signal) 55%, black),
+      0 10px 20px -6px color-mix(in srgb, var(--signal) 50%, transparent),
+      0 0 28px -4px var(--glow);
+  }
+  .slab:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+      0 1px 0 color-mix(in srgb, var(--signal) 55%, black);
+  }
+  .deck-cut {
+    width: 8.5rem;
+    min-height: 5.2rem;
+    flex-shrink: 0;
+    justify-content: center;
+    font-size: 1.5rem;
+  }
+
+  /* Pads: one per take. */
+  .deck-padrow {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .take-list-deck {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
+    grid-auto-rows: 5.2rem;
+    gap: 8px;
+    max-height: 11rem;
+    overflow-y: auto;
+    padding: 2px;
+  }
+  .deck-pad {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.3rem;
+    padding: 0.55rem 0.6rem;
+    border-radius: 12px;
+    background: var(--pad);
+    color: var(--pad-ink);
+    text-align: left;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.35),
+      0 2px 4px -1px var(--lo);
+    transition:
+      transform 0.06s,
+      box-shadow 0.12s,
+      background 0.12s;
+  }
+  .deck-pad .tag {
+    color: inherit;
+    opacity: 0.8;
+  }
+  .deck-pad .lcd {
+    color: inherit;
+    text-shadow: none;
+  }
+  .deck-pad:active {
+    transform: scale(0.97);
+  }
+  .deck-pad-led {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .deck-pad[data-on='true'] {
+    background: color-mix(in srgb, var(--signal) 22%, var(--pad));
+    color: #fff;
+    box-shadow:
+      inset 0 0 0 1.5px var(--signal),
+      inset 0 0 22px color-mix(in srgb, var(--signal) 45%, transparent),
+      0 0 18px -4px var(--signal);
+  }
+  .deck-pad[data-on='true'] .deck-pad-led {
+    background: var(--signal);
+    box-shadow: 0 0 8px var(--signal);
+  }
+  .deck-pad-demo {
+    min-height: 4.8rem;
+    animation: deck-pad-light 2s steps(1) infinite;
+  }
+
+  /* Style keys. */
+  .deck-key {
+    position: relative;
+    display: flex;
+    min-height: 4.2rem;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.15rem;
+    padding: 0.5rem 0.55rem;
+    border-radius: 11px;
+    background: var(--key);
+    color: var(--ink);
+    text-align: left;
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 3px 0 var(--lo),
+      0 5px 8px -3px var(--lo);
+    transition: transform 0.06s;
+  }
+  .deck-key:active,
+  .deck-key[data-on='true'] {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 1px 0 var(--lo);
+  }
+  .deck-key-led {
+    position: absolute;
+    top: 0.55rem;
+    left: 0.6rem;
+    width: 1.1rem;
+    height: 0.25rem;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--ink) 15%, transparent);
+  }
+  .deck-key[data-on='true'] .deck-key-led {
+    background: var(--signal);
+    box-shadow: 0 0 8px var(--signal);
+  }
+  .deck-key .tag {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.55rem;
+  }
+  .deck-key-name {
+    font-family: 'Space Grotesk Variable', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* Knobs. */
+  .knob-track {
+    stroke: color-mix(in srgb, var(--ink) 14%, transparent);
+  }
+  .knob-fill {
+    stroke: var(--signal);
+    filter: drop-shadow(0 0 3px var(--glow));
+  }
+  .knob-cap {
+    background: radial-gradient(circle at 35% 30%, var(--key), color-mix(in srgb, var(--key) 70%, black));
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 2px 3px var(--lo),
+      0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  }
+  .knob-mark {
+    background: var(--signal);
+  }
+  .knob .lcd {
+    font-size: 1rem;
+    color: var(--ink-2);
+    text-shadow: none;
+  }
+
+  /* Sections: modules with a printed header. */
+  .section-head {
+    padding: 0.8rem 1rem;
+  }
+  .section[data-open='true'] .section-head {
+    padding-bottom: 0.5rem;
+  }
+  .segs {
+    border: 0;
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+    box-shadow: inset 0 1px 2px var(--lo);
+  }
+  .segs > .opt {
+    border-radius: 8px;
+    font-family: var(--font-label);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .segs > .opt[data-on='true'] {
+    background: var(--key);
+    border-color: transparent;
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 1px 2px var(--lo);
+  }
+  .toggle-switch {
+    border-radius: 6px;
+  }
+  .toggle-switch > span {
+    border-radius: 4px;
+  }
+  .field {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    border-color: transparent;
+    box-shadow: inset 0 1px 2px var(--lo);
+    border-radius: 9px;
+  }
+
+  .tape {
+    margin: 0 14px 14px;
+    border: 0;
+    border-radius: 18px;
+    background: var(--bg-2);
+    box-shadow:
+      inset 0 1px 2px var(--lo),
+      inset 0 -1px 0 var(--hi);
+    overflow: hidden;
+  }
+
+  /* First screen. */
+  .deck-welcome {
+    display: grid;
+    flex: 1;
+    gap: 12px;
+    padding: 4px 14px 14px;
+    overflow-y: auto;
+  }
+  @media (min-width: 1024px) {
+    .deck-welcome {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    }
+  }
+  .deck-welcome-main {
+    padding: 14px;
+  }
+  .deck-welcome-screen {
+    display: grid;
+    min-height: 16rem;
+    place-items: center start;
+    padding: 2rem 2.2rem;
+  }
+  .deck-welcome-lcd {
+    text-transform: uppercase;
+  }
+  .deck-cursor {
+    animation: tally 1s steps(1) infinite;
+  }
+  .start-link,
+  .start-resume,
+  .start-downloads {
+    border: 0;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    box-shadow: inset 0 1px 2px var(--lo);
+  }
+
+  .look-picker,
+  .modal-card,
+  .toast {
+    background: var(--chassis);
+    border: 0;
+    box-shadow:
+      inset 0 1px 0 var(--hi),
+      0 30px 70px -20px rgba(0, 0, 0, 0.6),
+      0 0 0 1px var(--lo);
+  }
+  .modal-card {
+    border-radius: 24px;
+  }
+  .modal-title {
+    font-family: 'Space Grotesk Variable', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+}
+
+@keyframes deck-pad-light {
+  0%,
+  12% {
+    background: color-mix(in srgb, var(--signal) 30%, var(--pad));
+    color: #fff;
+    box-shadow:
+      inset 0 0 0 1.5px var(--signal),
+      0 0 18px -4px var(--signal);
+  }
+  13%,
+  100% {
+    background: var(--pad);
+  }
+}

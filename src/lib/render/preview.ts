@@ -7,7 +7,7 @@ import { speedAt } from '../edit/speed'
 import { frameAt, shotIndexAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
 import { Compositor, type LayerInput, type Look } from './compositor'
-import { focusAt, stillZoom } from './export'
+import { focusAt, stillZoom } from './framing'
 
 export interface PreviewClip {
   id: string

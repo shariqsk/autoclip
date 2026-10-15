@@ -7,7 +7,6 @@ import { toSrt } from '../lib/captions/parse'
 import { DEFAULT_MIX, renderMix } from '../lib/audio/mix'
 import { decodeAudioFile } from '../lib/audio/decode'
 import { encodeWav } from '../lib/audio/wav'
-import { exportEdit, ExportCancelled } from '../lib/render/export'
 import { useRenderProject } from '../hooks/useRenderProject'
 import { voiceoverAt } from '../state/derive'
 import { playhead } from '../state/playhead'
@@ -104,6 +103,8 @@ export function ExportDialog() {
       const clips = getState()
         .clips.filter((c) => c.analysis)
         .map((c) => ({ id: c.id, kind: c.kind, file: c.file, analysis: c.analysis! }))
+      // The encoder stack only loads when someone actually exports.
+      const { exportEdit } = await import('../lib/render/export')
       const blob = await exportEdit({
         plan,
         clips,
@@ -119,7 +120,8 @@ export function ExportDialog() {
       })
       setResult({ url: URL.createObjectURL(blob), blob, seconds: (performance.now() - t0) / 1000 })
     } catch (err) {
-      if (!(err instanceof ExportCancelled)) toast(`Export failed: ${err instanceof Error ? err.message : err}`, 'error')
+      if (!(err instanceof Error && err.name === 'ExportCancelled'))
+        toast(`Export failed: ${err instanceof Error ? err.message : err}`, 'error')
     } finally {
       setProgress(null)
       abortRef.current = null

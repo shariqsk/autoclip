@@ -190,11 +190,13 @@ export class PreviewEngine {
     const v = this.video(clip.id, shotIndex % 2)
     const want = layer.srcTime
     const shot = layer.shot
-    if (this.playing) {
-      v.playbackRate = Math.min(16, Math.max(0.0625, speedAt(shot.speed, layer.progress)))
+    const rate = speedAt(shot.speed, layer.progress)
+    if (this.playing && rate > 0.07) {
+      v.playbackRate = Math.min(16, Math.max(0.0625, rate))
       if (Math.abs(v.currentTime - want) > SYNC_TOLERANCE && !v.seeking) v.currentTime = want
       if (v.paused) void v.play().catch(() => {})
     } else {
+      // Paused, or a freeze-frame: hold the exact frame.
       if (!v.paused) v.pause()
       if (Math.abs(v.currentTime - want) > 0.02 && !v.seeking) v.currentTime = want
     }

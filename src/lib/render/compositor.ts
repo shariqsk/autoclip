@@ -227,6 +227,8 @@ export class Compositor {
     gl.uniform1f(this.u('uZoom'), fx.zoom)
     gl.uniform1f(this.u('uFlash'), fx.flash)
     gl.uniform1f(this.u('uRgb'), fx.rgb)
+    gl.uniform1f(this.u('uMonoMix'), fx.mono)
+    gl.uniform1f(this.u('uDim'), fx.dim)
     gl.uniform1i(this.u('uFit'), input.look.fit === 'blur' ? 1 : 0)
     gl.uniform1f(this.u('uTime'), input.time)
 

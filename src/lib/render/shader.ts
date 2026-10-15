@@ -31,6 +31,8 @@ uniform float uRot;
 uniform float uZoom;
 uniform float uFlash;
 uniform float uRgb;
+uniform float uMonoMix;
+uniform float uDim;
 uniform int uFit;        // 0 fill (smart crop), 1 blurred background
 uniform float uTime;
 // Grade
@@ -202,6 +204,10 @@ void main() {
   vec2 q = rotateAround(p, uRot) + uShake;
   vec3 c = composite(q);
   c = grade(c);
+  // Per-shot black and white, with a little extra contrast so it reads as a choice, not a fault.
+  float mono = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(c, vec3(clamp((mono - 0.5) * 1.15 + 0.5, 0.0, 1.0)), clamp(uMonoMix, 0.0, 1.0));
+  c *= 1.0 - clamp(uDim, 0.0, 1.0);
   c = mix(c, vec3(1.0), clamp(uFlash, 0.0, 1.0) * 0.85);
 
   vec2 d = p - 0.5;

@@ -5,6 +5,17 @@
   "type": "module",
   "description": "Drop in a song and a pile of clips. AutoClip listens for the beats, builds and drops, finds the best moments in your footage and cuts a synced edit on its own.",
   "license": "MIT",
+  "author": {
+    "name": "Shariq",
+    "email": "00khanshariq@gmail.com"
+  },
+  "homepage": "https://github.com/shariqsk/autoclip",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shariqsk/autoclip.git"
+  },
+  "main": "electron/main.mjs",
+  "productName": "AutoClip",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -19,7 +30,6 @@
     "desktop": "pnpm build:desktop && electron .",
     "dist:desktop": "pnpm build:desktop && electron-builder"
   },
-  "packageManager": "pnpm@10.5.2",
   "devDependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
@@ -52,20 +62,81 @@
     "vitest": "^5.0.4",
     "workbox-window": "^7.4.1"
   },
+  "packageManager": "pnpm@10.5.2",
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron"
     ]
   },
-  "main": "electron/main.mjs",
-  "productName": "AutoClip",
-  "author": {
-    "name": "Shariq",
-    "email": "00khanshariq@gmail.com"
-  },
-  "homepage": "https://github.com/shariqsk/autoclip",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/shariqsk/autoclip.git"
+  "build": {
+    "appId": "dev.shariq.autoclip",
+    "productName": "AutoClip",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "asar": true,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "shariqsk",
+        "repo": "autoclip",
+        "releaseType": "draft"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.video",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "AutoClip-mac-${arch}.${ext}",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "AutoClip-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "artifactName": "AutoClip-linux-${arch}.${ext}",
+      "maintainer": "Shariq <00khanshariq@gmail.com>"
+    }
   }
 }

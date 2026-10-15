@@ -158,16 +158,16 @@ export function Player() {
             <button className="btn btn-ghost btn-sm btn-icon" title="Back to start" onClick={() => playhead.seek(0)}>
               <SkipBack className="size-4" />
             </button>
-            <button className="btn btn-primary btn-icon" title="Play / pause (Space)" onClick={() => playhead.toggle()}>
+            <button className="btn btn-primary btn-icon shrink-0" title="Play / pause (Space)" onClick={() => playhead.toggle()}>
               {playing ? <Pause className="size-4" /> : <Play className="size-4 translate-x-px" />}
             </button>
-            <span className="ml-1 font-mono text-xs text-ink-2 tabular-nums">
+            <span className="ml-1 font-mono text-xs whitespace-nowrap text-ink-2 tabular-nums">
               {fmtTime(time)} <span className="text-ink-3">/ {fmtTime(duration)}</span>
             </span>
-            <span className="ml-2 hidden font-mono text-[0.7rem] text-ink-3 lg:inline">
+            <span className="ml-2 hidden truncate font-mono text-[0.7rem] whitespace-nowrap text-ink-3 2xl:inline">
               {plan.shots.length} shots · avg {(duration / Math.max(1, plan.shots.length)).toFixed(2)}s
             </span>
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               <button className={cx('btn btn-ghost btn-sm btn-icon', loop && 'text-accent')} title="Loop" onClick={() => setLoop(!loop)}>
                 <Repeat className="size-4" />
               </button>
@@ -186,8 +186,8 @@ export function Player() {
                 title="Director mode: fine-tune every shot by hand (D)"
                 onClick={() => setState({ director: !director })}
               >
-                <Clapperboard className="size-3.5" /> <span className="hidden sm:inline">Director</span>
-                <span className="hidden xl:inline">
+                <Clapperboard className="size-3.5" /> <span className="hidden md:inline">Director</span>
+                <span className="hidden 2xl:inline">
                   <Kbd>D</Kbd>
                 </span>
               </button>

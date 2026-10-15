@@ -10,6 +10,7 @@ import { getStyle } from '../lib/edit/presets'
 import { newSeed } from '../lib/edit/rng'
 import { speak, toWhisperPcm, transcribe, type ModelStatus } from '../lib/ml/client'
 import type { CaptionLine, Clip, EditPlan } from '../lib/types'
+import { clearSaved } from './persist'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -51,6 +52,7 @@ export async function setSongFile(file: File, preDecoded?: AudioBuffer) {
     },
     words: null,
     windowOverride: null,
+    dropOverride: null,
   })
   try {
     const buffer = preDecoded ?? (await decodeAudioFile(file))
@@ -162,9 +164,20 @@ let draftCounter = 0
  */
 export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
   const s = getState()
-  const song = s.song?.analysis
+  const analysis = s.song?.analysis
   const clips = readyClips()
-  if (!song) return toast('Add a song first.', 'error')
+  if (!analysis) return toast('Add a song first.', 'error')
+  // A drop set by hand replaces the detected ones nearby and becomes the strongest.
+  const song =
+    s.dropOverride === null
+      ? analysis
+      : {
+          ...analysis,
+          drops: [
+            { time: s.dropOverride, strength: 1 },
+            ...analysis.drops.filter((d) => Math.abs(d.time - s.dropOverride!) > 8).map((d) => ({ ...d, strength: d.strength * 0.8 })),
+          ].sort((a, b) => a.time - b.time),
+        }
   if (!clips.length) return toast('Add some clips first.', 'error')
   const current = activeDraft(s)
   const style = s.settings.style
@@ -322,9 +335,20 @@ export function captionsFor(d: Draft, s: CaptionInputs = getState()): CaptionLin
     const end = Math.min(songEnd, (song?.drops.find((x) => x.time > songStart)?.time ?? songStart + 2.5) - 0.05, songStart + 3.5)
     lines.unshift(...toEditTime([titleCard(c.title.trim(), songStart, Math.max(first?.time ?? songStart + 1.5, end))], songStart, songEnd))
   }
+  const plate = s.settings.nameplate
+  const hero = d.plan.shots.find((x) => x.phase === 'hero')
+  if (plate.name.trim() && hero) {
+    lines.push({
+      id: 'nameplate',
+      start: hero.start + 0.05,
+      end: Math.min(hero.end + 1.2, hero.start + 3),
+      words: [{ text: plate.name.trim(), start: hero.start, end: hero.end }],
+      nameplate: { sub: plate.sub.trim() },
+    })
+  }
   // A title card takes the screen on its own: hold other captions until it's gone.
   const title = lines.find((l) => l.title)
-  return lines.filter((l) => l.title || !title || l.start >= title.end - 0.01).sort((a, b) => a.start - b.start)
+  return lines.filter((l) => l.title || l.nameplate || !title || l.start >= title.end - 0.01).sort((a, b) => a.start - b.start)
 }
 
 // ——— Voiceover ———
@@ -380,7 +404,14 @@ export async function loadDemo() {
   }
 }
 
+/** Set (or clear) the drop by hand, in song seconds, and re-cut around it. */
+export function setDrop(time: number | null) {
+  setState({ dropOverride: time })
+  if (getState().song?.analysis && readyClips().length) makeEdit({ recut: true })
+}
+
 export function resetProject() {
+  void clearSaved()
   const s = getState()
   s.clips.forEach((c) => {
     URL.revokeObjectURL(c.url)

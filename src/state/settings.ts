@@ -44,6 +44,10 @@ export interface Settings {
     /** Big title card at the start. */
     title: string
   }
+  /** Fighter nameplate that slams in on the drop. */
+  nameplate: { name: string; sub: string }
+  /** "@handle" watermark in the corner. */
+  handle: string
   voiceover: VoiceoverSettings
   export: { resolution: 720 | 1080 | 1440 | 2160; fps: 24 | 30 | 60; quality: 'standard' | 'high' | 'max' }
 }
@@ -74,6 +78,8 @@ export const DEFAULT_SETTINGS: Settings = {
     beatText: '',
     title: '',
   },
+  nameplate: { name: '', sub: '' },
+  handle: '',
   voiceover: { enabled: false, text: 'Ladies and gentlemen… this is the main event.', voice: 'am_michael', speed: 1, placement: 'intro' },
   export: { resolution: 1080, fps: 30, quality: 'high' },
 }
@@ -114,6 +120,7 @@ export function loadSettings(): Settings {
       ...saved,
       captions: { ...DEFAULT_SETTINGS.captions, ...saved.captions },
       voiceover: { ...DEFAULT_SETTINGS.voiceover, ...saved.voiceover },
+      nameplate: { ...DEFAULT_SETTINGS.nameplate, ...saved.nameplate },
       export: { ...DEFAULT_SETTINGS.export, ...saved.export },
     }
   } catch {

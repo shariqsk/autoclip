@@ -22,7 +22,13 @@ export function lookFor(style: Draft['style'], s: Settings): Look {
 
 export function captionOptionsFor(style: Draft['style'], s: Settings): CaptionOptions {
   const c = s.captions
-  return { style: c.style === 'style' ? getStyle(style).captions : c.style, position: c.position, scale: c.scale, accent: c.accent }
+  return {
+    style: c.style === 'style' ? getStyle(style).captions : c.style,
+    position: c.position,
+    scale: c.scale,
+    accent: c.accent,
+    handle: s.handle.trim(),
+  }
 }
 
 export function renderPlan(d: Draft, state: CaptionInputs): EditPlan {

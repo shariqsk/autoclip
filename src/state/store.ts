@@ -56,6 +56,8 @@ export interface AppState {
   voice: { key: string; buffer: AudioBuffer } | null
   /** A song range picked by hand on the waveform, instead of the automatic choice. */
   windowOverride: { start: number; end: number } | null
+  /** The drop, set by hand on the tape (song seconds), when the detected one is wrong. */
+  dropOverride: number | null
   director: boolean
   exportOpen: boolean
   helpOpen: boolean
@@ -76,6 +78,7 @@ const initial: AppState = {
   fileCaptionsName: null,
   voice: null,
   windowOverride: null,
+  dropOverride: null,
   director: false,
   exportOpen: false,
   helpOpen: false,

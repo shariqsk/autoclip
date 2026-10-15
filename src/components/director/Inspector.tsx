@@ -2,6 +2,7 @@
 // effects, lock) or the selected caption (text and timing).
 
 import { Dices, Lock, Scissors, Trash2, Unlock } from 'lucide-react'
+import { useMemo } from 'react'
 import { removeShot, repick, splitShot, swapClip, updateShot } from '../../lib/edit/ops'
 import { TRANSITION_NAMES } from '../../lib/edit/presets'
 import { sourceDuration } from '../../lib/edit/speed'
@@ -76,7 +77,8 @@ function InPoint({ shot, clip }: { shot: Shot; clip: Clip }) {
 }
 
 function ShotInspector({ shot, index, plan }: { shot: Shot; index: number; plan: EditPlan }) {
-  const clips = useApp((s) => s.clips.filter((c) => c.status === 'ready' && c.analysis))
+  const allClips = useApp((s) => s.clips)
+  const clips = useMemo(() => allClips.filter((c) => c.status === 'ready' && c.analysis), [allClips])
   const clip = clips.find((c) => c.id === shot.clipId)
   const set = (patch: Partial<Shot>) => editPlan((p) => updateShot(p, shot.id, patch))
   const setFx = (patch: Partial<Shot['fx']>) => set({ fx: { ...shot.fx, ...patch } })

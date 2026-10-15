@@ -34,6 +34,8 @@ export interface Slot {
   accent: number
   /** 0–1 position inside the build (for ramping effects). */
   buildProgress?: number
+  /** This shot starts on a hit in the music (a strum, a stab, a fill), not just a beat. */
+  hit?: boolean
   /** Human-readable "why this cut is here". */
   reason: string
 }
@@ -46,7 +48,12 @@ interface Region {
 
 const MAX_ANCHORS = 3
 
-export function buildSlots(song: SongAnalysis, window: SongWindow, style: StylePreset, rng: Rng): Slot[] {
+export interface SlotOptions {
+  /** Cut on standout hits in the music (strums, stabs, fills), not only on the beat grid. */
+  hitCuts?: boolean
+}
+
+export function buildSlots(song: SongAnalysis, window: SongWindow, style: StylePreset, rng: Rng, opts: SlotOptions = {}): Slot[] {
   const { start: w0, end: w1 } = window
   const W = w1 - w0
   const bp = 60 / Math.max(40, song.bpm)
@@ -56,6 +63,11 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
   const beatT = beats.map((b) => b.t)
   if (!beatT.length || beatT[0] > 0.05) beatT.unshift(0)
   const downT = beats.filter((b) => b.kind === 'downbeat').map((b) => b.t)
+
+  const useHits = opts.hitCuts !== false
+  const hitsIn = useHits
+    ? (song.hits ?? []).filter((h) => h.time >= w0 && h.time < w1).map((h) => ({ t: h.time - w0, strength: h.strength }))
+    : []
 
   const nearest = (xs: number[], t: number) => xs.reduce((a, b) => (Math.abs(b - t) < Math.abs(a - t) ? b : a), xs[0] ?? t)
   const snap = (t: number) => (t >= W - 0.05 ? W : nearest(beatT, t))
@@ -190,6 +202,14 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
             const score = strengthAt(at) + rng() * 0.35 + (at >= r.end - 0.05 ? 0.2 : 0)
             if (score > best.score) best = { at: Math.min(at, r.end), score }
           }
+          // A standout hit in range (a stab, a fill) beats a plain beat, off the grid or not.
+          const shortest = Math.min(...choices) * bp
+          for (const h of hitsIn) {
+            if (h.t < t + shortest * 0.75 || h.t > t + Math.max(...choices) * bp + 0.01 || h.t > r.end - bp * 0.5) continue
+            if (h.strength < 0.35) continue
+            const score = 0.6 + h.strength * 1.2 + rng() * 0.2
+            if (score > best.score) best = { at: h.t, score }
+          }
           let next = best.at
           if (r.end - next < bp * 0.6) next = r.end
           push(t, next, r.phase, first)
@@ -201,9 +221,11 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
     }
   }
 
+  if (useHits && hitsIn.length) addHitCuts(slots, hitsIn, style, bp)
+
   // Merge any sliver into its neighbour.
   for (let i = slots.length - 1; i > 0; i--) {
-    if (slots[i].end - slots[i].start < bp * 0.3 && slots[i].role !== 'build') {
+    if (slots[i].end - slots[i].start < bp * 0.3 && slots[i].role !== 'build' && !slots[i].hit) {
       slots[i - 1].end = slots[i].end
       slots.splice(i, 1)
     }
@@ -214,6 +236,10 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
     return n === 1 ? '1 beat' : `${n} beats`
   }
   for (const s of slots) {
+    if (s.hit) {
+      s.reason = 'Cut on a hit in the music'
+      continue
+    }
     s.reason = {
       tease: 'Cold open: a flash of the action to stop the scroll',
       intro: `Intro: held for ${beatsOf(s)} so the viewer meets the subject`,
@@ -225,6 +251,76 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
     }[s.role]
   }
   return slots
+}
+
+const HIT_SPLIT_ROLES = new Set<SlotRole>(['intro', 'ride', 'outro'])
+
+/**
+ * Cut on the hits you can hear. In held parts (intro, ride, outro), a cluster of standout hits (a
+ * riff of strums, a run of stabs) gets one cut per hit, then the shot holds again. "Standout" is
+ * relative to the part itself, so a quiet intro's strums count and the steady groove doesn't, and
+ * each style decides how often it's allowed. Elsewhere, a cut near a hit snaps onto it.
+ */
+function addHitCuts(slots: Slot[], hits: { t: number; strength: number }[], style: StylePreset, bp: number) {
+  const bar = bp * 4
+  let lastClusterEnd = -Infinity
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i]
+    if (!HIT_SPLIT_ROLES.has(slot.role)) continue
+    const inside = hits.filter((h) => h.t > slot.start - 0.02 && h.t < slot.end - 0.15)
+    if (!inside.length) continue
+    // What's typical is judged over a few seconds around the shot, not just the shot itself.
+    const context = hits.filter((h) => h.t > slot.start - 2.5 && h.t < slot.end + 2.5).map((h) => h.strength)
+    const sorted = context.sort((a, b) => a - b)
+    const typical = sorted[Math.floor(sorted.length * 0.4)] ?? 0
+    const standout = inside.filter((h) => h.strength >= Math.max(0.22, typical * 1.8))
+    // Chains of standouts within a couple of beats of each other.
+    const clusters: { t: number; strength: number }[][] = []
+    let cur: { t: number; strength: number }[] = []
+    for (const h of standout) {
+      if (cur.length && h.t - cur[cur.length - 1].t > bp * 1.6) {
+        clusters.push(cur)
+        cur = []
+      }
+      cur.push(h)
+    }
+    if (cur.length) clusters.push(cur)
+    const cuts: number[] = []
+    for (const c of clusters) {
+      // A cluster is two or more hits, or one very loud one; at most four cuts.
+      if (c.length < 2 && c[0].strength < 0.55) continue
+      if (c[0].t - lastClusterEnd < style.hitCuts.everyBars * bar) continue
+      const pick =
+        c.length <= 4
+          ? c
+          : [...c]
+              .sort((a, b) => b.strength - a.strength)
+              .slice(0, 4)
+              .sort((a, b) => a.t - b.t)
+      for (const h of pick) if (h.t > slot.start + 0.15 && h.t < slot.end - 0.15) cuts.push(h.t)
+      lastClusterEnd = c[c.length - 1].t
+    }
+    if (!cuts.length) continue
+    const bounds = [slot.start, ...cuts.sort((a, b) => a - b), slot.end]
+    const pieces: Slot[] = []
+    for (let k = 0; k < bounds.length - 1; k++) {
+      if (bounds[k + 1] - bounds[k] < 0.15) continue
+      pieces.push({ ...slot, start: bounds[k], end: bounds[k + 1], sectionStart: k === 0 && slot.sectionStart, accent: 0, hit: k > 0 })
+    }
+    if (pieces.length) pieces[pieces.length - 1].end = slot.end
+    slots.splice(i, 1, ...pieces)
+    i += pieces.length - 1
+  }
+
+  // Snap: a cut within a few milliseconds of a hit moves onto it, so it lands on the sound.
+  for (let i = 1; i < slots.length; i++) {
+    const t = slots[i].start
+    if (slots[i].role === 'hero' || slots[i].hit) continue
+    const h = hits.find((x) => Math.abs(x.t - t) <= 0.07 && x.strength >= 0.2)
+    if (!h || h.t <= slots[i - 1].start + 0.1 || h.t >= slots[i].end - 0.1) continue
+    slots[i].start = h.t
+    slots[i - 1].end = h.t
+  }
 }
 
 /** Accents inside the edit that drive zoom punches and shakes. */

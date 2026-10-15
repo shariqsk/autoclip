@@ -41,6 +41,16 @@ export interface Toast {
   tone: 'info' | 'error' | 'success'
 }
 
+/** A link being imported by the desktop app. */
+export interface Download {
+  id: string
+  site: string
+  mode: 'audio' | 'video'
+  stage: string
+  fraction: number | null
+  error?: string
+}
+
 export interface AppState {
   song: Song | null
   clips: Clip[]
@@ -66,6 +76,9 @@ export interface AppState {
   selectedShotId: string | null
   selectedCaptionId: string | null
   demoLoading: number | null
+  downloads: Download[]
+  /** The import-from-link dialog, open with a starting link and target. */
+  linkDialog: { url: string; mode: 'audio' | 'video' | null } | null
   toasts: Toast[]
 }
 
@@ -88,6 +101,8 @@ const initial: AppState = {
   selectedShotId: null,
   selectedCaptionId: null,
   demoLoading: null,
+  downloads: [],
+  linkDialog: null,
   toasts: [],
 }
 

@@ -211,7 +211,7 @@ export function SongCard() {
             ))}
             {analysis.drops.length > 0 && (
               <span className="flex items-center gap-1 text-[0.7rem] text-ink-2">
-                <Zap className="size-3 text-accent" /> Drop
+                <Zap className="size-3 text-accent" /> Hit point
               </span>
             )}
             {override && (

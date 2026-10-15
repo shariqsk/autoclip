@@ -109,6 +109,7 @@ function ClipTile({ clip, index, count, used }: { clip: Clip; index: number; cou
 
 export function ClipBin() {
   const clips = useApp((s) => s.clips)
+  const demo = useApp((s) => s.demoLoading)
   const draft = useApp((s) => activeDraft(s))
   const inputRef = useRef<HTMLInputElement>(null)
   const analyzing = clips.filter((c) => c.status === 'analyzing' || c.status === 'queued').length
@@ -141,14 +142,22 @@ export function ClipBin() {
           }}
         />
       </div>
-      {clips.length === 0 ? (
+      {demo !== null && (
+        <div className="mx-4 mb-3 space-y-1">
+          <div className="text-[0.7rem] text-ink-3">Rendering demo footage… {Math.round(demo * 100)}%</div>
+          <div className="h-1 overflow-hidden rounded-full bg-well">
+            <div className="h-full bg-accent transition-[width]" style={{ width: `${demo * 100}%` }} />
+          </div>
+        </div>
+      )}
+      {clips.length === 0 && demo === null ? (
         <button
           onClick={() => inputRef.current?.click()}
           className="mx-4 mb-4 grid h-28 place-items-center rounded-[var(--r-ctl)] border border-dashed border-line text-sm text-ink-3 transition-colors hover:border-accent hover:text-ink"
         >
           Drop videos or photos here
         </button>
-      ) : (
+      ) : clips.length === 0 ? null : (
         <div className="grid min-h-0 grid-cols-2 gap-2 overflow-y-auto px-4 pb-4">
           {clips.map((c, i) => (
             <ClipTile key={c.id} clip={c} index={i} count={clips.length} used={usedBy(c.id)} />

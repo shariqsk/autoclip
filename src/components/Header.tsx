@@ -12,7 +12,7 @@ function Status() {
   const song = useApp((s) => s.song)
   const clips = useApp((s) => s.clips)
   const draft = useApp((s) => activeDraft(s))
-  const takes = useApp((s) => s.drafts.length)
+  const takeNo = useApp((s) => s.drafts.findIndex((d) => d.id === s.activeDraftId) + 1)
   const demo = useApp((s) => s.demoLoading)
   const watching = clips.filter((c) => c.status === 'queued' || c.status === 'analyzing').length
   const ready = clips.filter((c) => c.status === 'ready').length
@@ -24,7 +24,7 @@ function Status() {
   else if (watching) text = `Watching footage · ${ready}/${clips.length}`
   else if (draft) {
     live = true
-    text = `Take ${String(takes).padStart(2, '0')} on air · ${getStyle(draft.style).name} · ${draft.plan.shots.length} shots`
+    text = `Take ${String(takeNo).padStart(2, '0')} on air · ${getStyle(draft.style).name} · ${draft.plan.shots.length} shots`
   } else if (song && !clips.length) text = 'Song in · waiting for footage'
   else if (!song && clips.length) text = 'Footage in · waiting for a song'
 

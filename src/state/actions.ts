@@ -420,6 +420,7 @@ export function setDrop(time: number | null) {
 
 export function resetProject() {
   void clearSaved()
+  draftCounter = 0
   const s = getState()
   s.clips.forEach((c) => {
     URL.revokeObjectURL(c.url)

@@ -1,0 +1,18 @@
+// Framing helpers shared by the live preview and the exporter.
+
+import type { Layer } from '../edit/timeline'
+import type { ClipAnalysis } from '../types'
+
+/** Focus point for smart cropping, read from the clip analysis at a source time. */
+export function focusAt(a: ClipAnalysis, t: number): { x: number; y: number } {
+  if (a.times.length < 2) return { x: a.focusX[0] ?? 0.5, y: a.focusY[0] ?? 0.5 }
+  const dt = a.times[1] - a.times[0]
+  const i = Math.min(a.times.length - 2, Math.max(0, Math.floor(t / dt)))
+  const k = Math.min(1, Math.max(0, t / dt - i))
+  return { x: a.focusX[i] * (1 - k) + a.focusX[i + 1] * k, y: a.focusY[i] * (1 - k) + a.focusY[i + 1] * k }
+}
+
+/** Stills get a slow Ken Burns push so they never sit dead on screen. */
+export function stillZoom(layer: Layer): number {
+  return 1.02 + 0.1 * layer.progress
+}

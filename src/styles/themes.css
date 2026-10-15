@@ -1,0 +1,67 @@
+/*
+ * Looks. AutoClip is styled like a fight-night broadcast and its printed poster: hard edges,
+ * hairline rules, condensed all-caps headlines, monospace timecode, one loud signal colour.
+ * Every decision is a variable set per [data-theme] on <html>.
+ *
+ *   fight     (default) arena black, bone white, broadcast red
+ *   press     the printed fight poster: newsprint, black ink, red
+ *   afterhours the after-party: violet black and an acid-lime signal
+ */
+
+:root,
+[data-theme='fight'] {
+  --bg: #0a0a0a;
+  --bg-2: #111111;
+  --bg-3: #181818;
+  --line: #232323;
+  --line-2: #363636;
+  --ink: #efe9dd;
+  --ink-2: #a8a298;
+  --ink-3: #66625b;
+  --signal: #ff2a14;
+  --signal-ink: #0a0a0a;
+  --signal-2: #ffd21f;
+  --good: #3bdc7c;
+  --stage: #000000;
+  --halftone: rgba(239, 233, 221, 0.06);
+  --grain-opacity: 0.06;
+  color-scheme: dark;
+}
+
+[data-theme='press'] {
+  --bg: #ece6d8;
+  --bg-2: #e4ddcd;
+  --bg-3: #dad2c0;
+  --line: #c9bfa9;
+  --line-2: #141210;
+  --ink: #141210;
+  --ink-2: #4b4439;
+  --ink-3: #847a69;
+  --signal: #d4210f;
+  --signal-ink: #f4efe4;
+  --signal-2: #141210;
+  --good: #0e7a3d;
+  --stage: #141210;
+  --halftone: rgba(20, 18, 16, 0.08);
+  --grain-opacity: 0.1;
+  color-scheme: light;
+}
+
+[data-theme='afterhours'] {
+  --bg: #0c0a14;
+  --bg-2: #13101e;
+  --bg-3: #1b1729;
+  --line: #262038;
+  --line-2: #3b3355;
+  --ink: #ece7ff;
+  --ink-2: #a49cc6;
+  --ink-3: #6a6290;
+  --signal: #c2ff2e;
+  --signal-ink: #0c0a14;
+  --signal-2: #ff4fd8;
+  --good: #5bffb0;
+  --stage: #05040a;
+  --halftone: rgba(194, 255, 46, 0.05);
+  --grain-opacity: 0.07;
+  color-scheme: dark;
+}

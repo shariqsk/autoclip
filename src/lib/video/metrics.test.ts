@@ -36,6 +36,12 @@ describe('frame metrics', () => {
     const night = frame((_, y) => 0.05 + (0.02 * y) / H)
     const dists = [0, 0.05, 0.06, 0.04, signatureDistance(signature(day), signature(night)), 0.05, 0.04, 0.06]
     expect(detectCuts(dists)).toEqual([4])
+    // A flash that comes straight back is not a cut.
+    const flash = frame(() => 1)
+    const sigs = [day, day, day, flash, day, day, day].map(signature)
+    const flashDists = sigs.map((sg, i) => (i ? signatureDistance(sigs[i - 1], sg) : 0))
+    expect(detectCuts(flashDists)).toContain(3)
+    expect(detectCuts(flashDists, 0.45, sigs)).toEqual([])
     // Constant heavy change (a whip pan) is not a cut.
     expect(detectCuts([0, 0.5, 0.55, 0.5, 0.52, 0.5])).toEqual([])
   })

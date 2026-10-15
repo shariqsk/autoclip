@@ -85,15 +85,26 @@ export function signatureDistance(a: Float32Array, b: Float32Array): number {
 
 /**
  * Hard cuts: a jump in the frame signature that stands well clear of the jumps around it (so fast
- * action and camera pans don't count). Returns the indices of the first frame after each cut.
+ * action and camera pans don't count) and that stays changed. Flashes, strobes and a single bright
+ * frame on an impact jump away and come straight back, so they aren't cuts. `sigs` are the frame
+ * signatures; without them only the jump test is applied. Returns the indices of the first frame
+ * after each cut.
  */
-export function detectCuts(distances: number[], threshold = 0.45): number[] {
+export function detectCuts(distances: number[], threshold = 0.45, sigs?: Float32Array[]): number[] {
   const cuts: number[] = []
   for (let i = 1; i < distances.length; i++) {
     const d = distances[i]
     const around = [...distances.slice(Math.max(1, i - 4), i), ...distances.slice(i + 1, i + 5)].sort((a, b) => a - b)
     const median = around[Math.floor(around.length / 2)] ?? 0
-    if (d > threshold && d > median * 3 + 0.08) cuts.push(i)
+    if (!(d > threshold && d > median * 3 + 0.08)) continue
+    if (sigs && sigs[i - 1] && sigs[i + 1] && sigs[i + 2]) {
+      const after1 = signatureDistance(sigs[i - 1], sigs[i + 1])
+      const after2 = signatureDistance(sigs[i - 1], sigs[i + 2])
+      if (Math.min(after1, after2) < threshold * 0.6) continue
+      // ...and the frame coming back from a flash isn't one either.
+      if (sigs[i - 2] && signatureDistance(sigs[i - 2], sigs[i]) < threshold * 0.6) continue
+    }
+    cuts.push(i)
   }
   return cuts
 }

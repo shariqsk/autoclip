@@ -124,6 +124,7 @@ export async function analyzeVideo(file: Blob, onProgress: (fraction: number) =>
       focusY: [] as number[],
     }
     const sigDist: number[] = []
+    const sigs: Float32Array[] = []
     let prev: Gray | null = null
     let prevSig: Float32Array | null = null
     let i = 0
@@ -138,6 +139,7 @@ export async function analyzeVideo(file: Blob, onProgress: (fraction: number) =>
         raw.sharpness.push(sharpness(g))
         raw.brightness.push(brightness(g))
         sigDist.push(prevSig ? signatureDistance(prevSig, sig) : 0)
+        sigs.push(sig)
         prev = g
         prevSig = sig
       } else {
@@ -148,11 +150,12 @@ export async function analyzeVideo(file: Blob, onProgress: (fraction: number) =>
         raw.sharpness.push(raw.sharpness.at(-1) ?? 0)
         raw.brightness.push(raw.brightness.at(-1) ?? 0)
         sigDist.push(0)
+        sigs.push(prevSig ?? new Float32Array(25))
       }
       if (++i % 10 === 0) onProgress(0.8 * (i / times.length))
     }
 
-    const cutIdx = detectCuts(sigDist)
+    const cutIdx = detectCuts(sigDist, 0.45, sigs)
     const cuts = cutIdx.map((k) => Math.round(((times[k - 1] + times[k]) / 2) * 1000) / 1000)
     // The frame right after a cut always "moves" a lot; that's the cut, not action.
     for (const k of cutIdx) raw.motion[k] = raw.motion[k - 1] ?? 0

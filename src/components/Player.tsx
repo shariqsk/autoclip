@@ -82,7 +82,7 @@ export function Stage({ className }: { className?: string }) {
       look,
       captions,
       audio: mix,
-      clips: clips.filter((c) => c.analysis).map((c) => ({ id: c.id, kind: c.kind, url: c.url, analysis: c.analysis! })),
+      clips: clips.filter((c) => c.analysis).map((c) => ({ id: c.id, kind: c.kind, url: c.url, analysis: c.analysis!, offset: c.offset })),
     })
   }, [plan, look, captions, mix, clips])
 

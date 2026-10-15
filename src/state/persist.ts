@@ -19,6 +19,8 @@ interface SavedClip {
   analysis: ClipAnalysis
   thumbs: Blob[]
   pin?: 'hero' | 'skip'
+  offset?: number
+  momentOf?: string
 }
 
 export interface SavedProject {
@@ -80,6 +82,8 @@ async function snapshot(s: AppState): Promise<SavedProject | null> {
       analysis: c.analysis!,
       thumbs: await Promise.all(c.thumbs.map(async (u) => (await fetch(u)).blob())),
       pin: c.pin,
+      offset: c.offset,
+      momentOf: c.momentOf,
     })),
   )
   return {
@@ -143,6 +147,8 @@ export async function restore(p: SavedProject) {
       status: 'ready',
       progress: 1,
       pin: c.pin,
+      offset: c.offset,
+      momentOf: c.momentOf,
     })),
     drafts: p.drafts.map((d) => ({ ...d, past: [], future: [] })),
     activeDraftId: p.activeDraftId ?? p.drafts.at(-1)?.id ?? null,

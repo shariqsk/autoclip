@@ -1,24 +1,22 @@
-// The song, as AutoClip hears it: waveform colored by section, beat ticks, drop markers, the part of
-// the song the edit uses (drag it to re-cut somewhere else) and the playhead.
+// 01 SOUND: the song as AutoClip hears it. Tale-of-the-tape stats, the full waveform with its
+// sections, drops and bar ticks, and the stretch of song the edit uses (drag it to move the edit).
 
-import { Music2, RefreshCw, Zap } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { SongAnalysis } from '../lib/types'
 import { makeEdit, setSongFile } from '../state/actions'
 import { playhead } from '../state/playhead'
 import { activeDraft, setState, useApp } from '../state/store'
-import type { SectionLabel, SongAnalysis } from '../lib/types'
-import { cx, fmtTime, SECTION_COLORS } from './format'
+import { cx, fmtTime } from './format'
+import { Progress } from './ui'
 
-const SECTION_NAMES: Record<SectionLabel, string> = {
-  intro: 'Intro',
-  verse: 'Verse',
-  build: 'Build',
-  drop: 'Drop',
-  break: 'Break',
-  outro: 'Outro',
-}
-
-function drawWave(canvas: HTMLCanvasElement, song: SongAnalysis, win: { start: number; end: number } | null, playT: number | null) {
+function drawWave(
+  canvas: HTMLCanvasElement,
+  song: SongAnalysis,
+  win: { start: number; end: number } | null,
+  playT: number | null,
+  drop: number | null,
+) {
   const dpr = window.devicePixelRatio || 1
   const w = canvas.clientWidth
   const h = canvas.clientHeight
@@ -28,62 +26,57 @@ function drawWave(canvas: HTMLCanvasElement, song: SongAnalysis, win: { start: n
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
   const css = getComputedStyle(canvas)
+  const ink = css.getPropertyValue('--ink').trim()
   const ink3 = css.getPropertyValue('--ink-3').trim()
-  const accent = css.getPropertyValue('--accent').trim()
+  const signal = css.getPropertyValue('--signal').trim()
   const xOf = (t: number) => (t / song.duration) * w
 
   const buckets = song.peaks.length / 2
-  const mid = h * 0.46
-  const amp = h * 0.4
+  const mid = h * 0.45
+  const amp = h * 0.42
   for (let i = 0; i < buckets; i++) {
     const t = (i / buckets) * song.duration
     const sec = song.sections.find((s) => t >= s.start && t < s.end)
     const inWin = !win || (t >= win.start && t <= win.end)
-    ctx.fillStyle = sec ? SECTION_COLORS[sec.label] : ink3
-    ctx.globalAlpha = inWin ? 0.95 : 0.22
-    const x = (i / buckets) * w
+    ctx.fillStyle = sec?.label === 'drop' ? signal : inWin ? ink : ink3
+    ctx.globalAlpha = inWin ? 1 : 0.28
     const lo = song.peaks[i * 2]
     const hi = song.peaks[i * 2 + 1]
-    ctx.fillRect(x, mid - hi * amp, Math.max(1, w / buckets - 0.3), Math.max(1, (hi - lo) * amp))
+    ctx.fillRect((i / buckets) * w, mid - hi * amp, Math.max(1, w / buckets - 0.4), Math.max(1, (hi - lo) * amp))
   }
   ctx.globalAlpha = 1
-
-  // Beat ticks: downbeats taller.
   ctx.fillStyle = ink3
-  for (const b of song.beats) {
-    const x = xOf(b.time)
-    ctx.globalAlpha = b.kind === 'downbeat' ? 0.7 : 0.25
-    ctx.fillRect(x, h - (b.kind === 'downbeat' ? 7 : 4), 1, b.kind === 'downbeat' ? 7 : 4)
-  }
-  ctx.globalAlpha = 1
-
+  for (const b of song.beats) if (b.kind === 'downbeat') ctx.fillRect(xOf(b.time), h - 5, 1, 5)
   if (win) {
-    ctx.strokeStyle = accent
-    ctx.lineWidth = 1.5
-    ctx.strokeRect(xOf(win.start) + 0.75, 1, xOf(win.end) - xOf(win.start) - 1.5, h - 10)
+    ctx.strokeStyle = ink
+    ctx.lineWidth = 1
+    ctx.strokeRect(xOf(win.start) + 0.5, 0.5, xOf(win.end) - xOf(win.start) - 1, h - 7)
   }
-  for (const d of song.drops) {
-    const x = xOf(d.time)
-    ctx.fillStyle = accent
-    ctx.globalAlpha = 0.5 + 0.5 * d.strength
-    ctx.fillRect(x - 0.75, 0, 1.5, h - 8)
-    ctx.beginPath()
-    ctx.moveTo(x - 4, 0)
-    ctx.lineTo(x + 4, 0)
-    ctx.lineTo(x, 6)
-    ctx.fill()
+  for (const d of drop === null ? song.drops.map((x) => x.time) : [drop]) {
+    ctx.fillStyle = signal
+    ctx.fillRect(xOf(d) - 1, 0, 2, h - 6)
+    ctx.fillRect(xOf(d) - 4, 0, 8, 4)
   }
-  ctx.globalAlpha = 1
   if (playT !== null) {
-    ctx.fillStyle = css.getPropertyValue('--ink').trim()
-    ctx.fillRect(xOf(playT) - 1, 0, 2, h - 8)
+    ctx.fillStyle = ink
+    ctx.fillRect(xOf(playT) - 0.5, 0, 1.5, h - 6)
   }
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="min-w-0 border-l border-line pl-2.5 first:border-l-0 first:pl-0">
+      <div className={cx('head truncate text-[1.7rem]', accent && 'text-signal')}>{value}</div>
+      <div className="tag mt-1">{label}</div>
+    </div>
+  )
 }
 
 export function SongCard() {
   const song = useApp((s) => s.song)
   const draft = useApp((s) => activeDraft(s))
   const override = useApp((s) => s.windowOverride)
+  const dropOverride = useApp((s) => s.dropOverride)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [drag, setDrag] = useState<{ x0: number; start: number; end: number; cur: number } | null>(null)
@@ -102,7 +95,7 @@ export function SongCard() {
     const canvas = canvasRef.current
     if (!canvas || !analysis) return
     let raf = 0
-    const draw = () => drawWave(canvas, analysis, win, draft && !drag ? draft.plan.songStart + playhead.time : null)
+    const draw = () => drawWave(canvas, analysis, win, draft && !drag ? draft.plan.songStart + playhead.time : null, dropOverride)
     draw()
     const unsub = playhead.subscribe(() => {
       cancelAnimationFrame(raf)
@@ -110,12 +103,15 @@ export function SongCard() {
     })
     const ro = new ResizeObserver(draw)
     ro.observe(canvas)
+    const mo = new MutationObserver(draw)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     return () => {
       unsub()
       ro.disconnect()
+      mo.disconnect()
       cancelAnimationFrame(raf)
     }
-  }, [analysis, win, draft, drag])
+  }, [analysis, win, draft, drag, dropOverride])
 
   if (!song) return null
 
@@ -126,17 +122,13 @@ export function SongCard() {
     if (t >= win.start && t <= win.end) {
       e.currentTarget.setPointerCapture(e.pointerId)
       setDrag({ x0: e.clientX, start: win.start, end: win.end, cur: win.start })
-    } else if (draft) {
-      // Click outside the window: just seek if it's inside, otherwise ignore.
-      playhead.seek(t - draft.plan.songStart)
     }
   }
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drag || !analysis) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const dt = ((e.clientX - drag.x0) / rect.width) * analysis.duration
     const len = drag.end - drag.start
-    let start = Math.max(0, Math.min(analysis.duration - len, drag.start + dt))
+    let start = Math.max(0, Math.min(analysis.duration - len, drag.start + ((e.clientX - drag.x0) / rect.width) * analysis.duration))
     // Snap to the nearest downbeat so the edit still starts on "the one".
     const downs = analysis.beats.filter((b) => b.kind === 'downbeat')
     const snap = downs.reduce((a, b) => (Math.abs(b.time - start) < Math.abs(a.time - start) ? b : a), downs[0])
@@ -145,39 +137,22 @@ export function SongCard() {
   }
   const onPointerUp = () => {
     if (!drag) return
-    const moved = Math.abs(drag.cur - drag.start) > 0.05
-    if (moved) {
+    if (Math.abs(drag.cur - drag.start) > 0.05) {
       setState({ windowOverride: { start: drag.cur, end: drag.cur + (drag.end - drag.start) } })
-      makeEdit()
+      makeEdit({ recut: true })
     }
     setDrag(null)
   }
 
-  const sectionsInWin = analysis?.sections.filter((s) => win && s.end > win.start && s.start < win.end) ?? []
-
   return (
-    <div className="panel overflow-hidden">
-      <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
-        <div className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-accent text-on-accent">
-          <Music2
-            className={cx('size-4', analysis && 'beat')}
-            style={{ ['--beat' as string]: analysis ? `${60 / analysis.bpm}s` : undefined }}
-          />
+    <section className="border-b border-line">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <div className="rule-head flex-1">
+          <span className="tag text-signal">01</span>
+          <span className="head text-lg">Sound</span>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold" title={song.name}>
-            {song.name}
-          </div>
-          <div className="font-mono text-[0.7rem] text-ink-3">
-            {analysis
-              ? `${Math.round(analysis.bpm)} BPM · ${analysis.drops.length} drop${analysis.drops.length === 1 ? '' : 's'} · ${fmtTime(analysis.duration).slice(0, -2)}`
-              : song.status === 'error'
-                ? song.error
-                : `${song.stage}…`}
-          </div>
-        </div>
-        <button className="btn btn-ghost btn-sm btn-icon" title="Replace song" onClick={() => fileRef.current?.click()}>
-          <RefreshCw className="size-3.5" />
+        <button className="btn btn-bare btn-sm btn-sq" title="Replace the song" onClick={() => fileRef.current?.click()}>
+          <RefreshCw className="size-3" />
         </button>
         <input
           ref={fileRef}
@@ -191,52 +166,51 @@ export function SongCard() {
           }}
         />
       </div>
-
-      {analysis ? (
-        <>
-          <canvas
-            ref={canvasRef}
-            className={cx('block h-20 w-full touch-none px-4', win && 'cursor-grab', drag && 'cursor-grabbing')}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            title="Drag the highlighted part to cut a different section of the song"
-          />
-          <div className="flex flex-wrap items-center gap-1.5 px-4 pt-2 pb-3.5">
-            {[...new Map(sectionsInWin.map((s) => [s.label, s])).values()].map((s) => (
-              <span key={s.label} className="flex items-center gap-1 text-[0.7rem] text-ink-2">
-                <span className="size-2 rounded-full" style={{ background: SECTION_COLORS[s.label] }} />
-                {SECTION_NAMES[s.label]}
-              </span>
-            ))}
-            {analysis.drops.length > 0 && (
-              <span className="flex items-center gap-1 text-[0.7rem] text-ink-2">
-                <Zap className="size-3 text-accent" /> Hit point
-              </span>
-            )}
-            {override && (
-              <button
-                className="ml-auto text-[0.7rem] font-semibold text-accent hover:underline"
-                onClick={() => {
-                  setState({ windowOverride: null })
-                  makeEdit()
-                }}
-              >
-                Auto-pick section
-              </button>
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="px-4 pb-4">
-          <div className="h-1.5 overflow-hidden rounded-full bg-well">
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${Math.max(4, song.progress * 100)}%` }}
-            />
-          </div>
+      <div className="px-4 pb-4">
+        <div className="truncate text-[0.95rem] font-semibold" title={song.name}>
+          {song.name}
         </div>
-      )}
-    </div>
+        {analysis ? (
+          <>
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
+              <Stat label="BPM" value={String(Math.round(analysis.bpm))} />
+              <Stat
+                label={dropOverride !== null ? 'Drop · set' : 'Drops'}
+                value={dropOverride !== null ? fmtTime(dropOverride).slice(0, -2) : String(analysis.drops.length)}
+                accent
+              />
+              <Stat label="Length" value={fmtTime(analysis.duration).slice(0, -2)} />
+            </div>
+            <canvas
+              ref={canvasRef}
+              className={cx('mt-4 block h-16 w-full touch-none', win && 'cursor-grab', drag && 'cursor-grabbing')}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              title="Drag the boxed stretch to cut a different part of the song"
+            />
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="tag">{win ? 'Drag the box to move the edit' : ' '}</span>
+              {override && (
+                <button
+                  className="tag text-signal hover:underline"
+                  onClick={() => {
+                    setState({ windowOverride: null })
+                    makeEdit({ recut: true })
+                  }}
+                >
+                  Back to auto
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <Progress value={song.status === 'error' ? 0 : song.progress} />
+            <div className="tag">{song.status === 'error' ? song.error : `${song.stage}…`}</div>
+          </div>
+        )}
+      </div>
+    </section>
   )
 }

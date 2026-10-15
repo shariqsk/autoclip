@@ -76,7 +76,7 @@ export function drawCaptions(ctx: Ctx, lines: CaptionLine[], t: number, opts: Ca
   const line = activeLine(lines, t)
   if (!line || !line.words.length) return false
   // A line that's a single word (beat text, shouted lyrics) gets to be big.
-  const solo = line.words.length === 1 ? 1.7 : 1
+  const solo = !line.title && line.words.length === 1 ? 1.7 : 1
   const unit = Math.min(w, h) * opts.scale * solo
   const maxWidth = w * 0.86
   ctx.textAlign = 'center'

@@ -1,7 +1,7 @@
 {
   "name": "autoclip",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "module",
   "description": "Drop in a song and a pile of clips. AutoClip listens for the beats, builds and drops, finds the best moments in your footage and cuts a synced edit on its own.",
   "license": "MIT",
@@ -140,5 +140,8 @@
       "artifactName": "AutoClip-linux-${arch}.${ext}",
       "maintainer": "Shariq <00khanshariq@gmail.com>"
     }
+  },
+  "dependencies": {
+    "@vladmandic/face-api": "1.7.15"
   }
 }

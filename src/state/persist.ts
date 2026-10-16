@@ -4,7 +4,7 @@
 
 import { decodeAudioFile } from '../lib/audio/decode'
 import { setSongFile } from './actions'
-import type { CaptionLine, CaptionWord, ClipAnalysis, SongAnalysis } from '../lib/types'
+import type { CaptionLine, CaptionWord, ClipAnalysis, ClipFaces, Person, SongAnalysis } from '../lib/types'
 import { getState, setState, subscribe, type AppState, type Draft } from './store'
 
 const DB = 'autoclip'
@@ -34,6 +34,9 @@ export interface SavedProject {
   words: { key: string; words: CaptionWord[] } | null
   fileCaptions: CaptionLine[] | null
   fileCaptionsName: string | null
+  /** Faces found and the people they make up (portraits as images). Absent in older projects. */
+  faces?: Record<string, ClipFaces>
+  people?: (Omit<Person, 'thumb'> & { thumb?: Blob })[]
 }
 
 function open(): Promise<IDBDatabase> {
@@ -97,11 +100,21 @@ async function snapshot(s: AppState): Promise<SavedProject | null> {
     words: s.words,
     fileCaptions: s.fileCaptions,
     fileCaptionsName: s.fileCaptionsName,
+    faces: Object.fromEntries(Object.entries(s.faces).filter(([id]) => ready.some((c) => c.id === id))),
+    people: await Promise.all(
+      s.people.map(async ({ thumb, ...p }) => ({
+        ...p,
+        thumb: thumb ? await (await fetch(thumb)).blob().catch(() => undefined) : undefined,
+      })),
+    ),
   }
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null
-let last: Pick<AppState, 'song' | 'clips' | 'drafts' | 'activeDraftId' | 'words' | 'fileCaptions' | 'dropOverride'> | null = null
+let last: Pick<
+  AppState,
+  'song' | 'clips' | 'drafts' | 'activeDraftId' | 'words' | 'fileCaptions' | 'dropOverride' | 'faces' | 'people'
+> | null = null
 
 /** Save shortly after anything worth saving changes, once nothing is still being analyzed. */
 export function startAutosave() {
@@ -115,7 +128,9 @@ export function startAutosave() {
       s.activeDraftId !== last.activeDraftId ||
       s.words !== last.words ||
       s.fileCaptions !== last.fileCaptions ||
-      s.dropOverride !== last.dropOverride
+      s.dropOverride !== last.dropOverride ||
+      s.faces !== last.faces ||
+      s.people !== last.people
     if (!changed) return
     last = s
     if (s.song?.status !== 'ready' || s.clips.some((c) => c.status === 'queued' || c.status === 'analyzing')) return
@@ -154,6 +169,12 @@ export async function restore(p: SavedProject) {
     activeDraftId: p.activeDraftId ?? p.drafts.at(-1)?.id ?? null,
     windowOverride: p.windowOverride,
     dropOverride: p.dropOverride,
+    faces: p.faces ?? {},
+    people: (p.people ?? []).map(({ thumb, ...person }) => ({
+      ...person,
+      centroids: person.centroids ?? [],
+      thumb: thumb ? URL.createObjectURL(thumb) : undefined,
+    })),
     words: p.words,
     fileCaptions: p.fileCaptions,
     fileCaptionsName: p.fileCaptionsName,

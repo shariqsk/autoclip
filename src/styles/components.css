@@ -357,7 +357,8 @@
   .rail-nav {
     display: grid;
     flex-shrink: 0;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 2px;
     padding: 6px;
   }
@@ -692,6 +693,52 @@
     background: var(--line);
   }
   .moment-meter > span {
+    background: var(--signal);
+  }
+
+  /* The cast: people found in the footage. */
+  .cast-card {
+    border: 1px solid var(--line);
+    border-radius: var(--r-ctl);
+    background: var(--bg-2);
+  }
+  .cast-card-star {
+    border-color: var(--signal);
+    box-shadow: 0 0 0 1px var(--signal);
+  }
+  .cast-card-cut .cast-portrait img {
+    filter: grayscale(1);
+    opacity: 0.35;
+  }
+  .cast-card-picked {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+  .cast-pick {
+    border-radius: 6px;
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+  }
+  .cast-pick-on {
+    border-color: var(--signal);
+    background: var(--signal);
+    color: var(--signal-ink);
+  }
+  .cast-role {
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    backdrop-filter: blur(6px);
+  }
+  .cast-role:hover {
+    background: rgba(0, 0, 0, 0.75);
+  }
+  .cast-role-on {
+    background: var(--signal);
+    color: var(--signal-ink);
+  }
+  .cast-role-on:hover {
     background: var(--signal);
   }
 

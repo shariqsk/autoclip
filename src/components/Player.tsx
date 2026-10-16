@@ -3,7 +3,7 @@
 // separate so a layout can put it wherever its controls live.
 
 import { Maximize2, Pause, Play, Repeat, SkipBack, Volume2, VolumeX } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { audioContext } from '../lib/audio/decode'
 import { shotIndexAt } from '../lib/edit/timeline'
 import { PreviewEngine } from '../lib/render/preview'
@@ -12,6 +12,7 @@ import { useMix } from '../hooks/useMix'
 import { useRenderProject } from '../hooks/useRenderProject'
 import { playhead, usePlayhead } from '../state/playhead'
 import { ASPECTS, outputSize } from '../state/settings'
+import { castFramed } from '../state/people'
 import { useApp } from '../state/store'
 import { cx, fmtTime, PHASE_NAMES, timecode } from './format'
 
@@ -33,6 +34,8 @@ export function Stage({ className }: { className?: string }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<PreviewEngine | null>(null)
   const clips = useApp((s) => s.clips)
+  const faces = useApp((s) => s.faces)
+  const people = useApp((s) => s.people)
   const aspect = useApp((s) => s.settings.aspect)
   const { plan, look, captions } = useRenderProject()
   const mix = useMix(plan)
@@ -74,17 +77,21 @@ export function Stage({ className }: { className?: string }) {
     engine.resize(size.width, size.height)
   }, [box, aspect])
 
+  // Framing follows the stars, so it changes with the faces found and who's starred.
+  const sources = useMemo(
+    () =>
+      clips
+        .filter((c) => c.analysis)
+        .map((c) => ({ id: c.id, kind: c.kind, url: c.url, analysis: castFramed({ id: c.id, analysis: c.analysis! }), offset: c.offset })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clips, faces, people],
+  )
+
   useEffect(() => {
     const engine = engineRef.current
     if (!engine || !plan || !look) return
-    engine.setProject({
-      plan,
-      look,
-      captions,
-      audio: mix,
-      clips: clips.filter((c) => c.analysis).map((c) => ({ id: c.id, kind: c.kind, url: c.url, analysis: c.analysis!, offset: c.offset })),
-    })
-  }, [plan, look, captions, mix, clips])
+    engine.setProject({ plan, look, captions, audio: mix, clips: sources })
+  }, [plan, look, captions, mix, sources])
 
   return (
     <div className={cx('stage', className)}>

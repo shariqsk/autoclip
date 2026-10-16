@@ -1,14 +1,39 @@
 /// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// The face models (detector, landmarks, recognition) ship with the app under models/face/, copied
+// from the face-api package at build time and served from it in dev, so finding people works offline.
+const FACE_MODELS = ['ssd_mobilenetv1_model', 'face_landmark_68_model', 'face_recognition_model']
+function faceModels(): Plugin {
+  const dir = path.resolve('node_modules/@vladmandic/face-api/model')
+  const files = FACE_MODELS.flatMap((m) => [`${m}-weights_manifest.json`, `${m}.bin`])
+  return {
+    name: 'autoclip-face-models',
+    configureServer(server) {
+      server.middlewares.use('/models/face', (req, res, next) => {
+        const file = files.find((f) => req.url === `/${f}`)
+        if (!file) return next()
+        res.setHeader('Content-Type', file.endsWith('.json') ? 'application/json' : 'application/octet-stream')
+        res.end(readFileSync(path.join(dir, file)))
+      })
+    },
+    generateBundle() {
+      for (const file of files) this.emitFile({ type: 'asset', fileName: `models/face/${file}`, source: readFileSync(path.join(dir, file)) })
+    },
+  }
+}
 
 // The same build serves three places: the web (root), GitHub Pages (a sub-path, via BASE_PATH) and the
 // Electron desktop app (`--mode desktop`), which has no use for a service worker.
 export default defineConfig(({ mode }) => ({
   base: process.env.BASE_PATH ?? '/',
   plugins: [
+    faceModels(),
     react(),
     tailwindcss(),
     // Installable, and the app shell works offline. Speech and voice models are cached separately by
@@ -35,13 +60,18 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // The speech and voice workers are big and optional: cache them when first used instead.
-        globIgnores: ['**/ml.worker-*.js', '**/tts.worker-*.js'],
+        globIgnores: ['**/ml.worker-*.js', '**/tts.worker-*.js', '**/faces.worker-*.js', '**/models/face/**'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /(ml|tts)\.worker-.*\.js$/,
             handler: 'CacheFirst',
             options: { cacheName: 'model-workers', expiration: { maxEntries: 6 } },
+          },
+          {
+            urlPattern: /(faces\.worker-.*\.js|models\/face\/.*)$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'face-models', expiration: { maxEntries: 10 } },
           },
           {
             // The ONNX runtime's WebAssembly is large; cache it on first use instead of precaching.

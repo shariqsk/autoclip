@@ -4,7 +4,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { StyleId } from '../lib/edit/presets'
-import type { CaptionLine, CaptionWord, Clip, EditPlan, SongAnalysis } from '../lib/types'
+import type { CaptionLine, CaptionWord, Clip, ClipFaces, EditPlan, Person, SongAnalysis } from '../lib/types'
 import { loadSettings, saveSettings, type Settings } from './settings'
 
 export interface Song {
@@ -78,6 +78,12 @@ export interface AppState {
   learn: { styleId: StyleId | null } | null
   /** The moments picker for a long clip. */
   moments: { clipId: string } | null
+  /** Faces found in each clip, by clip id. */
+  faces: Record<string, ClipFaces>
+  /** The people found across the footage, and who's the star. */
+  people: Person[]
+  /** Looking for people: how far along, or null when idle. */
+  peopleScan: { done: number; total: number; fraction: number } | null
   selectedShotId: string | null
   selectedCaptionId: string | null
   demoLoading: number | null
@@ -105,6 +111,9 @@ const initial: AppState = {
   helpOpen: false,
   learn: null,
   moments: null,
+  faces: {},
+  people: [],
+  peopleScan: null,
   selectedShotId: null,
   selectedCaptionId: null,
   demoLoading: null,

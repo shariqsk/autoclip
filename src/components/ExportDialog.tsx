@@ -12,6 +12,7 @@ import { fitToSize, shrinkFor } from '../lib/render/budget'
 import type { AspectId } from '../lib/types'
 import { useRenderProject } from '../hooks/useRenderProject'
 import { voiceoverAt } from '../state/derive'
+import { castFramed } from '../state/people'
 import { playhead } from '../state/playhead'
 import { outputSize, type Settings } from '../state/settings'
 import { getState, setState, toast, updateSettings, useApp } from '../state/store'
@@ -155,7 +156,7 @@ export function ExportDialog() {
       const audio = await buildMix(plan)
       const clips = getState()
         .clips.filter((c) => c.analysis)
-        .map((c) => ({ id: c.id, kind: c.kind, file: c.file, analysis: c.analysis!, offset: c.offset }))
+        .map((c) => ({ id: c.id, kind: c.kind, file: c.file, analysis: castFramed({ id: c.id, analysis: c.analysis! }), offset: c.offset }))
       // The encoder stack only loads when someone actually exports.
       const { exportEdit } = await import('../lib/render/export')
       // Encoders overshoot a little now and then; under a size limit, re-render lower until it fits.

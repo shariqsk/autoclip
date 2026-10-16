@@ -14,6 +14,7 @@ import { clearSaved } from './persist'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
 import { sliceAnalysis } from '../lib/video/moments'
+import { castPresence } from './people'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -126,7 +127,10 @@ export function removeClip(id: string) {
     URL.revokeObjectURL(clip.url)
     clip.thumbs.forEach((t) => URL.revokeObjectURL(t))
   }
-  setState((s) => ({ clips: s.clips.filter((c) => c.id !== id) }))
+  setState((s) => {
+    const { [id]: _gone, ...faces } = s.faces
+    return { clips: s.clips.filter((c) => c.id !== id), faces }
+  })
 }
 
 /**
@@ -151,11 +155,21 @@ export function addMoments(sourceId: string, moments: { start: number; end: numb
     offset: base + m.start,
     momentOf: src.momentOf ?? src.id,
   }))
+  const parentFaces = getState().faces[sourceId]
+  const faces = parentFaces
+    ? Object.fromEntries(
+        added.map((c, i) => {
+          const m = moments[i]
+          const sightings = parentFaces.sightings.filter((x) => x.t >= m.start && x.t < m.end).map((x) => ({ ...x, t: x.t - m.start }))
+          return [c.id, { step: parentFaces.step, sightings }]
+        }),
+      )
+    : {}
   setState((s) => {
     const at = s.clips.findIndex((c) => c.id === sourceId)
     const clips = s.clips.map((c) => (c.id === sourceId && benchSource ? { ...c, pin: 'skip' as const } : c))
     clips.splice(at + 1, 0, ...added)
-    return { clips }
+    return { clips, faces: { ...s.faces, ...faces } }
   })
   toast(`${added.length} moment${added.length === 1 ? '' : 's'} added${benchSource ? `; the full clip is benched` : ''}.`, 'success')
 }
@@ -219,7 +233,10 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
   const style = s.settings.style
   const plan = makePlan(
     song,
-    clips.map((c) => ({ id: c.id, kind: c.kind, analysis: c.analysis!, pin: c.pin })),
+    clips.map((c) => {
+      const cast = castPresence({ id: c.id, analysis: c.analysis! })
+      return { id: c.id, kind: c.kind, analysis: c.analysis!, pin: c.pin, star: cast?.star, avoid: cast?.avoid }
+    }),
     {
       style,
       length: s.settings.length,
@@ -484,6 +501,8 @@ export function resetProject() {
   setState({
     song: null,
     clips: [],
+    faces: {},
+    people: [],
     drafts: [],
     activeDraftId: null,
     words: null,

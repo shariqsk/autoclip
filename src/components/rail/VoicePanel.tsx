@@ -8,9 +8,9 @@ import { cx } from '../format'
 import { Progress, Seg, Slider, Toggle } from '../ui'
 
 const IDEAS = [
-  'Ladies and gentlemen… this is the main event.',
-  'They said he was finished.',
   'Remember the name.',
+  'Ladies and gentlemen… this is the main event.',
+  'They said it couldn’t be done.',
   'One shot. One moment.',
   'Welcome to the highlight reel.',
 ]

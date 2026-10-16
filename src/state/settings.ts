@@ -92,7 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   nameplate: { name: '', sub: '' },
   handle: '',
-  voiceover: { enabled: false, text: 'Ladies and gentlemen… this is the main event.', voice: 'am_michael', speed: 1, placement: 'intro' },
+  voiceover: { enabled: false, text: 'Remember the name.', voice: 'am_michael', speed: 1, placement: 'intro' },
   export: { resolution: 1080, fps: 30, quality: 'high', limitMb: null },
 }
 
@@ -158,13 +158,13 @@ export const MIX_PRESETS: { id: string; name: string; note: string; mix: Content
     mix: { finish: 'some', action: 'some', broll: 'some', celebrate: 'some', talk: 'some', text: 'none' },
   },
   {
-    id: 'finishes',
-    name: 'Finishes + B-roll',
+    id: 'highlights',
+    name: 'Highlights + B-roll',
     note: 'The big moments, with some b-roll around them',
     mix: { finish: 'more', action: 'some', broll: 'some', celebrate: 'some', talk: 'none', text: 'none' },
   },
   {
-    id: 'fight',
+    id: 'action',
     name: 'Just the action',
     note: 'Big moments and action, nothing else',
     mix: { finish: 'more', action: 'more', broll: 'none', celebrate: 'none', talk: 'none', text: 'none' },
@@ -172,7 +172,7 @@ export const MIX_PRESETS: { id: string; name: string; note: string; mix: Content
   {
     id: 'story',
     name: 'The story',
-    note: 'Walkout, the fight, the finish, the celebration',
+    note: 'Set the scene, the action, the peak, the celebration',
     mix: { finish: 'more', action: 'some', broll: 'more', celebrate: 'more', talk: 'none', text: 'none' },
   },
 ]

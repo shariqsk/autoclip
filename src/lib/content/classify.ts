@@ -7,11 +7,11 @@ import type { ClipAnalysis, ClipContent, ContentKind } from '../types'
 export const CONTENT_KINDS: ContentKind[] = ['finish', 'action', 'broll', 'celebrate', 'talk', 'text']
 
 export const CONTENT_NAMES: Record<ContentKind, { name: string; note: string }> = {
-  finish: { name: 'Big moments', note: 'Knockouts, submissions, stoppages, dunks, goals' },
-  action: { name: 'Action', note: 'The fight or the game in full flow' },
-  broll: { name: 'B-roll', note: 'Walkouts, staredowns, the crowd, the arena, training' },
-  celebrate: { name: 'Celebration', note: 'The belt, the flag, the arms up' },
-  talk: { name: 'Talking', note: 'Interviews, press conferences, talking to camera' },
+  finish: { name: 'Big moments', note: 'The peaks: the goal, the trick that lands, the finish' },
+  action: { name: 'Action', note: 'The main thing in full flow: the game, the ride, the dance' },
+  broll: { name: 'B-roll', note: 'Setting the scene: places, crowds, details, getting ready' },
+  celebrate: { name: 'Celebration', note: 'Cheers, hugs, trophies, arms in the air' },
+  talk: { name: 'Talking', note: 'Interviews, talking to camera, people chatting' },
   text: { name: 'Text & graphics', note: 'Title cards, logos, scoreboards' },
 }
 

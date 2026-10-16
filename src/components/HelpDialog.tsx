@@ -21,7 +21,7 @@ const KEYS: [string[], string][] = [
 
 const ARC: [string, string][] = [
   ['Cold open', 'A split second of the action, so nobody scrolls past.'],
-  ['Intro', 'Long holds on bar lines, slowed and often in black and white: meet the fighter.'],
+  ['Intro', 'Long holds on bar lines, slowed and often in black and white: meet who it’s about.'],
   ['Build', 'Cuts tighten into the drop, half-beats at the end, the picture flickering with the track.'],
   ['Drop', 'The single best moment in your footage lands on it: colour slams back, often a freeze-frame.'],
   ['Flurry', 'The action after the drop, cut on the strongest beats rather than a fixed count.'],

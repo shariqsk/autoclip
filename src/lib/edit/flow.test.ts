@@ -90,7 +90,7 @@ describe('the content mix', () => {
   const presser = readAs(clip('presser', 60, [5, 15, 25, 35, 45], [], 0.55), 'talk')
 
   it('keeps out what you set to none and puts a big moment on the drop', () => {
-    const preset = MIX_PRESETS.find((p) => p.id === 'finishes')!
+    const preset = MIX_PRESETS.find((p) => p.id === 'highlights')!
     const p = plan([finishes, broll, presser], 3, preset.mix)
     expect(p.shots.some((s) => s.clipId === 'presser')).toBe(false)
     expect(p.shots.find((s) => s.phase === 'hero')!.clipId).toBe('finishes')

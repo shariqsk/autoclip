@@ -1,11 +1,13 @@
 // The first screen, laid out like a fight poster: the headline, the card (what AutoClip does, bout
 // by bout), and a marquee. Resumes the last project if there is one.
 
-import { ArrowRight, History } from 'lucide-react'
+import { ArrowRight, History, Link2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { addFiles, loadDemo } from '../state/actions'
+import { desktop } from '../lib/desktop'
+import { addFiles, loadDemo, openLinkDialog } from '../state/actions'
 import { loadSaved, restore, type SavedProject } from '../state/persist'
 import { toast, useApp } from '../state/store'
+import { Downloads } from './Downloads'
 import { Progress } from './ui'
 
 const CARD: [string, string, string][] = [
@@ -81,6 +83,25 @@ export function Welcome() {
               />
             </div>
             {demo !== null && <Progress value={demo} className="max-w-md" />}
+            {desktop && (
+              <form
+                className="flex max-w-xl border border-line-2 focus-within:border-signal"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const url = new FormData(e.currentTarget).get('link')?.toString() ?? ''
+                  if (url.trim()) openLinkDialog(url.trim())
+                }}
+              >
+                <Link2 className="m-3 size-4 shrink-0 text-signal" />
+                <input
+                  name="link"
+                  className="min-w-0 flex-1 bg-transparent py-3 pr-2 text-sm outline-none placeholder:text-ink-3"
+                  placeholder="Or paste a Spotify, YouTube or TikTok link"
+                />
+                <button className="btn h-auto border-0 border-l border-line-2 px-4">Import</button>
+              </form>
+            )}
+            <Downloads className="max-w-xl border border-line px-3" />
             {saved && (
               <button
                 className="group flex max-w-md items-center gap-3 border border-line-2 px-3 py-2.5 text-left hover:border-ink"

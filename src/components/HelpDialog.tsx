@@ -10,6 +10,7 @@ const KEYS: [string[], string][] = [
   [['E'], 'Export'],
   [['D'], 'Director'],
   [['[', ']'], 'Previous / next take'],
+  [['⇧', '⌫'], 'Delete the take on screen'],
   [['←', '→'], 'Previous / next shot'],
   [['S'], 'Split the shot at the playhead'],
   [['L'], 'Lock / unlock the shot'],

@@ -41,6 +41,8 @@ export interface SongAnalysis {
   beats: Beat[]
   sections: Section[]
   drops: Drop[]
+  /** Attacks that stand out from their surroundings (strums, stabs, fills), on or off the grid. */
+  hits?: { time: number; strength: number }[]
   /** Smoothed loudness envelope, one value per `envelopeRate` seconds, 0–1. */
   envelope: number[]
   envelopeRate: number

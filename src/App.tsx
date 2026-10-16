@@ -1,9 +1,11 @@
 import { ClipBin } from './components/ClipBin'
 import { Drafts } from './components/Drafts'
+import { Downloads } from './components/Downloads'
 import { DropOverlay } from './components/DropOverlay'
 import { ExportDialog } from './components/ExportDialog'
 import { Header } from './components/Header'
 import { HelpDialog } from './components/HelpDialog'
+import { LinkDialog } from './components/LinkDialog'
 import { Player } from './components/Player'
 import { Rail } from './components/rail/Rail'
 import { SongCard } from './components/SongCard'
@@ -11,6 +13,7 @@ import { Tape } from './components/tape/Tape'
 import { Toasts } from './components/Toasts'
 import { Welcome } from './components/Welcome'
 import { useHotkeys } from './hooks/useHotkeys'
+import { usePasteLinks } from './hooks/usePasteLinks'
 import { useTheme } from './hooks/useTheme'
 import { useApp } from './state/store'
 
@@ -43,6 +46,7 @@ export default function App() {
   const started = useApp((s) => !!s.song || s.clips.length > 0 || s.demoLoading !== null)
   const hasTake = useApp((s) => s.drafts.length > 0)
   useHotkeys(cycle)
+  usePasteLinks()
 
   return (
     <div className="grain flex h-full flex-col">
@@ -55,6 +59,7 @@ export default function App() {
         <>
           <main className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[300px_minmax(0,1fr)_340px] lg:overflow-hidden">
             <aside className="flex flex-col border-line lg:min-h-0 lg:border-r">
+              <Downloads />
               <SongCard />
               <ClipBin />
             </aside>
@@ -72,6 +77,7 @@ export default function App() {
       )}
       <ExportDialog />
       <HelpDialog />
+      <LinkDialog />
       <DropOverlay />
       <Toasts />
     </div>

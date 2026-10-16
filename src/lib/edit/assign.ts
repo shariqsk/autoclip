@@ -133,13 +133,14 @@ export function assignFootage(
   for (const si of orderIdx) {
     const slot = slots[si]
     const dur = slot.end - slot.start
-    const target = TARGET_MOTION[slot.role]
+    const target = slot.hit ? 0.75 : TARGET_MOTION[slot.role]
     const neighbours = [result[si - 1], result[si + 1]]
     const neighbourClips = neighbours.map((n) => n?.clipId)
     const neighbourScenes = neighbours.map(sceneKey)
     const slotPos = slots.length > 1 ? si / (slots.length - 1) : 0
-    const action = slot.role === 'hero' || slot.role === 'tease' || slot.role === 'flurry'
-    const calm = slot.role === 'intro' || slot.role === 'outro'
+    // A shot cut on a hit wants something happening the moment it starts.
+    const action = slot.role === 'hero' || slot.role === 'tease' || slot.role === 'flurry' || !!slot.hit
+    const calm = (slot.role === 'intro' || slot.role === 'outro') && !slot.hit
     let best: Candidate | null = null
 
     for (const c of pool) {

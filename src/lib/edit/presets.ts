@@ -41,6 +41,8 @@ export interface StylePreset {
   outro: { beats: number; speed: number; fade: number }
   /** Open with a split-second flash of the action, to hook the scroll. */
   coldOpen: boolean
+  /** Cutting on hits in the music: at most one run of hit cuts per this many bars. */
+  hitCuts: { everyBars: number }
   /** Transition length in beats. */
   transitionBeats: number
   fx: { pulse: number; shake: number; rgb: number; flash: number; push: number }
@@ -63,6 +65,7 @@ export const STYLES: StylePreset[] = [
     ride: { choices: [2, 4], transition: { cut: 6, whip: 1, zoom: 1 } },
     outro: { beats: 8, speed: 0.6, fade: 1.2 },
     coldOpen: true,
+    hitCuts: { everyBars: 2 },
     transitionBeats: 0.5,
     fx: { pulse: 0.07, shake: 0.7, rgb: 0.45, flash: 0.9, push: 0.05 },
     velocity: false,
@@ -81,6 +84,7 @@ export const STYLES: StylePreset[] = [
     ride: { choices: [1, 2], transition: { cut: 6, glitch: 2 } },
     outro: { beats: 4, speed: 0.7, fade: 0.8 },
     coldOpen: true,
+    hitCuts: { everyBars: 1 },
     transitionBeats: 0.35,
     fx: { pulse: 0.09, shake: 1, rgb: 0.9, flash: 1, push: 0.02 },
     velocity: false,
@@ -99,6 +103,7 @@ export const STYLES: StylePreset[] = [
     ride: { choices: [2, 4], transition: { cut: 4, zoom: 2, whip: 2 } },
     outro: { beats: 4, speed: 0.8, fade: 0.8 },
     coldOpen: false,
+    hitCuts: { everyBars: 2 },
     transitionBeats: 0.5,
     fx: { pulse: 0.05, shake: 0.25, rgb: 0.25, flash: 0.6, push: 0.03 },
     velocity: true,
@@ -117,6 +122,7 @@ export const STYLES: StylePreset[] = [
     ride: { choices: [4, 8], transition: { cut: 3, fade: 3 } },
     outro: { beats: 8, speed: 0.6, fade: 2 },
     coldOpen: false,
+    hitCuts: { everyBars: 4 },
     transitionBeats: 1,
     fx: { pulse: 0.015, shake: 0.08, rgb: 0, flash: 0.35, push: 0.07 },
     velocity: false,
@@ -135,6 +141,7 @@ export const STYLES: StylePreset[] = [
     ride: { choices: [4], transition: { cut: 3, whip: 3 } },
     outro: { beats: 4, speed: 0.9, fade: 1 },
     coldOpen: false,
+    hitCuts: { everyBars: 2 },
     transitionBeats: 0.5,
     fx: { pulse: 0.025, shake: 0, rgb: 0, flash: 0.2, push: 0.05 },
     velocity: false,
@@ -153,6 +160,7 @@ export const STYLES: StylePreset[] = [
     ride: { choices: [4, 8], transition: { fade: 3, dip: 1 } },
     outro: { beats: 8, speed: 0.8, fade: 2 },
     coldOpen: false,
+    hitCuts: { everyBars: 4 },
     transitionBeats: 1,
     fx: { pulse: 0.02, shake: 0.1, rgb: 0.1, flash: 0.5, push: 0.05 },
     velocity: false,

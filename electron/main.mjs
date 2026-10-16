@@ -2,9 +2,10 @@
 // WebAssembly, WebCodecs, fetch and WebGPU behave exactly as they do on the web. Everything still runs
 // locally; models are cached in the app's own storage.
 
-import { app, BrowserWindow, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createLinkImporter } from './links.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(here, '..', 'dist')
@@ -23,7 +24,7 @@ function createWindow() {
     title: 'AutoClip',
     backgroundColor: '#0b0b0d',
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, sandbox: true, spellcheck: false },
+    webPreferences: { contextIsolation: true, sandbox: true, spellcheck: false, preload: path.join(here, 'preload.cjs') },
   })
 
   // Links to GitHub, model hosts etc. open in the user's browser, never inside the app.
@@ -48,6 +49,31 @@ app.whenReady().then(() => {
     // Never serve anything outside the bundled app.
     if (!file.startsWith(root)) return new Response('Not found', { status: 404 })
     return net.fetch(pathToFileURL(file).toString())
+  })
+
+  // Import from a link: yt-dlp lives in the app's data folder; YouTube's player challenges run on the
+  // Node built into Electron (ELECTRON_RUN_AS_NODE), so nothing else needs installing.
+  const importer = createLinkImporter({
+    toolsDir: path.join(app.getPath('userData'), 'tools'),
+    nodePath: process.execPath,
+    log: (m) => console.log(`[links] ${m}`),
+  })
+  // Get the downloader installed and warm in the background, so the first link imports straight away.
+  setTimeout(() => importer.warm().catch((e) => console.log(`[links] warm-up failed: ${e.message}`)), 3000)
+  const running = new Map()
+  const fromApp = (event) => event.senderFrame?.url.startsWith(ORIGIN)
+  ipcMain.handle('links:import', async (event, { id, url, mode }) => {
+    if (!fromApp(event) || typeof url !== 'string' || (mode !== 'audio' && mode !== 'video')) throw new Error('Bad request')
+    const abort = new AbortController()
+    running.set(id, abort)
+    try {
+      return await importer.importLink(url, mode, (p) => event.sender.send('links:progress', { id, ...p }), abort.signal)
+    } finally {
+      running.delete(id)
+    }
+  })
+  ipcMain.handle('links:cancel', (event, id) => {
+    if (fromApp(event)) running.get(id)?.abort()
   })
 
   createWindow()

@@ -86,3 +86,31 @@ describe('the edit arc', () => {
     expect(s.some((x) => x.role === 'hero')).toBe(true)
   })
 })
+
+describe('cutting on hits', () => {
+  const demo = synthesizeDemoSong(22050)
+  const analysis = analyzeSong(demo.samples, { sampleRate: 22050 })
+  const strums = demo.strums.slice(0, 3)
+
+  it('finds the guitar strums as hits, off the beat grid', () => {
+    for (const t of strums) expect(analysis.hits!.some((h) => Math.abs(h.time - t) < 0.05)).toBe(true)
+  })
+
+  for (const style of ['hype', 'phonk', 'velocity', 'cinematic', 'smooth', 'throwback'] as const) {
+    it(`cuts on each strum of the riff (${style})`, () => {
+      const slots = buildSlots(analysis, { start: 0, end: 30 }, getStyle(style), createRng(3))
+      for (const t of strums) expect(slots.some((s) => Math.abs(s.start - t) < 0.06)).toBe(true)
+    })
+  }
+
+  it("doesn't cut on the steady hi-hats around them", () => {
+    const slots = buildSlots(analysis, { start: 0, end: 30 }, getStyle('hype'), createRng(3))
+    const hats = [0.7, 1.17, 2.11, 2.58, 3.05, 3.52]
+    for (const t of hats) expect(slots.some((s) => Math.abs(s.start - t) < 0.05)).toBe(false)
+  })
+
+  it('can be switched off', () => {
+    const slots = buildSlots(analysis, { start: 0, end: 30 }, getStyle('hype'), createRng(3), { hitCuts: false })
+    expect(slots.some((s) => s.hit)).toBe(false)
+  })
+})

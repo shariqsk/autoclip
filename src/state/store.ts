@@ -39,6 +39,17 @@ export interface Toast {
   id: number
   text: string
   tone: 'info' | 'error' | 'success'
+  action?: { label: string; run: () => void }
+}
+
+/** A link being imported by the desktop app. */
+export interface Download {
+  id: string
+  site: string
+  mode: 'audio' | 'video'
+  stage: string
+  fraction: number | null
+  error?: string
 }
 
 export interface AppState {
@@ -66,6 +77,9 @@ export interface AppState {
   selectedShotId: string | null
   selectedCaptionId: string | null
   demoLoading: number | null
+  downloads: Download[]
+  /** The import-from-link dialog, open with a starting link and target. */
+  linkDialog: { url: string; mode: 'audio' | 'video' | null } | null
   toasts: Toast[]
 }
 
@@ -88,6 +102,8 @@ const initial: AppState = {
   selectedShotId: null,
   selectedCaptionId: null,
   demoLoading: null,
+  downloads: [],
+  linkDialog: null,
   toasts: [],
 }
 
@@ -132,8 +148,12 @@ export function updateDraft(id: string, patch: Partial<Draft> | ((d: Draft) => P
 }
 
 let toastId = 1
-export function toast(text: string, tone: Toast['tone'] = 'info') {
+export function toast(text: string, tone: Toast['tone'] = 'info', action?: Toast['action']) {
   const id = toastId++
-  setState((s) => ({ toasts: [...s.toasts, { id, text, tone }].slice(-4) }))
-  setTimeout(() => setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), tone === 'error' ? 7000 : 3800)
+  setState((s) => ({ toasts: [...s.toasts, { id, text, tone, action }].slice(-4) }))
+  setTimeout(() => dismissToast(id), tone === 'error' || action ? 7000 : 3800)
+}
+
+export function dismissToast(id: number) {
+  setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
 }

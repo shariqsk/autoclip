@@ -1,11 +1,12 @@
 // 02 FOOTAGE: the bin, as an editor's list. Each row shows the clip, how long it is, where the action
 // is (the line) and which moments are on screen in the current take (the blocks).
 
-import { ArrowDown, ArrowUp, Ban, Crown, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { ArrowDown, ArrowUp, Ban, Crown, Link2, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
 import { sourceDuration } from '../lib/edit/speed'
 import type { Clip } from '../lib/types'
-import { addClips, moveClip, pinClip, removeClip } from '../state/actions'
+import { desktop } from '../lib/desktop'
+import { addClips, moveClip, openLinkDialog, pinClip, removeClip } from '../state/actions'
 import { activeDraft, useApp } from '../state/store'
 import { cx } from './format'
 import { Progress } from './ui'
@@ -117,6 +118,15 @@ export function ClipBin() {
             {watching > 0 && ` · ${watching} in review`}
           </span>
         </div>
+        {desktop && (
+          <button
+            className="btn btn-sm -mr-1"
+            onClick={() => openLinkDialog('', 'video')}
+            title="Footage from links: YouTube, TikTok, Instagram, X…"
+          >
+            <Link2 className="size-3" /> Link
+          </button>
+        )}
         <button className="btn btn-sm" onClick={() => inputRef.current?.click()}>
           <Plus className="size-3" /> Add
         </button>

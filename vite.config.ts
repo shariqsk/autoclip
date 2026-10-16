@@ -59,6 +59,6 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: { exclude: ['@huggingface/transformers', 'kokoro-js'] },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'electron/**/*.test.mjs'],
   },
 }))

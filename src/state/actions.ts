@@ -11,7 +11,9 @@ import { newSeed } from '../lib/edit/rng'
 import { speak, toWhisperPcm, transcribe, type ModelStatus } from '../lib/ml/client'
 import type { CaptionLine, Clip, EditPlan } from '../lib/types'
 import { clearSaved } from './persist'
-import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Draft } from './store'
+import { desktop } from '../lib/desktop'
+import { linkProblem, parseLink, toFile } from '../lib/links'
+import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i
@@ -188,6 +190,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
       style,
       length: s.settings.length,
       order: s.settings.order,
+      hitCuts: s.settings.hitCuts,
       variety: s.settings.variety,
       seed: newSeed(),
       window: s.windowOverride ?? undefined,
@@ -231,10 +234,25 @@ export function compareTakes() {
 }
 
 export function deleteDraft(id: string) {
-  setState((s) => {
-    const drafts = s.drafts.filter((d) => d.id !== id)
-    const activeDraftId = s.activeDraftId === id ? (drafts.at(-1)?.id ?? null) : s.activeDraftId
-    return { drafts, activeDraftId }
+  const s = getState()
+  const index = s.drafts.findIndex((d) => d.id === id)
+  if (index < 0) return
+  const removed = s.drafts[index]
+  const wasActive = s.activeDraftId === id
+  setState((st) => {
+    const drafts = st.drafts.filter((d) => d.id !== id)
+    // Land on the neighbouring take, not the last one.
+    const activeDraftId = st.activeDraftId === id ? (drafts[Math.min(index, drafts.length - 1)]?.id ?? null) : st.activeDraftId
+    return { drafts, activeDraftId, selectedShotId: null }
+  })
+  toast(`Take ${String(index + 1).padStart(2, '0')} deleted.`, 'info', {
+    label: 'Undo',
+    run: () =>
+      setState((st) => {
+        const drafts = [...st.drafts]
+        drafts.splice(Math.min(index, drafts.length), 0, removed)
+        return { drafts, activeDraftId: wasActive ? removed.id : st.activeDraftId }
+      }),
   })
 }
 
@@ -451,4 +469,55 @@ export function editCaptions(fn: (lines: CaptionLine[]) => CaptionLine[]) {
 export function resetCaptions() {
   const d = activeDraft()
   if (d) updateDraft(d.id, { captionsOverride: undefined })
+}
+
+// ——— Links (desktop app) ———
+
+let linkCounter = 0
+
+function updateDownload(id: string, patch: Partial<Download>) {
+  setState((s) => ({ downloads: s.downloads.map((d) => (d.id === id ? { ...d, ...patch } : d)) }))
+}
+
+function dropDownload(id: string, delay = 0) {
+  setTimeout(() => setState((s) => ({ downloads: s.downloads.filter((d) => d.id !== id) })), delay)
+}
+
+/** Import a song (`audio`) or a clip (`video`) from a link, through the desktop app. */
+export async function importFromLink(raw: string, mode: 'audio' | 'video') {
+  if (!desktop) return toast('Importing from links works in the desktop app.', 'error')
+  const problem = linkProblem(raw)
+  if (problem) return toast(problem, 'error')
+  const link = parseLink(raw)
+  if (!link) return toast("That doesn't look like a link.", 'error')
+  const id = `dl${Date.now().toString(36)}${linkCounter++}`
+  setState((s) => ({ downloads: [...s.downloads, { id, site: link.site, mode, stage: 'Starting', fraction: null }] }))
+  const off = desktop.onImportProgress((p) => p.id === id && updateDownload(id, { stage: p.stage, fraction: p.fraction }))
+  try {
+    const result = await desktop.importLink(id, link.url, mode)
+    if (result.files.length > 1) updateDownload(id, { stage: 'Putting picture and sound together', fraction: null })
+    const file = await toFile(result, mode)
+    if (mode === 'audio') void setSongFile(file)
+    else addClips([file])
+    toast(`${mode === 'audio' ? 'Song' : 'Footage'} in from ${result.site}: ${result.title}`, 'success')
+    dropDownload(id)
+  } catch (err) {
+    // Electron wraps errors from the main process; keep just the reason.
+    const message = (err instanceof Error ? err.message : String(err)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+    if (message === 'Cancelled') return dropDownload(id)
+    updateDownload(id, { error: message, stage: message, fraction: null })
+    dropDownload(id, 8000)
+  } finally {
+    off()
+  }
+}
+
+export function cancelDownload(id: string) {
+  void desktop?.cancelImport(id)
+  dropDownload(id)
+}
+
+export function openLinkDialog(url = '', mode: 'audio' | 'video' | null = null) {
+  if (!desktop) return
+  setState({ linkDialog: { url, mode } })
 }

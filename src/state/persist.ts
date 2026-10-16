@@ -3,6 +3,7 @@
 // device. One project is kept; starting a new one replaces it.
 
 import { decodeAudioFile } from '../lib/audio/decode'
+import { setSongFile } from './actions'
 import type { CaptionLine, CaptionWord, ClipAnalysis, SongAnalysis } from '../lib/types'
 import { getState, setState, subscribe, type AppState, type Draft } from './store'
 
@@ -125,6 +126,10 @@ export function startAutosave() {
 /** Bring a saved project back, without analyzing anything again. */
 export async function restore(p: SavedProject) {
   const buffer = await decodeAudioFile(p.song.file)
+  // Projects saved before hit detection existed: listen to the song again so cuts can land on hits.
+  if (!p.song.analysis.hits) {
+    void setSongFile(p.song.file, buffer)
+  }
   setState({
     song: { name: p.song.name, file: p.song.file, buffer, analysis: p.song.analysis, status: 'ready', progress: 1, stage: 'Ready' },
     clips: p.clips.map((c) => ({

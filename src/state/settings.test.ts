@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { ASPECTS, outputSize } from './settings'
+import { describe, expect, it, vi } from 'vitest'
+import { ASPECTS, loadSettings, outputSize } from './settings'
 
 describe('outputSize', () => {
   it('sizes every aspect from its short side, in even pixels', () => {
@@ -12,5 +12,18 @@ describe('outputSize', () => {
       expect(s.width % 2).toBe(0)
       expect(s.height % 2).toBe(0)
     }
+  })
+})
+
+describe('loadSettings', () => {
+  it('keeps a framing you picked before framing could follow the style', () => {
+    const store = new Map<string, string>()
+    const local = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) }
+    vi.stubGlobal('localStorage', local)
+    store.set('autoclip:settings', JSON.stringify({ fit: 'blur' }))
+    expect(loadSettings().framing).toBe('blur')
+    store.set('autoclip:settings', JSON.stringify({ fit: 'fill' }))
+    expect(loadSettings().framing).toBe('style')
+    vi.unstubAllGlobals()
   })
 })

@@ -6,6 +6,7 @@ import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createLinkImporter } from './links.mjs'
+import { copyVideoToClipboard } from './share.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(here, '..', 'dist')
@@ -74,6 +75,10 @@ app.whenReady().then(() => {
   })
   ipcMain.handle('links:cancel', (event, id) => {
     if (fromApp(event)) running.get(id)?.abort()
+  })
+  ipcMain.handle('share:copy-video', async (event, { data, name }) => {
+    if (!fromApp(event) || !(data instanceof Uint8Array) || typeof name !== 'string') throw new Error('Bad request')
+    await copyVideoToClipboard(data, name)
   })
 
   createWindow()

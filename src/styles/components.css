@@ -83,6 +83,23 @@
     color: var(--ink-3);
   }
 
+  /* What a style gives you, as small pills under the style list. */
+  .style-chip {
+    font-family: var(--font-label);
+    font-size: 0.66rem;
+    font-weight: 500;
+    line-height: 1;
+    padding: 0.3rem 0.45rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-2);
+    background: color-mix(in srgb, var(--bg-3) 55%, transparent);
+  }
+  .style-chip:first-child {
+    border-color: var(--signal);
+    color: var(--ink);
+  }
+
   .mono {
     font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
     font-variant-numeric: tabular-nums;

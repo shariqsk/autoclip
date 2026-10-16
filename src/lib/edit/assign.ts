@@ -16,6 +16,8 @@ export interface AssignableClip {
   kind: ClipKind
   analysis: ClipAnalysis
   pin?: 'hero' | 'skip'
+  /** The clip this one was cut from, for moments: shots from the same footage are one source. */
+  source?: string
   /** 0–1 per analysis sample: one of your stars on screen (see lib/people). */
   star?: number[]
   /** 0–1 per analysis sample: someone you cut on screen. */

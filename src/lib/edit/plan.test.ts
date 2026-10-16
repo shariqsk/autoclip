@@ -171,3 +171,22 @@ describe('frameAt', () => {
     if (f0.a?.shot.id === s.id && f1.a?.shot.id === s.id) expect(f1.a.srcTime).toBeGreaterThan(f0.a.srcTime)
   })
 })
+
+describe('transitions', () => {
+  it('cuts straight between shots of the same footage', () => {
+    for (const style of STYLES) {
+      const one = makePlan(song, [fakeClip('only', 120, 30)], { style: style.id, length: 30, order: 'best', variety: 0.5, seed: 3 })
+      expect(one.shots.length).toBeGreaterThan(4)
+      for (const shot of one.shots) expect(shot.transition).toEqual({ type: 'cut', duration: 0 })
+    }
+  })
+
+  it('treats moments cut from one clip as the same footage', () => {
+    const moments = [
+      { ...fakeClip('m1', 20, 4), source: 'long' },
+      { ...fakeClip('m2', 20, 12), source: 'long' },
+    ]
+    const plan = makePlan(song, moments, { style: 'hype', length: 30, order: 'best', variety: 0.5, seed: 3 })
+    for (const shot of plan.shots) expect(shot.transition.type).toBe('cut')
+  })
+})

@@ -42,6 +42,8 @@ export interface ExportOptions {
   fps: number
   /** Megabits per second. */
   bitrate: number
+  /** Kilobits per second for the sound (192 unless a size limit needs it smaller). */
+  audioBitrate?: number
   audio: AudioBuffer
   signal?: AbortSignal
   onProgress?: (fraction: number, stage: string) => void
@@ -165,7 +167,7 @@ export async function exportEdit(opts: ExportOptions): Promise<Blob> {
   const videoSource = new CanvasSource(canvas, { codec, bitrate: opts.bitrate * 1e6, keyFrameInterval: 2 })
   output.addVideoTrack(videoSource, { frameRate: fps })
   const audioCodec = (await canEncodeAudio('aac')) ? 'aac' : 'opus'
-  const audioSource = new AudioBufferSource({ codec: audioCodec, bitrate: 192e3 })
+  const audioSource = new AudioBufferSource({ codec: audioCodec, bitrate: (opts.audioBitrate ?? 192) * 1e3 })
   output.addAudioTrack(audioSource)
 
   try {

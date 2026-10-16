@@ -1,20 +1,22 @@
 // Every creative choice, one tab at a time: a nav bar across the top, the chosen section below.
 
-import { Aperture, AudioLines, Crop, Mic, Sparkles, Type, Users, type LucideIcon } from 'lucide-react'
+import { Aperture, AudioLines, Crop, Layers, Mic, Sparkles, Type, Users, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { cx } from '../format'
 import { CastPanel } from './CastPanel'
 import { FormatPanel } from './FormatPanel'
 import { LookPanel } from './LookPanel'
+import { MixPanel } from './MixPanel'
 import { SoundPanel } from './SoundPanel'
 import { StyleList } from './StyleList'
 import { TextPanel } from './TextPanel'
 import { VoicePanel } from './VoicePanel'
 
-export type RailTab = 'style' | 'cast' | 'format' | 'look' | 'text' | 'voice' | 'sound'
+export type RailTab = 'style' | 'mix' | 'cast' | 'format' | 'look' | 'text' | 'voice' | 'sound'
 
 const TABS: { id: RailTab; label: string; icon: LucideIcon; body: () => React.ReactNode }[] = [
   { id: 'style', label: 'Style', icon: Sparkles, body: () => <StyleList /> },
+  { id: 'mix', label: 'Mix', icon: Layers, body: () => <MixPanel /> },
   { id: 'cast', label: 'Cast', icon: Users, body: () => <CastPanel /> },
   { id: 'format', label: 'Format', icon: Crop, body: () => <FormatPanel /> },
   { id: 'look', label: 'Look', icon: Aperture, body: () => <LookPanel /> },

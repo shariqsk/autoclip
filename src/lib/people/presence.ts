@@ -8,6 +8,8 @@ export interface Presence {
   star: number[]
   /** 0–1 per analysis sample: someone you cut is on screen. */
   avoid: number[]
+  /** 0–1 per analysis sample: someone else (not a star, not cut) is on screen, with no star. */
+  others: number[]
   /** Where the biggest star face is (frame fraction), or null when none is. */
   focus: ({ x: number; y: number } | null)[]
 }
@@ -19,6 +21,7 @@ export function presence(a: ClipAnalysis, faces: ClipFaces | undefined, starIds:
   const reach = faces.step * 0.75 + 0.05
   const star: number[] = []
   const avoid: number[] = []
+  const others: number[] = []
   const focus: Presence['focus'] = []
   let k = 0
   const list = [...faces.sightings].sort((x, y) => x.t - y.t)
@@ -26,22 +29,30 @@ export function presence(a: ClipAnalysis, faces: ClipFaces | undefined, starIds:
     while (k < list.length && list[k].t < t - reach) k++
     let s = 0
     let v = 0
+    let o = 0
     let at: { x: number; y: number; h: number } | null = null
     for (let j = k; j < list.length && list[j].t <= t + reach; j++) {
       const f = list[j]
-      if (!f.personId) continue
       const h = f.box[3]
+      // A face nobody was grouped with is a passer-by: someone else, just a little less certain.
+      if (!f.personId) {
+        o = Math.max(o, 0.7 * strength(h))
+        continue
+      }
       if (starIds.has(f.personId)) {
         s = Math.max(s, strength(h))
         if (!at || h > at.h) at = { x: f.box[0] + f.box[2] / 2, y: f.box[1] + f.box[3] / 2, h }
       }
       if (cutIds.has(f.personId)) v = Math.max(v, strength(h))
+      else if (!starIds.has(f.personId)) o = Math.max(o, strength(h))
     }
     star.push(s)
     avoid.push(v)
+    // Someone else sharing the frame with a star is fine (an opponent, a coach); alone, they're not.
+    others.push(s > 0 ? 0 : o)
     focus.push(at ? { x: at.x, y: at.y } : null)
   }
-  return { star, avoid, focus }
+  return { star, avoid, others, focus }
 }
 
 /** The analysis with framing pulled onto the stars' faces wherever they're on screen. */

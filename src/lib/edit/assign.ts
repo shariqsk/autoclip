@@ -19,6 +19,8 @@ export interface AssignableClip {
   star?: number[]
   /** 0–1 per analysis sample: someone you cut on screen. */
   avoid?: number[]
+  /** 0–1 per analysis sample: someone else on screen with none of your stars. */
+  others?: number[]
 }
 
 export interface Assignment {
@@ -38,7 +40,7 @@ export interface AssignOptions {
 
 // How much each part of the arc wants your stars on screen: the drop is theirs, and the intro is
 // where the viewer meets them.
-const STAR_WEIGHT: Record<SlotRole, number> = { hero: 1.6, tease: 0.9, intro: 1.1, build: 0.7, flurry: 0.7, ride: 0.6, outro: 0.9 }
+const STAR_WEIGHT: Record<SlotRole, number> = { hero: 2.6, tease: 1.4, intro: 1.8, build: 1.1, flurry: 1.1, ride: 1, outro: 1.4 }
 
 // How much movement each part of the arc wants, and the order slots are filled in: the drop gets
 // first pick of everything, the cold open gets the next-best flash of action, and so on.
@@ -59,6 +61,7 @@ interface Indexed {
     bright: Float64Array
     star: Float64Array | null
     avoid: Float64Array | null
+    others: Float64Array | null
   }
   used: [number, number][]
   uses: number
@@ -84,6 +87,7 @@ function index(clips: AssignableClip[]): Indexed[] {
         bright: prefixSum(a.brightness),
         star: clip.star ? prefixSum(clip.star) : null,
         avoid: clip.avoid ? prefixSum(clip.avoid) : null,
+        others: clip.others ? prefixSum(clip.others) : null,
       },
       used: [],
       uses: 0,
@@ -215,6 +219,8 @@ export function assignFootage(
         if (c.prefix.star) score += STAR_WEIGHT[slot.role] * meanOver(c.prefix.star, c.dt, s, e)
         else if (cast) score -= 0.25 * STAR_WEIGHT[slot.role]
         if (c.prefix.avoid) score -= 1.4 * meanOver(c.prefix.avoid, c.dt, s, e)
+        // With a star, a shot of somebody else entirely is the wrong shot, however good it is.
+        if (cast && c.prefix.others) score -= 1.3 * meanOver(c.prefix.others, c.dt, s, e)
 
         // Never the same scene twice in a row, and no near-repeats of moments already on screen.
         if (neighbourScenes.includes(`${c.clip.id}#${sceneOf(a.cuts, s)}`)) score -= 0.6

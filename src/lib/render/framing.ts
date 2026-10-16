@@ -1,7 +1,7 @@
 // Framing helpers shared by the live preview and the exporter.
 
 import type { Layer } from '../edit/timeline'
-import type { ClipAnalysis } from '../types'
+import type { ClipAnalysis, FitMode } from '../types'
 
 /** Focus point for smart cropping, read from the clip analysis at a source time. */
 export function focusAt(a: ClipAnalysis, t: number): { x: number; y: number } {
@@ -18,6 +18,16 @@ export function motionAt(a: ClipAnalysis, t: number): number {
   const dt = a.times[1] - a.times[0]
   const i = Math.min(a.times.length - 1, Math.max(0, Math.round(t / dt)))
   return a.motion[i] ?? 0
+}
+
+/**
+ * Where the picture sits in the frame, as fractions of the height: all of it when cropped to fill;
+ * a band between bars when a wider shot is shown whole.
+ */
+export function pictureArea(fit: FitMode, src: { width: number; height: number } | null, out: { width: number; height: number }) {
+  if (fit === 'fill' || !src) return { top: 0, height: 1 }
+  const height = Math.min(1, out.width / out.height / (src.width / src.height))
+  return { top: (1 - height) / 2, height }
 }
 
 /** Stills get a slow Ken Burns push so they never sit dead on screen. */

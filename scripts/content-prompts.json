@@ -7,7 +7,9 @@
     "two fighters grappling on the ground, one on top",
     "a basketball player dunking the ball",
     "a soccer player scoring a goal as the net bulges",
-    "a boxer knocking his opponent down"
+    "a boxer knocking his opponent down",
+    "the most exciting moment of an event",
+    "someone landing a big jump or stunt"
   ],
   "action": [
     "two fighters standing and throwing punches at each other in the octagon",
@@ -17,7 +19,10 @@
     "basketball players in the middle of a fast play",
     "a soccer match in progress",
     "a skateboarder doing a trick",
-    "a car racing on a track"
+    "a car racing on a track",
+    "people dancing at a party or concert",
+    "a person riding a bike or motorbike fast",
+    "a person running or surfing"
   ],
   "broll": [
     "a huge arena crowd cheering, wide shot",
@@ -28,7 +33,11 @@
     "a slow motion shot of an athlete walking",
     "a city skyline at night",
     "an athlete training alone in a gym",
-    "a close-up of sneakers or equipment"
+    "a close-up of sneakers or equipment",
+    "a scenic landscape or beach at sunset",
+    "a busy street in a city",
+    "a close-up detail shot of an object",
+    "people walking and getting ready"
   ],
   "celebrate": [
     "a fighter holding up a championship belt over his head",
@@ -37,7 +46,9 @@
     "a champion with a gold belt on his shoulder surrounded by his team",
     "a fighter's hand raised by the referee",
     "a team celebrating together after winning",
-    "a player celebrating a goal with teammates"
+    "a player celebrating a goal with teammates",
+    "friends cheering and hugging each other",
+    "a crowd cheering with arms in the air"
   ],
   "talk": [
     "a reporter interviewing a fighter with a microphone",
@@ -45,7 +56,9 @@
     "a press conference with people at a table",
     "a post-fight interview in the cage",
     "a person talking to the camera in a vlog",
-    "sports commentators at a desk in a studio"
+    "sports commentators at a desk in a studio",
+    "two people having a conversation",
+    "a podcast with people talking at microphones"
   ],
   "text": [
     "a black screen with white title text",

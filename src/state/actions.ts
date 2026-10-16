@@ -15,7 +15,7 @@ import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
 import { sliceAnalysis } from '../lib/video/moments'
 import { clipContent } from './content'
-import { castPresence } from './people'
+import { autoFindFaces, castPresence } from './people'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -118,6 +118,8 @@ function pump() {
         running--
         pump()
         maybeAutoEdit()
+        // Wide footage going into a tall edit (or the other way): find the faces to frame on.
+        autoFindFaces()
       })
   }
 }

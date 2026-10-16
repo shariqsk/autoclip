@@ -58,8 +58,8 @@ export const STYLES: StylePreset[] = [
   {
     id: 'hype',
     name: 'Aura',
-    tagline: 'Black-and-white walkout, colour slams in on the knockout',
-    bestFor: 'UFC, boxing, fighter tributes, highlight reels',
+    tagline: 'A black-and-white intro, then colour slams in on the big moment',
+    bestFor: 'Highlight reels, tributes, sports, anything with a peak',
     intro: { beats: 8, speed: 0.7, mono: 1, transition: { cut: 4, flash: 1, dip: 1 } },
     build: { bars: 2, pattern: [2, 2, 1, 1, 1, 0.5, 0.5], strobe: 0.7 },
     hero: { beats: 4, speed: { kind: 'freeze', from: 0.4, at: 0.42 }, transition: { flash: 6, glitch: 2 } },

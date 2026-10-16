@@ -26,7 +26,7 @@ function rand(seed: number) {
 
 const DEFS: DemoClipDef[] = [
   {
-    name: 'Knockout.mp4',
+    name: 'Collision.mp4',
     duration: 7,
     draw(ctx, t, w, h) {
       // Two fighters circle, then one lands: a flash, shockwave and camera shake at 4.2 s.

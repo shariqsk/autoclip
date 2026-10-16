@@ -104,7 +104,7 @@ export function CastPanel() {
       <div className="space-y-3">
         <p className="text-sm leading-relaxed text-ink-2">
           Find everyone in your footage, then pick who the edit is about. AutoClip puts them on screen, gives them the drop and frames on
-          their face. Pick more than one for a rivalry or a team, and keep out anyone who shouldn't be in it.
+          their face. Pick more than one for a duo, a crew or a team, and keep out anyone who shouldn't be in it.
         </p>
         <button className="btn btn-signal w-full" onClick={() => void findPeopleInFootage()}>
           <Users className="size-3.5" /> Find people
@@ -125,7 +125,7 @@ export function CastPanel() {
           <p className="text-xs leading-snug text-ink-2">
             {stars.length
               ? `The edit follows ${stars.map((p) => p.name || 'your star').join(' and ')}. Tap ★ again to undo.`
-              : 'Tap ★ on who the edit is about. Pick more than one for a rivalry or a team; ⃠ keeps someone out.'}
+              : 'Tap ★ on who the edit is about. Pick more than one for a duo, a crew or a team; ⃠ keeps someone out.'}
           </p>
           <ul className="grid grid-cols-2 gap-2">
             {shown.map((p) => (
@@ -159,7 +159,7 @@ export function CastPanel() {
               <button
                 className="btn btn-bare btn-sm w-full"
                 onClick={() => setPicking([])}
-                title="When one person shows up twice (side-on, or behind a glove)"
+                title="When one person shows up twice (side-on, or half hidden)"
               >
                 <Combine className="size-3.5" /> Same person twice? Merge
               </button>
@@ -171,7 +171,7 @@ export function CastPanel() {
           )}
         </>
       ) : (
-        <p className="text-sm text-ink-3">No faces were big enough to recognize. Close-ups and walkouts work best.</p>
+        <p className="text-sm text-ink-3">No faces were big enough to recognize. Close-ups work best.</p>
       )}
     </div>
   )

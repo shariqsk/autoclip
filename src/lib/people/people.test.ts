@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ClipAnalysis, ClipFaces, FaceSighting } from '../types'
 import { distance, findPeople } from './cluster'
-import { framedOnStars, presence } from './presence'
+import { faceFocus, framedOnStars, presence } from './presence'
 
 // Deterministic pseudo-random numbers.
 function rng(seed: number) {
@@ -118,5 +118,32 @@ describe('where the cast is on screen', () => {
 
   it('does nothing until someone is starred or cut', () => {
     expect(presence(analysis(10), footage().a, new Set(), new Set())).toBeNull()
+  })
+})
+
+describe('framing on faces', () => {
+  const times = Array.from({ length: 10 }, (_, i) => i * 0.5)
+  const a = { times, duration: 5 } as ClipAnalysis
+  const face = (t: number, x: number, h: number, personId?: string): FaceSighting => ({
+    t,
+    box: [x - h * 0.4, 0.3, h * 0.8, h],
+    score: 0.9,
+    descriptor: new Float32Array(128),
+    personId,
+  })
+
+  it('frames on the biggest face, or between two of about the same size', () => {
+    const faces: ClipFaces = { step: 0.5, sightings: [face(0, 0.2, 0.3), face(0, 0.8, 0.1), face(2, 0.3, 0.2), face(2, 0.7, 0.19)] }
+    const f = faceFocus(a, faces, new Set())!
+    expect(f[0]!.x).toBeCloseTo(0.2, 2)
+    // Two faces of a size, facing off: frame between them.
+    expect(f[4]!.x).toBeCloseTo(0.5, 2)
+    // No face, no opinion: framing follows the action there.
+    expect(f[9]).toBeNull()
+  })
+
+  it('frames on your star even when someone else is bigger', () => {
+    const faces: ClipFaces = { step: 0.5, sightings: [face(0, 0.2, 0.4), face(0, 0.85, 0.15, 'star')] }
+    expect(faceFocus(a, faces, new Set(['star']))![0]!.x).toBeCloseTo(0.85, 2)
   })
 })

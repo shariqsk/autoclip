@@ -1,4 +1,5 @@
 import { makeEdit } from '../../state/actions'
+import { autoFindFaces } from '../../state/people'
 import { ASPECTS, LENGTHS } from '../../state/settings'
 import { getState, setState, updateSettings, useApp } from '../../state/store'
 import { Seg, Slider, Toggle } from '../ui'
@@ -17,7 +18,10 @@ export function FormatPanel() {
               key={a.id}
               className="opt h-16 flex-col gap-1.5"
               data-on={s.aspect === a.id}
-              onClick={() => updateSettings({ aspect: a.id })}
+              onClick={() => {
+                updateSettings({ aspect: a.id })
+                autoFindFaces()
+              }}
               title={`${a.label}: ${a.note}`}
             >
               <span className="border-[1.5px] border-current" style={{ width: a.w * k, height: a.h * k }} />

@@ -15,7 +15,9 @@ export function lookFor(style: Draft['style'], s: Settings): Look {
     grade: s.grade === 'style' ? base.grade : s.grade,
     grain: s.grain === 'style' ? base.grain : s.grain,
     vignette: s.vignette === 'style' ? base.vignette : s.vignette,
-    letterbox: s.letterbox === 'style' ? base.letterbox : s.letterbox,
+    // A style's cinema bars belong on a widescreen frame; on a tall one they only eat the picture.
+    // Turned on by hand, they're drawn whatever the shape.
+    letterbox: s.letterbox === 'style' ? base.letterbox && s.aspect === '16:9' : s.letterbox,
     fit: s.fit,
   }
 }

@@ -107,24 +107,19 @@ export function TextPanel() {
       )}
       {c.source === 'text' && (
         <Field label="Words on the beat">
-          <input
-            className="field"
-            placeholder="WHO. IS. THE. GOAT."
-            value={c.beatText}
-            onChange={(e) => set({ beatText: e.target.value })}
-          />
+          <input className="field" placeholder="ONE. MORE. TIME." value={c.beatText} onChange={(e) => set({ beatText: e.target.value })} />
         </Field>
       )}
 
       <Field label="Title card · opens the edit">
-        <input className="field" placeholder="THE EAGLE" value={c.title} onChange={(e) => set({ title: e.target.value })} />
+        <input className="field" placeholder="THE COMEBACK" value={c.title} onChange={(e) => set({ title: e.target.value })} />
       </Field>
 
       <div className="grid grid-cols-[1.4fr_1fr] gap-2">
         <Field label="Nameplate · on the drop">
           <input
             className="field"
-            placeholder="Khamzat Chimaev"
+            placeholder="Who it’s about"
             value={settings.nameplate.name}
             onChange={(e) => updateSettings((s) => ({ nameplate: { ...s.nameplate, name: e.target.value } }))}
           />
@@ -132,7 +127,7 @@ export function TextPanel() {
         <Field label="Under it">
           <input
             className="field"
-            placeholder="13-0 · Borz"
+            placeholder="A line under the name"
             value={settings.nameplate.sub}
             onChange={(e) => updateSettings((s) => ({ nameplate: { ...s.nameplate, sub: e.target.value } }))}
           />

@@ -4,7 +4,17 @@
 
 import type { CaptionStyle, FitMode, Grade, SpeedRamp, TitleLook, TransitionType } from '../types'
 
-export type BuiltInStyleId = 'hype' | 'phonk' | 'velocity' | 'cinematic' | 'smooth' | 'throwback'
+export type BuiltInStyleId = 'hype' | 'rush' | 'phonk' | 'velocity' | 'cinematic' | 'lyric' | 'spotlight' | 'smooth' | 'throwback'
+
+/** How the styles are grouped for picking: by the feeling of the edit. Learned styles are 'mine'. */
+export type StyleGroup = 'hype' | 'cinematic' | 'chill' | 'mine'
+
+export const STYLE_GROUPS: { id: StyleGroup; name: string; note: string }[] = [
+  { id: 'hype', name: 'Hype', note: 'Hard-hitting, fast, loud' },
+  { id: 'cinematic', name: 'Cinematic', note: 'Moody, big titles, room to breathe' },
+  { id: 'chill', name: 'Chill', note: 'Easy rhythm, warm, nothing jarring' },
+  { id: 'mine', name: 'Yours', note: 'Learned from your edits' },
+]
 /** Styles learned from the user's own reference edits get ids like `learned-…`. */
 export type StyleId = BuiltInStyleId | `learned-${string}`
 
@@ -13,6 +23,8 @@ type Weights = Partial<Record<TransitionType, number>>
 export interface StylePreset {
   id: StyleId
   name: string
+  /** Where it's listed (learned styles go under 'mine'). */
+  group?: StyleGroup
   tagline: string
   /** Good for, in plain words. */
   bestFor: string
@@ -74,6 +86,7 @@ export interface StylePreset {
 export const STYLES: StylePreset[] = [
   {
     id: 'hype',
+    group: 'hype',
     name: 'Aura',
     tagline: 'A black-and-white intro, then colour slams in on the big moment',
     bestFor: 'Highlight reels, tributes, sports, anything with a peak',
@@ -92,7 +105,29 @@ export const STYLES: StylePreset[] = [
     captions: 'impact',
   },
   {
+    id: 'rush',
+    group: 'hype',
+    name: 'Rush',
+    tagline: 'Rapid cuts, motion blur and big stacked lyrics',
+    bestFor: 'Highlight mixtapes, sports, anything fast',
+    intro: { beats: 2, speed: 1, mono: 0, transition: { cut: 3, zoom: 1 } },
+    build: { bars: 1, pattern: [1, 1, 0.5, 0.5], strobe: 0.3 },
+    hero: { beats: 2, speed: { kind: 'velocity', fast: 1.8, slow: 0.35 }, transition: { zoom: 3, flash: 2 } },
+    flurry: { bars: 8, choices: [1, 1, 2], transition: { cut: 8, zoom: 2, whip: 2 } },
+    ride: { choices: [1, 2], transition: { cut: 5, whip: 2, zoom: 1 } },
+    outro: { beats: 4, speed: 0.85, fade: 0.8 },
+    coldOpen: true,
+    hitCuts: { everyBars: 1 },
+    transitionBeats: 0.35,
+    fx: { pulse: 0.06, shake: 0.5, rgb: 0.2, flash: 0.5, push: 0.04 },
+    velocity: true,
+    look: { grade: 'punch', grain: 0.06, vignette: 0.3, letterbox: false, blur: 0.7, glow: 0.15 },
+    captions: 'stack',
+    titleBehind: true,
+  },
+  {
     id: 'phonk',
+    group: 'hype',
     name: 'Phonk',
     tagline: 'Cowbell cuts, RGB splits and hard shakes, all in black and white',
     bestFor: 'Aggressive sports edits, cars, gym',
@@ -112,6 +147,7 @@ export const STYLES: StylePreset[] = [
   },
   {
     id: 'velocity',
+    group: 'hype',
     name: 'Velocity',
     tagline: 'Speed ramps that slow on the hit and rip back up',
     bestFor: 'Skate, dance, cars, anything with motion',
@@ -131,6 +167,7 @@ export const STYLES: StylePreset[] = [
   },
   {
     id: 'cinematic',
+    group: 'cinematic',
     name: 'Cinematic',
     tagline: 'Letterbox, slow pushes and a hero shot that breathes',
     bestFor: 'Trailers, retirement tributes, travel films',
@@ -149,11 +186,55 @@ export const STYLES: StylePreset[] = [
     captions: 'clean',
   },
   {
+    id: 'lyric',
+    group: 'cinematic',
+    name: 'Lyric',
+    tagline: 'Light leaks, glow and the lyrics written in, word by word',
+    bestFor: 'Song edits, tributes, emotional moments',
+    intro: { beats: 4, speed: 0.85, mono: 0, transition: { fade: 2, cut: 2 } },
+    build: { bars: 1, pattern: [2, 2, 1, 1], strobe: 0 },
+    hero: { beats: 4, speed: { kind: 'constant', speed: 0.7 }, transition: { flash: 3, fade: 2 } },
+    flurry: { bars: 8, choices: [2, 2, 4], transition: { cut: 5, fade: 2 } },
+    ride: { choices: [2, 4], transition: { cut: 4, fade: 2 } },
+    outro: { beats: 8, speed: 0.8, fade: 1.5 },
+    coldOpen: false,
+    hitCuts: { everyBars: 4 },
+    transitionBeats: 0.75,
+    fx: { pulse: 0.02, shake: 0.05, rgb: 0, flash: 0.4, push: 0.06 },
+    velocity: false,
+    look: { grade: 'teal-orange', grain: 0.08, vignette: 0.4, letterbox: false, leaks: 0.7, glow: 0.45 },
+    captions: 'subtitle',
+    titleBehind: true,
+  },
+  {
+    id: 'spotlight',
+    group: 'cinematic',
+    name: 'Spotlight',
+    tagline: 'Dark and washed out, the whole shot on black, the name behind them',
+    bestFor: 'Intros, walkouts, one person in the spotlight',
+    intro: { beats: 4, speed: 0.9, mono: 0.6, transition: { cut: 3, glitch: 1 } },
+    build: { bars: 1, pattern: [2, 1, 1, 1], strobe: 0.2 },
+    hero: { beats: 4, speed: { kind: 'freeze', from: 0.4, at: 0.45 }, transition: { glitch: 3, flash: 2 } },
+    flurry: { bars: 8, choices: [1, 2, 2], transition: { cut: 8, glitch: 1, zoom: 1 } },
+    ride: { choices: [2, 4], transition: { cut: 5, glitch: 1 } },
+    outro: { beats: 8, speed: 0.8, fade: 1.5 },
+    coldOpen: false,
+    hitCuts: { everyBars: 2 },
+    transitionBeats: 0.4,
+    fx: { pulse: 0.04, shake: 0.3, rgb: 0.25, flash: 0.6, push: 0.04 },
+    velocity: false,
+    look: { grade: 'bleach', grain: 0.12, vignette: 0.6, letterbox: false, fit: 'bars' },
+    captions: 'impact',
+    title: 'spread',
+    titleBehind: true,
+  },
+  {
     id: 'smooth',
+    group: 'chill',
     name: 'Smooth',
-    tagline: 'Whip pans and easy rhythm, nothing jarring',
+    tagline: 'Whip pans, picture in picture and an easy rhythm',
     bestFor: 'Travel, vlogs, day-in-the-life, product reels',
-    intro: { beats: 4, speed: 1, mono: 0, transition: { whip: 3, cut: 2 } },
+    intro: { beats: 4, speed: 1, mono: 0, transition: { panels: 3, whip: 2, cut: 1 } },
     build: { bars: 1, pattern: [2, 1, 1], strobe: 0 },
     hero: { beats: 4, speed: { kind: 'constant', speed: 1 }, transition: { whip: 3, zoom: 3 } },
     flurry: { bars: 8, choices: [2, 4], transition: { cut: 4, whip: 3, fade: 1 } },
@@ -164,11 +245,12 @@ export const STYLES: StylePreset[] = [
     transitionBeats: 0.5,
     fx: { pulse: 0.025, shake: 0, rgb: 0, flash: 0.2, push: 0.05 },
     velocity: false,
-    look: { grade: 'warm', grain: 0.04, vignette: 0.2, letterbox: false },
+    look: { grade: 'warm', grain: 0.04, vignette: 0.2, letterbox: false, glow: 0.15 },
     captions: 'karaoke',
   },
   {
     id: 'throwback',
+    group: 'chill',
     name: 'Throwback',
     tagline: 'Film grain, warm fades, memories cut slow',
     bestFor: 'Recaps, friends, old footage, birthdays',

@@ -177,8 +177,18 @@ describe('transitions', () => {
     for (const style of STYLES) {
       const one = makePlan(song, [fakeClip('only', 120, 30)], { style: style.id, length: 30, order: 'best', variety: 0.5, seed: 3 })
       expect(one.shots.length).toBeGreaterThan(4)
-      for (const shot of one.shots) expect(shot.transition).toEqual({ type: 'cut', duration: 0 })
+      for (const shot of one.shots) if (shot.transition.type !== 'panels') expect(shot.transition).toEqual({ type: 'cut', duration: 0 })
     }
+  })
+
+  it('opens on a collage when the style or you ask for one', () => {
+    const opts = { length: 30 as const, order: 'best' as const, variety: 0.5, seed: 3 }
+    const panels = (p: ReturnType<typeof makePlan>) => p.shots.filter((x) => x.transition.type === 'panels')
+    const smooth = makePlan(song, clips, { ...opts, style: 'smooth' })
+    expect(panels(smooth).length).toBeGreaterThan(0)
+    for (const shot of panels(smooth)) expect(['intro', 'tease']).toContain(shot.phase)
+    expect(panels(makePlan(song, clips, { ...opts, style: 'smooth', collage: false }))).toHaveLength(0)
+    expect(panels(makePlan(song, clips, { ...opts, style: 'hype', collage: true })).length).toBeGreaterThan(0)
   })
 
   it('treats moments cut from one clip as the same footage', () => {

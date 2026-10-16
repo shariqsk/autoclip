@@ -23,6 +23,8 @@ export interface PlanOptions {
   hitCuts?: boolean
   /** How much of each shot type to use (when the footage has been read for them). */
   mix?: ContentMix
+  /** Open on a collage of picture-in-picture panels. Defaults to the style's choice. */
+  collage?: boolean
 }
 
 const FX_SCALE: Record<Slot['role'], number> = { tease: 1, intro: 0.35, build: 0.8, hero: 1, flurry: 1, ride: 0.6, outro: 0.3 }
@@ -136,10 +138,22 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     })
   })
 
+  // A collage opening: the first few shots after the opener each arrive in panels over the last.
+  if (opts.collage ?? style.collage) {
+    const opening = shots.filter((s, i) => i > 0 && !s.locked && (s.phase === 'intro' || s.phase === 'tease')).slice(0, 3)
+    for (const shot of opening) {
+      const i = shots.indexOf(shot)
+      const shortest = Math.min(shot.end - shot.start, shots[i - 1].end - shots[i - 1].start)
+      shot.transition = { type: 'panels', duration: Math.max(0.3, Math.min(beatPeriod * 2, shortest * 0.9)) }
+    }
+  }
+
   // A transition into more of the same footage looks like a glitch, not a change of shot: cut instead.
   const sourceOf = new Map(clips.map((c) => [c.id, c.source ?? c.id]))
   for (let i = 1; i < shots.length; i++) {
-    if (!shots[i].locked && sourceOf.get(shots[i].clipId) === sourceOf.get(shots[i - 1].clipId)) {
+    // A collage is the exception: panels of two moments from one long clip are still a collage.
+    const panels = shots[i].transition.type === 'panels'
+    if (!shots[i].locked && !panels && sourceOf.get(shots[i].clipId) === sourceOf.get(shots[i - 1].clipId)) {
       shots[i].transition = { type: 'cut', duration: 0 }
     }
   }

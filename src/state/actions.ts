@@ -269,6 +269,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
       length: s.settings.length,
       order: s.settings.order,
       hitCuts: s.settings.hitCuts,
+      collage: s.settings.collage === 'style' ? undefined : s.settings.collage,
       mix: s.settings.mix,
       variety: s.settings.variety,
       seed: newSeed(),

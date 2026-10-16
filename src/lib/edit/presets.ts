@@ -81,6 +81,8 @@ export interface StylePreset {
   title?: TitleLook
   /** Put the title behind the people in shot. */
   titleBehind?: boolean
+  /** Open on a collage: the first shots arrive in picture-in-picture panels. */
+  collage?: boolean
 }
 
 export const STYLES: StylePreset[] = [
@@ -214,7 +216,7 @@ export const STYLES: StylePreset[] = [
     bestFor: 'Intros, walkouts, one person in the spotlight',
     intro: { beats: 4, speed: 0.9, mono: 0.6, transition: { cut: 3, glitch: 1 } },
     build: { bars: 1, pattern: [2, 1, 1, 1], strobe: 0.2 },
-    hero: { beats: 4, speed: { kind: 'freeze', from: 0.4, at: 0.45 }, transition: { glitch: 3, flash: 2 } },
+    hero: { beats: 4, speed: { kind: 'constant', speed: 0.55 }, transition: { glitch: 3, flash: 2 } },
     flurry: { bars: 8, choices: [1, 2, 2], transition: { cut: 8, glitch: 1, zoom: 1 } },
     ride: { choices: [2, 4], transition: { cut: 5, glitch: 1 } },
     outro: { beats: 8, speed: 0.8, fade: 1.5 },
@@ -232,9 +234,9 @@ export const STYLES: StylePreset[] = [
     id: 'smooth',
     group: 'chill',
     name: 'Smooth',
-    tagline: 'Whip pans, picture in picture and an easy rhythm',
+    tagline: 'Opens on a collage, then whip pans and an easy rhythm',
     bestFor: 'Travel, vlogs, day-in-the-life, product reels',
-    intro: { beats: 4, speed: 1, mono: 0, transition: { panels: 3, whip: 2, cut: 1 } },
+    intro: { beats: 4, speed: 1, mono: 0, transition: { whip: 3, cut: 2 } },
     build: { bars: 1, pattern: [2, 1, 1], strobe: 0 },
     hero: { beats: 4, speed: { kind: 'constant', speed: 1 }, transition: { whip: 3, zoom: 3 } },
     flurry: { bars: 8, choices: [2, 4], transition: { cut: 4, whip: 3, fade: 1 } },
@@ -247,6 +249,7 @@ export const STYLES: StylePreset[] = [
     velocity: false,
     look: { grade: 'warm', grain: 0.04, vignette: 0.2, letterbox: false, glow: 0.15 },
     captions: 'karaoke',
+    collage: true,
   },
   {
     id: 'throwback',

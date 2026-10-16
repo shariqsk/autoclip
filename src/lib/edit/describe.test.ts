@@ -15,7 +15,8 @@ describe('styleFeatures', () => {
     expect(styleFeatures(getStyle('lyric'))).toEqual(expect.arrayContaining(['Light leaks', 'Title behind people', 'Subtitle captions']))
     expect(styleFeatures(getStyle('rush'))).toEqual(expect.arrayContaining(['Fast cuts', 'Motion blur', 'Stack captions']))
     expect(styleFeatures(getStyle('spotlight'))).toEqual(expect.arrayContaining(['Whole shot on black', 'Bleach grade']))
-    expect(styleFeatures(getStyle('smooth'))).toContain('Picture in picture')
+    expect(styleFeatures(getStyle('smooth'))).toContain('Collage intro')
+    expect(styleFeatures(getStyle('spotlight'))).not.toContain('Freeze on the drop')
   })
 
   it('files every built-in style under a group', () => {

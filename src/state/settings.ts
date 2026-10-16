@@ -51,7 +51,13 @@ export interface Settings {
   /** "@handle" watermark in the corner. */
   handle: string
   voiceover: VoiceoverSettings
-  export: { resolution: 720 | 1080 | 1440 | 2160; fps: 24 | 30 | 60; quality: 'standard' | 'high' | 'max' }
+  export: {
+    resolution: 720 | 1080 | 1440 | 2160
+    fps: 24 | 30 | 60
+    quality: 'standard' | 'high' | 'max'
+    /** Keep the file under this many MB (Discord's limit), or null for no limit. */
+    limitMb: number | null
+  }
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -84,7 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   nameplate: { name: '', sub: '' },
   handle: '',
   voiceover: { enabled: false, text: 'Ladies and gentlemen… this is the main event.', voice: 'am_michael', speed: 1, placement: 'intro' },
-  export: { resolution: 1080, fps: 30, quality: 'high' },
+  export: { resolution: 1080, fps: 30, quality: 'high', limitMb: null },
 }
 
 export const ASPECTS: { id: AspectId; label: string; note: string; w: number; h: number }[] = [

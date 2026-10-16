@@ -2,7 +2,7 @@
 
 import type { StyleId } from '../lib/edit/presets'
 import type { LengthChoice } from '../lib/edit/window'
-import type { AspectId, CaptionPosition, CaptionStyle, FitMode, Grade } from '../lib/types'
+import type { AspectId, CaptionPosition, CaptionStyle, ContentMix, FitMode, Grade } from '../lib/types'
 
 export type CaptionSource = 'off' | 'auto' | 'file' | 'text'
 
@@ -23,6 +23,8 @@ export interface Settings {
   order: 'best' | 'story'
   /** Cut on standout hits in the music (strums, stabs, fills), not only the beat. */
   hitCuts: boolean
+  /** How much of each shot type (big moments, action, b-roll…) the edit uses. */
+  mix: ContentMix
   variety: number
   /** 'style' follows the edit style's look. */
   grade: Grade | 'style'
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fit: 'fill',
   order: 'best',
   hitCuts: true,
+  mix: { finish: 'some', action: 'some', broll: 'some', celebrate: 'some', talk: 'some', text: 'none' },
   variety: 0.6,
   grade: 'style',
   grain: 'style',
@@ -131,6 +134,7 @@ export function loadSettings(): Settings {
       voiceover: { ...DEFAULT_SETTINGS.voiceover, ...saved.voiceover },
       nameplate: { ...DEFAULT_SETTINGS.nameplate, ...saved.nameplate },
       export: { ...DEFAULT_SETTINGS.export, ...saved.export },
+      mix: { ...DEFAULT_SETTINGS.mix, ...saved.mix },
     }
   } catch {
     return DEFAULT_SETTINGS
@@ -144,3 +148,31 @@ export function saveSettings(s: Settings) {
     /* private mode or full storage: settings just won't persist */
   }
 }
+
+/** One-tap mixes for the usual asks. */
+export const MIX_PRESETS: { id: string; name: string; note: string; mix: ContentMix }[] = [
+  {
+    id: 'everything',
+    name: 'Everything',
+    note: 'A bit of it all, in the right places',
+    mix: { finish: 'some', action: 'some', broll: 'some', celebrate: 'some', talk: 'some', text: 'none' },
+  },
+  {
+    id: 'finishes',
+    name: 'Finishes + B-roll',
+    note: 'The big moments, with some b-roll around them',
+    mix: { finish: 'more', action: 'some', broll: 'some', celebrate: 'some', talk: 'none', text: 'none' },
+  },
+  {
+    id: 'fight',
+    name: 'Just the action',
+    note: 'Big moments and action, nothing else',
+    mix: { finish: 'more', action: 'more', broll: 'none', celebrate: 'none', talk: 'none', text: 'none' },
+  },
+  {
+    id: 'story',
+    name: 'The story',
+    note: 'Walkout, the fight, the finish, the celebration',
+    mix: { finish: 'more', action: 'some', broll: 'more', celebrate: 'more', talk: 'none', text: 'none' },
+  },
+]

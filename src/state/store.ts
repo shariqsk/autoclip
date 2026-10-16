@@ -4,7 +4,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { StyleId } from '../lib/edit/presets'
-import type { CaptionLine, CaptionWord, Clip, ClipFaces, EditPlan, Person, SongAnalysis } from '../lib/types'
+import type { CaptionLine, CaptionWord, Clip, ClipContent, ClipFaces, EditPlan, Person, SongAnalysis } from '../lib/types'
 import { loadSettings, saveSettings, type Settings } from './settings'
 
 export interface Song {
@@ -84,6 +84,10 @@ export interface AppState {
   people: Person[]
   /** Looking for people: how far along, or null when idle. */
   peopleScan: { done: number; total: number; fraction: number } | null
+  /** Shot types found in each clip, by clip id. */
+  content: Record<string, ClipContent>
+  /** Reading shot types: how far along (downloading the model first, once), or null when idle. */
+  contentScan: { done: number; total: number; fraction: number; stage: 'download' | 'scan' } | null
   selectedShotId: string | null
   selectedCaptionId: string | null
   demoLoading: number | null
@@ -114,6 +118,8 @@ const initial: AppState = {
   faces: {},
   people: [],
   peopleScan: null,
+  content: {},
+  contentScan: null,
   selectedShotId: null,
   selectedCaptionId: null,
   demoLoading: null,

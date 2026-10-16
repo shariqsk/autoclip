@@ -18,6 +18,7 @@ import { outputSize, type Settings } from '../state/settings'
 import { getState, setState, toast, updateSettings, useApp } from '../state/store'
 import { cx, fmtTime } from './format'
 import { Modal } from './Modal'
+import { PostPanel } from './PostPanel'
 import { Progress, Seg, Toggle } from './ui'
 
 const BASE_MBPS: Record<Settings['export']['quality'], number> = { standard: 8, high: 14, max: 24 }
@@ -33,34 +34,54 @@ const DISCORD_MB = 19.5
 // `aspect: null` keeps whatever shape the edit is in.
 const PRESETS: { id: string; name: string; note: string; aspect: AspectId | null; ex: Settings['export'] }[] = [
   {
-    id: 'vertical',
-    name: 'TikTok · Reels · Shorts',
-    note: '1080×1920 · 30',
+    id: 'tiktok',
+    name: 'TikTok',
+    note: '1080×1920 · 30 · caption + tags',
     aspect: '9:16',
-    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: null },
+    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: null, platform: 'tiktok' },
+  },
+  {
+    id: 'reels',
+    name: 'Reels',
+    note: '1080×1920 · 30 · caption + tags',
+    aspect: '9:16',
+    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: null, platform: 'reels' },
+  },
+  {
+    id: 'shorts',
+    name: 'Shorts',
+    note: '1080×1920 · 60 · title + tags',
+    aspect: '9:16',
+    ex: { resolution: 1080, fps: 60, quality: 'high', limitMb: null, platform: 'shorts' },
   },
   {
     id: 'youtube',
     name: 'YouTube',
     note: '1920×1080 · 60',
     aspect: '16:9',
-    ex: { resolution: 1080, fps: 60, quality: 'high', limitMb: null },
+    ex: { resolution: 1080, fps: 60, quality: 'high', limitMb: null, platform: null },
   },
   {
     id: 'feed',
     name: 'Instagram feed',
     note: '1080×1350 · 30',
     aspect: '4:5',
-    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: null },
+    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: null, platform: null },
   },
   {
     id: 'discord',
     name: 'Discord',
     note: 'Under 20 MB · any shape',
     aspect: null,
-    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: DISCORD_MB },
+    ex: { resolution: 1080, fps: 30, quality: 'high', limitMb: DISCORD_MB, platform: null },
   },
-  { id: 'master', name: 'Master', note: '4K · 60 · max', aspect: '9:16', ex: { resolution: 2160, fps: 60, quality: 'max', limitMb: null } },
+  {
+    id: 'master',
+    name: 'Master',
+    note: '4K · 60 · max',
+    aspect: '9:16',
+    ex: { resolution: 2160, fps: 60, quality: 'max', limitMb: null, platform: null },
+  },
 ]
 
 function download(blob: Blob, name: string) {
@@ -135,7 +156,8 @@ export function ExportDialog() {
       p.ex.resolution === ex.resolution &&
       p.ex.fps === ex.fps &&
       p.ex.quality === ex.quality &&
-      p.ex.limitMb === limitMb,
+      p.ex.limitMb === limitMb &&
+      p.ex.platform === (ex.platform ?? null),
   )
 
   const start = async () => {
@@ -264,6 +286,11 @@ export function ExportDialog() {
               Export again
             </button>
           </div>
+          {size.height > size.width && (
+            <div className="sm:col-span-2">
+              <PostPanel blob={result.blob} name={name} platform={ex.platform ?? 'tiktok'} seconds={duration} />
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-5">

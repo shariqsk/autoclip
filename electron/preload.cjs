@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('autoclipDesktop', {
   cancelImport: (id) => ipcRenderer.invoke('links:cancel', id),
   releaseImport: (name) => ipcRenderer.invoke('links:release', name),
   copyVideo: (data, name) => ipcRenderer.invoke('share:copy-video', { data, name }),
+  postVideo: (data, name, url) => ipcRenderer.invoke('share:post', { data, name, url }),
   onImportProgress: (fn) => {
     const handler = (_event, progress) => fn(progress)
     ipcRenderer.on('links:progress', handler)

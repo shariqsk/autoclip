@@ -48,3 +48,20 @@ export async function copyVideoToClipboard(bytes, name) {
   }
   return file
 }
+
+/**
+ * Save a finished video into a folder for keeps (Movies/AutoClip), never over an earlier one, and
+ * return where it went.
+ */
+export async function saveVideo(bytes, name, dir) {
+  await mkdir(dir, { recursive: true })
+  const file = safeFileName(name)
+  const stem = file.replace(/\.mp4$/i, '')
+  let out = path.join(dir, file)
+  for (let n = 2; await stat(out).catch(() => null); n++) out = path.join(dir, `${stem} ${n}.mp4`)
+  await writeFile(out, bytes)
+  return out
+}
+
+/** The upload pages the app may open for you (nothing else). */
+export const UPLOAD_PAGES = ['https://www.tiktok.com/upload', 'https://www.instagram.com/', 'https://www.youtube.com/upload']

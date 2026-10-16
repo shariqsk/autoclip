@@ -7,7 +7,7 @@ import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createLinkImporter } from './links.mjs'
-import { copyVideoToClipboard } from './share.mjs'
+import { copyVideoToClipboard, saveVideo, UPLOAD_PAGES } from './share.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(here, '..', 'dist')
@@ -100,6 +100,16 @@ app.whenReady().then(() => {
   ipcMain.handle('links:release', async (event, name) => {
     if (!fromApp(event) || typeof name !== 'string' || !IMPORT_NAME.test(name)) throw new Error('Bad request')
     await rm(path.join(importsDir, name), { force: true })
+  })
+  // Posting: keep the video in Movies/AutoClip, show it in the file browser, and open the platform's
+  // upload page, ready to drag it in.
+  ipcMain.handle('share:post', async (event, { data, name, url }) => {
+    if (!fromApp(event) || !(data instanceof Uint8Array) || typeof name !== 'string' || !UPLOAD_PAGES.includes(url))
+      throw new Error('Bad request')
+    const file = await saveVideo(data, name, path.join(app.getPath('videos'), 'AutoClip'))
+    shell.showItemInFolder(file)
+    await shell.openExternal(url)
+    return file
   })
   ipcMain.handle('share:copy-video', async (event, { data, name }) => {
     if (!fromApp(event) || !(data instanceof Uint8Array) || typeof name !== 'string') throw new Error('Bad request')

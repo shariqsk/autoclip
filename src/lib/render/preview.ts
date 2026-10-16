@@ -7,7 +7,7 @@ import { speedAt } from '../edit/speed'
 import { frameAt, shotIndexAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
 import { Compositor, type LayerInput, type Look } from './compositor'
-import { focusAt, stillZoom } from './framing'
+import { focusAt, motionAt, stillZoom } from './framing'
 
 export interface PreviewClip {
   id: string
@@ -187,7 +187,15 @@ export class PreviewEngine {
     if (clip.kind === 'image') {
       const img = this.image(clip.id)
       if (!img.complete || !img.naturalWidth) return 'pending'
-      return { source: img, width: img.naturalWidth, height: img.naturalHeight, focusX: 0.5, focusY: 0.5, zoom: stillZoom(layer) }
+      return {
+        source: img,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        focusX: 0.5,
+        focusY: 0.5,
+        zoom: stillZoom(layer),
+        key: layer.shot.id,
+      }
     }
     const v = this.video(clip.id, shotIndex % 2)
     const want = layer.srcTime + (clip.offset ?? 0)
@@ -204,7 +212,16 @@ export class PreviewEngine {
     }
     if (v.readyState < 2) return 'pending'
     const focus = focusAt(clip.analysis, layer.srcTime)
-    return { source: v, width: v.videoWidth, height: v.videoHeight, focusX: focus.x, focusY: focus.y, zoom: 1 }
+    return {
+      source: v,
+      width: v.videoWidth,
+      height: v.videoHeight,
+      focusX: focus.x,
+      focusY: focus.y,
+      zoom: 1,
+      motion: motionAt(clip.analysis, layer.srcTime),
+      key: shot.id,
+    }
   }
 
   /** Cue the next shot's video so it's already at the right frame when the cut comes. */

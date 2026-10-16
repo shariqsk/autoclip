@@ -21,7 +21,7 @@ import { drawCaptions, type CaptionOptions } from '../captions/render'
 import { frameAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
 import { Compositor, type LayerInput, type Look } from './compositor'
-import { focusAt, stillZoom } from './framing'
+import { focusAt, motionAt, stillZoom } from './framing'
 
 export interface ExportClip {
   id: string
@@ -194,6 +194,8 @@ export async function exportEdit(opts: ExportOptions): Promise<Blob> {
           focusX: focus.x,
           focusY: focus.y,
           zoom: clip.kind === 'image' ? stillZoom(layer) : 1,
+          motion: clip.kind === 'image' ? 0 : motionAt(clip.analysis, layer.srcTime),
+          key: layer.shot.id,
         }
       }
       const a = await toInput(state.a, need.a)

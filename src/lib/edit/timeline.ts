@@ -27,6 +27,8 @@ export interface FrameFx {
   mono: number
   /** 0–1 darkening: strobes and the final fade. */
   dim: number
+  /** 0–1: a light leak sweeping across on a new shot (drawn only when the look has leaks). */
+  leak: number
 }
 
 export interface FrameState {
@@ -90,7 +92,7 @@ export function frameAt(plan: EditPlan, t: number, clipDurations: Record<string,
     a: null,
     b: null,
     transition: null,
-    fx: { zoom: 0, shakeX: 0, shakeY: 0, rotate: 0, flash: 0, rgb: 0, mono: 0, dim: 0 },
+    fx: { zoom: 0, shakeX: 0, shakeY: 0, rotate: 0, flash: 0, rgb: 0, mono: 0, dim: 0, leak: 0 },
   }
   if (!shots.length) return none
   const i = Math.max(0, shotIndexAt(shots, t))
@@ -166,6 +168,8 @@ export function frameAt(plan: EditPlan, t: number, clipDurations: Record<string,
       rgb: Math.min(1, rgb),
       mono: Math.min(1, Math.max(0, mono)),
       dim: Math.min(1, dim),
+      // Light washes over each new shot, a little before the cut lands.
+      leak: i === 0 && !transition ? 0 : Math.max(decay(t - cur.start + 0.08, 0.45), next ? decay(next.start - t - 0.08, 0.12) * 0.5 : 0),
     },
   }
 }

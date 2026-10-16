@@ -134,6 +134,14 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     })
   })
 
+  // A transition into more of the same footage looks like a glitch, not a change of shot: cut instead.
+  const sourceOf = new Map(clips.map((c) => [c.id, c.source ?? c.id]))
+  for (let i = 1; i < shots.length; i++) {
+    if (!shots[i].locked && sourceOf.get(shots[i].clipId) === sourceOf.get(shots[i - 1].clipId)) {
+      shots[i].transition = { type: 'cut', duration: 0 }
+    }
+  }
+
   return {
     songStart: window.start,
     songEnd: window.end,

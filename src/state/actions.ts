@@ -257,6 +257,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
         kind: c.kind,
         analysis: c.analysis!,
         pin: c.pin,
+        source: c.momentOf,
         star: cast?.star,
         avoid: cast?.avoid,
         others: cast?.others,

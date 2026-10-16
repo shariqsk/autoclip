@@ -105,3 +105,36 @@ describe('the content mix', () => {
     expect(p.shots.find((s) => s.phase === 'hero')!.clipId).toBe('finishes')
   })
 })
+
+describe('repeats', () => {
+  /** Pairs of shots close together on the timeline that show the same seconds of the same clip. */
+  function replays(p: ReturnType<typeof plan>, within = 3) {
+    const found: [number, number][] = []
+    p.shots.forEach((a, i) => {
+      for (let j = i + 1; j <= i + within && j < p.shots.length; j++) {
+        const b = p.shots[j]
+        if (a.clipId !== b.clipId) continue
+        const aEnd = a.srcStart + sourceDuration(a.speed, a.end - a.start)
+        const bEnd = b.srcStart + sourceDuration(b.speed, b.end - b.start)
+        if (Math.min(aEnd, bEnd) - Math.max(a.srcStart, b.srcStart) > 0.05) found.push([i, j])
+      }
+    })
+    return found
+  }
+
+  it('never replays a moment right after itself, even when the footage you want is scarce', () => {
+    // A long montage where only a few short scenes are the big moments you asked for.
+    const cuts = Array.from({ length: 40 }, (_, i) => (i + 1) * 4.5)
+    const peaks = Array.from({ length: 60 }, (_, i) => 1.5 + i * 3)
+    const montage = readAs(clip('montage', 185, peaks, cuts), 'talk')
+    const big = new Set([9, 10, 21, 22, 33, 34, 35])
+    montage.content!.finish = montage.analysis.times.map((t) => (big.has(Math.floor(t / 4.5)) ? 0.9 : 0.02))
+    montage.content!.talk = montage.content!.finish.map((v) => (v > 0.5 ? 0.02 : 0.9))
+    const preset = MIX_PRESETS.find((p) => p.id === 'highlights')!
+    for (const seed of [1, 2, 3, 4, 5]) expect(replays(plan([montage], seed, preset.mix))).toEqual([])
+  })
+
+  it('never replays a moment right after itself in a short clip', () => {
+    for (const seed of [1, 2, 3]) expect(replays(plan([clip('short', 12, [3, 8])], seed))).toEqual([])
+  })
+})

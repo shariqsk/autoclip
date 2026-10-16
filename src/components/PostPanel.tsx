@@ -22,7 +22,7 @@ async function copyText(text: string, what: string) {
 
 export function PostPanel({ blob, name, platform: initial, seconds }: { blob: Blob; name: string; platform: Platform; seconds: number }) {
   const [platform, setPlatform] = useState<Platform>(initial)
-  const [tone, setTone] = useState<Tone>('hype')
+  const [tone, setTone] = useState<Tone>('aura')
   const [shuffle, setShuffle] = useState(0)
   const people = useApp((s) => s.people)
   const nameplate = useApp((s) => s.settings.nameplate.name)

@@ -38,9 +38,10 @@ export interface PostInput {
   seed: number
 }
 
-export type Tone = 'hype' | 'story' | 'minimal' | 'ask'
+export type Tone = 'aura' | 'hype' | 'story' | 'minimal' | 'ask'
 
 export const TONES: { id: Tone; name: string }[] = [
+  { id: 'aura', name: 'Aura' },
   { id: 'hype', name: 'Hype' },
   { id: 'story', name: 'Story' },
   { id: 'minimal', name: 'Minimal' },
@@ -102,6 +103,30 @@ export function hashtagsFor(input: PostInput): string[] {
   return out.slice(0, p.hashtags)
 }
 
+// Aura: one quiet line that says more than it explains, in lower case. Written for AutoClip.
+const AURA = [
+  'silence was never weakness.',
+  'they heard the noise. we heard the warning.',
+  'built in the dark. revealed in the light.',
+  'calm is a weapon.',
+  'some people chase it. some people are it.',
+  'no rush. no noise. no mercy.',
+  'they watched. they learned. too late.',
+  'pressure hits different when you were made for it.',
+  "different doesn't need to explain itself.",
+  'the quiet ones end it.',
+  'not loud. just inevitable.',
+  'earned in private. shown in public.',
+  'every room goes quiet eventually.',
+  'when it matters, it shows.',
+  'they called it luck. it was years.',
+]
+const AURA_NAMED = [
+  (w: string) => `${w.toLowerCase()} doesn't chase. ${w.toLowerCase()} arrives.`,
+  (w: string) => `nobody moves like ${w.toLowerCase()}.`,
+  (w: string) => `the aura of ${w.toLowerCase()}.`,
+]
+
 const pick = <T>(xs: T[], seed: number, salt: number) => xs[Math.abs(Math.floor(seed * 7 + salt * 13)) % xs.length]
 
 export function captionsFor(input: PostInput): Record<Tone, string> {
@@ -123,8 +148,11 @@ export function captionsFor(input: PostInput): Record<Tone, string> {
   const ask = who
     ? pick([`Rate this ${who} edit 1–10 👇`, `Best moment of ${who}? 👇`, `Who should I edit after ${who}? 👇`], s, 3)
     : pick(['Rate this edit 1–10 👇', 'What should I edit next? 👇', 'Best moment? 👇'], s, 3)
+  // Mostly a line on its own; now and then one that names who it's about.
+  const named = who && Math.abs(Math.floor(s)) % 4 === 3
+  const aura = named ? pick(AURA_NAMED, s, 5)(who) : who ? `${pick(AURA, s, 5)}\n\n— ${who.toLowerCase()}` : pick(AURA, s, 5)
   const withCredit = (text: string) => (credit ? `${text}\n\n${credit}` : text)
-  return { hype: withCredit(hype), story: withCredit(story), minimal, ask: withCredit(ask) }
+  return { aura, hype: withCredit(hype), story: withCredit(story), minimal, ask: withCredit(ask) }
 }
 
 /** A YouTube title: the subject and a hook, with #shorts, within YouTube's 100 characters. */

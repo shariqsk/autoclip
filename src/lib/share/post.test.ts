@@ -48,6 +48,16 @@ describe('post kit', () => {
     expect(kit.hashtags.length).toBeGreaterThan(1)
   })
 
+  it('writes aura lines: short, lower case, different on a shuffle', () => {
+    const lines = new Set(Array.from({ length: 12 }, (_, seed) => postKit({ ...base, subjects: [], seed }).captions.aura))
+    expect(lines.size).toBeGreaterThan(6)
+    for (const l of lines) {
+      expect(l).toBe(l.toLowerCase())
+      expect(l.length).toBeLessThan(80)
+    }
+    expect(postKit(base).captions.aura).toContain('islam makhachev')
+  })
+
   it('puts the hashtags after the caption', () => {
     expect(postText('Hi', ['a', 'b'])).toBe('Hi\n\n#a #b')
     expect(postText('Hi', [])).toBe('Hi')

@@ -42,6 +42,12 @@ describe('desktop link importer', () => {
       { id: '137', ext: 'mp4', role: 'video' },
       { id: '140', ext: 'm4a', role: 'audio' },
     ])
+    // Anything over ten minutes comes down at 720p at most: plenty to cut from, half the size.
+    const long = [...formats, f('136', { ext: 'mp4', vcodec: 'avc1.4d401f', acodec: 'none', height: 720 })]
+    expect(chooseFormats({ formats: long, duration: 28 * 60 }, 'video')).toEqual([
+      { id: '136', ext: 'mp4', role: 'video' },
+      { id: '140', ext: 'm4a', role: 'audio' },
+    ])
     // A ready-made 720p+ file wins (TikTok and most other sites).
     expect(chooseFormats({ formats: [f('h264_720', { ext: 'mp4', vcodec: 'h264', acodec: 'aac', height: 1024 })] }, 'video')).toEqual([
       { id: 'h264_720', ext: 'mp4', role: 'av' },

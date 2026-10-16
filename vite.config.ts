@@ -28,12 +28,41 @@ function faceModels(): Plugin {
   }
 }
 
+// Cutting people out of the frame (for text behind them): MediaPipe's runtime, copied from its package,
+// and Google's selfie segmenter (Apache 2.0, 250 KB), kept in models/. Both ship under models/segment/
+// so it works offline, like the face models.
+const SEGMENT_FILES: Record<string, string> = {
+  'vision_wasm_internal.js': 'node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.js',
+  'vision_wasm_internal.wasm': 'node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm',
+  'selfie_segmenter.tflite': 'models/selfie_segmenter.tflite',
+}
+function segmentModels(): Plugin {
+  const types: Record<string, string> = { js: 'text/javascript', wasm: 'application/wasm', tflite: 'application/octet-stream' }
+  return {
+    name: 'autoclip-segment-models',
+    configureServer(server) {
+      server.middlewares.use('/models/segment', (req, res, next) => {
+        const name = req.url?.slice(1).split('?')[0] ?? ''
+        const file = SEGMENT_FILES[name]
+        if (!file) return next()
+        res.setHeader('Content-Type', types[name.split('.').pop()!])
+        res.end(readFileSync(path.resolve(file)))
+      })
+    },
+    generateBundle() {
+      for (const [name, file] of Object.entries(SEGMENT_FILES))
+        this.emitFile({ type: 'asset', fileName: `models/segment/${name}`, source: readFileSync(path.resolve(file)) })
+    },
+  }
+}
+
 // The same build serves three places: the web (root), GitHub Pages (a sub-path, via BASE_PATH) and the
 // Electron desktop app (`--mode desktop`), which has no use for a service worker.
 export default defineConfig(({ mode }) => ({
   base: process.env.BASE_PATH ?? '/',
   plugins: [
     faceModels(),
+    segmentModels(),
     react(),
     tailwindcss(),
     // Installable, and the app shell works offline. Speech and voice models are cached separately by
@@ -60,7 +89,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // The speech and voice workers are big and optional: cache them when first used instead.
-        globIgnores: ['**/ml.worker-*.js', '**/tts.worker-*.js', '**/faces.worker-*.js', '**/models/face/**'],
+        globIgnores: ['**/ml.worker-*.js', '**/tts.worker-*.js', '**/faces.worker-*.js', '**/models/face/**', '**/models/segment/**'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
           {
@@ -69,7 +98,7 @@ export default defineConfig(({ mode }) => ({
             options: { cacheName: 'model-workers', expiration: { maxEntries: 6 } },
           },
           {
-            urlPattern: /(faces\.worker-.*\.js|models\/face\/.*)$/,
+            urlPattern: /(faces\.worker-.*\.js|models\/(face|segment)\/.*)$/,
             handler: 'CacheFirst',
             options: { cacheName: 'face-models', expiration: { maxEntries: 10 } },
           },

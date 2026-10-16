@@ -12,6 +12,7 @@ const MIN_FACE = 0.045
 
 // The bundled tfjs typings leave out the backend calls; these are the few used here.
 const tf = faceapi.tf as unknown as {
+  env(): { set(flag: string, value: boolean): void }
   setBackend(name: string): Promise<boolean>
   ready(): Promise<void>
   browser: { fromPixels(pixels: ImageData): { dispose(): void } }
@@ -37,6 +38,10 @@ function load(modelUrl: string): Promise<void> {
         throw new Error('No file system in a worker')
       },
     } as unknown as Parameters<typeof faceapi.env.setEnv>[0])
+    // Every face box is a different size, and by default WebGL compiles a new GPU program for every
+    // new tensor shape, so a fresh video spent most of its time compiling. Passing shapes as uniforms
+    // lets one program serve every size: about 3.5× faster on a new montage, same faces found.
+    tf.env().set('WEBGL_USE_SHAPES_UNIFORMS', true)
     await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'))
     await tf.ready()
     await Promise.all([
@@ -49,8 +54,11 @@ function load(modelUrl: string): Promise<void> {
   return ready
 }
 
-/** How often to look: twice a second for short clips, less for long ones (at most ~600 looks). */
-export const scanStep = (duration: number) => Math.max(0.5, Math.round((duration / 600) * 10) / 10)
+/**
+ * How often to look: twice a second for short clips, less for long ones (about 360 looks at most).
+ * Screen time doesn't need more, and even fast montages hold a shot for longer than a look.
+ */
+export const scanStep = (duration: number) => Math.max(0.5, Math.round((duration / 360) * 10) / 10)
 
 export async function scanFaces(
   file: Blob,

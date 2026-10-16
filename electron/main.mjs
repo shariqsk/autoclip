@@ -3,6 +3,7 @@
 // locally; models are cached in the app's own storage.
 
 import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createLinkImporter } from './links.mjs'
@@ -11,6 +12,9 @@ import { copyVideoToClipboard } from './share.mjs'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(here, '..', 'dist')
 const ORIGIN = 'app://autoclip'
+// Downloads from links wait here until the app has read them (see links.mjs).
+const importsDir = path.join(app.getPath('temp'), 'autoclip-imports')
+const IMPORT_NAME = /^[a-z0-9]+-[a-z0-9]+\.[a-z0-9]{2,5}$/
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true } },
@@ -44,8 +48,16 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Anything left over from a crash or a quit mid-import.
+  void rm(importsDir, { recursive: true, force: true })
   protocol.handle('app', (request) => {
     const { pathname } = new URL(request.url)
+    // A finished download, read straight from disk.
+    const imported = pathname.match(/^\/__import\/(.+)$/)?.[1]
+    if (imported) {
+      if (!IMPORT_NAME.test(imported)) return new Response('Not found', { status: 404 })
+      return net.fetch(pathToFileURL(path.join(importsDir, imported)).toString())
+    }
     const file = path.normalize(path.join(root, decodeURIComponent(pathname)))
     // Never serve anything outside the bundled app.
     if (!file.startsWith(root)) return new Response('Not found', { status: 404 })
@@ -63,6 +75,7 @@ app.whenReady().then(() => {
   // Node built into Electron (ELECTRON_RUN_AS_NODE), so nothing else needs installing.
   const importer = createLinkImporter({
     toolsDir: path.join(app.getPath('userData'), 'tools'),
+    importsDir,
     nodePath: process.execPath,
     log: (m) => console.log(`[links] ${m}`),
   })
@@ -82,6 +95,11 @@ app.whenReady().then(() => {
   })
   ipcMain.handle('links:cancel', (event, id) => {
     if (fromApp(event)) running.get(id)?.abort()
+  })
+  // The app has its copy of a download: the file on disk can go.
+  ipcMain.handle('links:release', async (event, name) => {
+    if (!fromApp(event) || typeof name !== 'string' || !IMPORT_NAME.test(name)) throw new Error('Bad request')
+    await rm(path.join(importsDir, name), { force: true })
   })
   ipcMain.handle('share:copy-video', async (event, { data, name }) => {
     if (!fromApp(event) || !(data instanceof Uint8Array) || typeof name !== 'string') throw new Error('Bad request')

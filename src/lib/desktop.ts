@@ -1,15 +1,15 @@
 // What the desktop shell adds (see electron/preload.cjs). Absent on the web.
 
+/** A finished download, waiting on disk: read it from `app://autoclip/__import/<name>`. */
 export interface ImportedFile {
-  role: 'audio' | 'video' | 'av'
+  name: string
   ext: string
-  data: Uint8Array
 }
 
 export interface ImportResult {
   title: string
   site: string
-  files: ImportedFile[]
+  file: ImportedFile
 }
 
 export interface ImportProgress {
@@ -21,6 +21,8 @@ export interface ImportProgress {
 export interface DesktopBridge {
   importLink(id: string, url: string, mode: 'audio' | 'video'): Promise<ImportResult>
   cancelImport(id: string): Promise<void>
+  /** Delete a download from disk once the app has read it. */
+  releaseImport(name: string): Promise<void>
   onImportProgress(fn: (p: ImportProgress) => void): () => void
   /** Put a video on the clipboard as a file, ready to paste into a chat or a folder. */
   copyVideo(data: Uint8Array, name: string): Promise<void>

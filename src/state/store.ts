@@ -73,6 +73,7 @@ export interface AppState {
   dropOverride: number | null
   director: boolean
   exportOpen: boolean
+  libraryOpen: boolean
   helpOpen: boolean
   /** The learn-a-style dialog: open fresh, or to add references to a learned style. */
   learn: { styleId: StyleId | null } | null
@@ -112,6 +113,7 @@ const initial: AppState = {
   dropOverride: null,
   director: false,
   exportOpen: false,
+  libraryOpen: false,
   helpOpen: false,
   learn: null,
   moments: null,

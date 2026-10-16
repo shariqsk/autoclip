@@ -1,5 +1,6 @@
 import { DropOverlay } from './components/DropOverlay'
 import { ExportDialog } from './components/ExportDialog'
+import { LibraryDialog } from './components/LibraryDialog'
 import { HelpDialog } from './components/HelpDialog'
 import { LearnDialog } from './components/LearnDialog'
 import { LinkDialog } from './components/LinkDialog'
@@ -34,6 +35,7 @@ export default function App() {
       <BeatPulse />
       <ExportDialog />
       <HelpDialog />
+      <LibraryDialog />
       <LinkDialog />
       <LearnDialog />
       <MomentsDialog />

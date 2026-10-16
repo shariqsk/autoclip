@@ -1,8 +1,9 @@
 // Pieces every layout's top bar uses: the status line, the look picker and the small actions.
 
-import { CircleHelp, Palette, RotateCcw } from 'lucide-react'
+import { CircleHelp, Library, Palette, RotateCcw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { LAYOUTS, setLook, useLook } from '../../hooks/useTheme'
+import { desktop } from '../../lib/desktop'
 import { getStyle } from '../../lib/edit/presets'
 import { resetProject } from '../../state/actions'
 import { playhead } from '../../state/playhead'
@@ -90,6 +91,15 @@ export function TopActions({ className }: { className?: string }) {
   return (
     <div className={cx('flex items-center gap-0.5', className)}>
       <LookPicker />
+      {desktop && (
+        <button
+          className="btn btn-bare btn-sm"
+          title="Library: your kept edits, ready to post or schedule"
+          onClick={() => setState({ libraryOpen: true })}
+        >
+          <Library className="size-3.5" /> <span className="hidden sm:inline">Library</span>
+        </button>
+      )}
       {hasProject && (
         <button
           className="btn btn-bare btn-sm btn-sq"

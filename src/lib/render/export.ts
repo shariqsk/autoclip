@@ -21,7 +21,7 @@ import { drawBehind, drawCaptions, type CaptionOptions } from '../captions/rende
 import { frameAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
 import { Compositor, type LayerInput, type Look } from './compositor'
-import { focusAt, motionAt, stillZoom } from './framing'
+import { focusAt, motionAt, pictureArea, stillZoom } from './framing'
 import { loadMatte, matteFrame } from '../people/matte'
 
 export interface ExportClip {
@@ -215,7 +215,15 @@ export async function exportEdit(opts: ExportOptions): Promise<Blob> {
         captionShown = shown
       }
       if (behind) {
-        const shown = drawBehind(behindCtx, plan.captions, t, opts.captions!, width, height)
+        const shown = drawBehind(
+          behindCtx,
+          plan.captions,
+          t,
+          opts.captions!,
+          width,
+          height,
+          pictureArea(opts.look.fit, a, { width, height }),
+        )
         if (shown || behindShown) compositor.setBehind(shown ? behindCanvas : null)
         behindShown = shown
         compositor.setMatte(shown && a && !state.transition ? matteFrame(a.source) : null)

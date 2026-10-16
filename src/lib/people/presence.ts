@@ -56,11 +56,35 @@ export function presence(a: ClipAnalysis, faces: ClipFaces | undefined, starIds:
 }
 
 /** The analysis with framing pulled onto the stars' faces wherever they're on screen. */
-export function framedOnStars(a: ClipAnalysis, p: Presence | null): ClipAnalysis {
+export function framedOnStars(a: ClipAnalysis, p: Pick<Presence, 'focus'> | null): ClipAnalysis {
   if (!p || !p.focus.some(Boolean)) return a
   const fx = a.focusX.map((x, i) => (p.focus[i] ? 0.25 * x + 0.75 * p.focus[i]!.x : x))
   const fy = a.focusY.map((y, i) => (p.focus[i] ? 0.25 * y + 0.75 * p.focus[i]!.y : y))
   // Glide between samples rather than snap.
   const glide = (xs: number[]) => xs.map((_, i) => (xs[Math.max(0, i - 1)] + 2 * xs[i] + xs[Math.min(xs.length - 1, i + 1)]) / 4)
   return { ...a, focusX: glide(fx), focusY: glide(fy) }
+}
+
+/**
+ * Where to frame each analysis sample from the faces in it: your stars' biggest face if any are on
+ * screen; otherwise the biggest face, or the middle of two faces of about the same size (two people
+ * facing off). Null where there are no faces, so framing falls back to following the action.
+ */
+export function faceFocus(a: ClipAnalysis, faces: ClipFaces | undefined, starIds: Set<string>): ({ x: number; y: number } | null)[] | null {
+  if (!faces || !faces.sightings.length) return null
+  const reach = faces.step * 0.75 + 0.05
+  const list = [...faces.sightings].sort((x, y) => x.t - y.t)
+  const centre = (f: (typeof list)[number]) => ({ x: f.box[0] + f.box[2] / 2, y: f.box[1] + f.box[3] / 2, h: f.box[3] })
+  let k = 0
+  return a.times.map((t) => {
+    while (k < list.length && list[k].t < t - reach) k++
+    const here: (typeof list)[number][] = []
+    for (let j = k; j < list.length && list[j].t <= t + reach; j++) here.push(list[j])
+    if (!here.length) return null
+    const stars = here.filter((f) => f.personId && starIds.has(f.personId))
+    const pool = (stars.length ? stars : here).map(centre).sort((p, q) => q.h - p.h)
+    const [first, second] = pool
+    if (!stars.length && second && second.h > first.h * 0.75) return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }
+    return { x: first.x, y: first.y }
+  })
 }

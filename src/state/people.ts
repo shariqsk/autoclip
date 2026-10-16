@@ -1,12 +1,13 @@
 // The cast: find the people in the footage, pick who the edit is about (one star or several) and
 // who to keep out. Stars pull footage choice and framing their way; people you cut are avoided.
 
-import { framedOnStars, presence, type Presence } from '../lib/people/presence'
+import { faceFocus, framedOnStars, presence, type Presence } from '../lib/people/presence'
 import { findPeople } from '../lib/people/cluster'
 import { scanClipFaces } from '../lib/people/client'
 import type { CastRole, Clip, ClipAnalysis, ClipFaces, Person } from '../lib/types'
 import { grabFaces } from '../lib/video/posters'
 import { makeEdit } from './actions'
+import { ASPECTS } from './settings'
 import { getState, setState, toast } from './store'
 
 /** Clips that can be searched for faces and haven't been yet. */
@@ -16,11 +17,27 @@ export function unscannedClips(s = getState()): Clip[] {
 
 let scanning = false
 
+/**
+ * Clips that have to be cropped hard for the output's shape (wide footage in a vertical edit, say),
+ * where knowing where the faces are makes the crop. Their faces are found quietly in the background.
+ */
+export function autoFindFaces() {
+  const s = getState()
+  if (scanning || s.clips.some((c) => c.status === 'queued' || c.status === 'analyzing')) return
+  const out = ASPECTS.find((a) => a.id === s.settings.aspect)!
+  const outAspect = out.w / out.h
+  const needs = unscannedClips(s).filter((c) => {
+    const a = c.analysis!.width / Math.max(1, c.analysis!.height)
+    return Math.max(a / outAspect, outAspect / a) > 1.3
+  })
+  if (needs.length) void findPeopleInFootage({ quiet: true })
+}
+
 /** Look for faces in every clip not searched yet, then group them into people. */
-export async function findPeopleInFootage() {
+export async function findPeopleInFootage(opts: { quiet?: boolean } = {}) {
   if (scanning) return
   const todo = unscannedClips()
-  if (!todo.length) return regroup()
+  if (!todo.length) return regroup(opts.quiet)
   scanning = true
   setState({ peopleScan: { done: 0, total: todo.length, fraction: 0 } })
   let failed = 0
@@ -38,11 +55,11 @@ export async function findPeopleInFootage() {
       }
     }
     if (failed === todo.length) {
-      toast(`Couldn't look for faces: ${lastError}`, 'error')
+      if (!opts.quiet) toast(`Couldn't look for faces: ${lastError}`, 'error')
       return
     }
-    if (failed) toast(`Couldn't look for faces in ${failed} of ${todo.length} clips: ${lastError}`, 'error')
-    await regroup()
+    if (failed && !opts.quiet) toast(`Couldn't look for faces in ${failed} of ${todo.length} clips: ${lastError}`, 'error')
+    await regroup(opts.quiet)
   } finally {
     scanning = false
     setState({ peopleScan: null })
@@ -50,7 +67,7 @@ export async function findPeopleInFootage() {
 }
 
 /** Group every face found so far into people, keeping names and roles, and grab new portraits. */
-async function regroup() {
+async function regroup(quiet = false) {
   const s = getState()
   const { people, personOf } = findPeople(s.faces, s.people)
   const faces: Record<string, ClipFaces> = {}
@@ -58,7 +75,7 @@ async function regroup() {
     faces[clipId] = { ...cf, sightings: cf.sightings.map((x, i) => ({ ...x, personId: personOf.get(`${clipId}#${i}`) })) }
   const oldThumbs = new Map(s.people.map((p) => [p.id, p.thumb]))
   setState({ faces, people: people.map((p) => ({ ...p, thumb: oldThumbs.get(p.id) })) })
-  if (!people.length) toast('No faces big enough to recognize in this footage.', 'info')
+  if (!people.length && !quiet) toast('No faces big enough to recognize in this footage.', 'info')
   await portraits()
 }
 
@@ -143,7 +160,13 @@ export function castPresence(clip: Pick<Clip, 'id'> & { analysis: ClipAnalysis }
   return cache.map.get(k)!
 }
 
-/** A clip's analysis with framing pulled onto the stars, for the preview and the export. */
+/**
+ * A clip's analysis with framing pulled onto faces (your stars first) wherever any were found, for
+ * the preview and the export. Without faces, framing follows the action as before.
+ */
 export function castFramed(clip: Pick<Clip, 'id'> & { analysis: ClipAnalysis }): ClipAnalysis {
-  return framedOnStars(clip.analysis, castPresence(clip))
+  const s = getState()
+  const stars = new Set(s.people.filter((p) => p.role === 'star').map((p) => p.id))
+  const focus = faceFocus(clip.analysis, s.faces[clip.id], stars)
+  return framedOnStars(clip.analysis, focus ? { focus } : castPresence(clip))
 }

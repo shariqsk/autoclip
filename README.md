@@ -16,19 +16,19 @@
 
 AutoClip is an auto editor for beat-synced edits. Give it a song and a pile of clips (fight footage, game highlights, a trip, anything) and it hears the tempo, the build and the drop, watches every second of your footage for the moments that hit, and cuts an edit on its own: a slowed black-and-white intro, a build that tightens into the drop, the knockout landing exactly on it, and the action cut on the strongest beats after. Everything runs on your device, including the AI. Nothing is uploaded.
 
-![AutoClip with a take on the stage: the fighter nameplate slams in on the drop, and the tape along the bottom shows the arc (intro, build, drop, flurry, outro) over the song and the shots](docs/editor.jpg)
+![AutoClip in the Deck layout: the edit plays on a sampler-style screen, styles and settings sit behind a row of function buttons, takes are pads, and the tape along the bottom shows the arc over the song and the shots](docs/deck.jpg)
 
-<p align="center"><img src="docs/welcome.jpg" width="49%" alt="The welcome screen, laid out like a fight poster" /> <img src="docs/director.jpg" width="49%" alt="Director mode: the tape opened up with the shot inspector" /></p>
+<p align="center"><img src="docs/flyer.jpg" width="49%" alt="The Flyer layout: chrome type, sticker panels and polaroid takes" /> <img src="docs/glass.jpg" width="49%" alt="The Glass layout: frosted panels floating over the edit" /></p>
 
 ## Download
 
-| Platform | Download | Notes |
-| --- | --- | --- |
-| **Windows** 10/11 | [**AutoClip-Setup.exe**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-Setup.exe) | 64-bit installer |
-| **macOS** (Apple silicon) | [**AutoClip-mac-arm64.dmg**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-mac-arm64.dmg) | M1 and newer |
-| **macOS** (Intel) | [**AutoClip-mac-x64.dmg**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-mac-x64.dmg) | |
-| **Linux** | [**AppImage**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-linux-x86_64.AppImage) · [**.deb**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-linux-amd64.deb) | x64 |
-| **Web** | [**shariqsk.github.io/autoclip**](https://shariqsk.github.io/autoclip/) | Nothing to install. Chrome or Edge recommended. |
+| Platform                  | Download                                                                                                                                                                                                          | Notes                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Windows** 10/11         | [**AutoClip-Setup.exe**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-Setup.exe)                                                                                                        | 64-bit installer                                |
+| **macOS** (Apple silicon) | [**AutoClip-mac-arm64.dmg**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-mac-arm64.dmg)                                                                                                | M1 and newer                                    |
+| **macOS** (Intel)         | [**AutoClip-mac-x64.dmg**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-mac-x64.dmg)                                                                                                    |                                                 |
+| **Linux**                 | [**AppImage**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-linux-x86_64.AppImage) · [**.deb**](https://github.com/shariqsk/autoclip/releases/latest/download/AutoClip-linux-amd64.deb) | x64                                             |
+| **Web**                   | [**shariqsk.github.io/autoclip**](https://shariqsk.github.io/autoclip/)                                                                                                                                           | Nothing to install. Chrome or Edge recommended. |
 
 <details>
 <summary><b>First launch: "unidentified developer" / SmartScreen warnings</b></summary>
@@ -47,14 +47,14 @@ The apps aren't code-signed yet, so your OS will ask before opening them the fir
 
 Most auto-editors drop a cut on every beat and call it synced. That reads as random. AutoClip plans the edit the way people cut fight and sports edits by hand, as an arc:
 
-| | Part | What happens |
-| --- | --- | --- |
-| 01 | **Cold open** | A split second of the action, so nobody scrolls past. |
-| 02 | **Intro** | Long holds on bar lines, slowed and (in Aura) in black and white. Steady, crisp shots: the walkout, the stare, the crowd. |
-| 03 | **Build** | The bars before the drop cut faster and faster, down to half-beats, with the picture flickering in time with the track. |
-| 04 | **Drop** | The single best moment in all your footage lands exactly on it: colour slams back in, the frame freezes on the impact, a nameplate wipes in. |
-| 05 | **Flurry** | The action after the drop, cut on the strongest beats rather than a fixed count, each shot lined up so its action lands on its accent. |
-| 06 | **Outro** | One last held shot, slowed, fading to black. |
+|     | Part          | What happens                                                                                                                                 |
+| --- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | **Cold open** | A split second of the action, so nobody scrolls past.                                                                                        |
+| 02  | **Intro**     | Long holds on bar lines, slowed and (in Aura) in black and white. Steady, crisp shots: the walkout, the stare, the crowd.                    |
+| 03  | **Build**     | The bars before the drop cut faster and faster, down to half-beats, with the picture flickering in time with the track.                      |
+| 04  | **Drop**      | The single best moment in all your footage lands exactly on it: colour slams back in, the frame freezes on the impact, a nameplate wipes in. |
+| 05  | **Flurry**    | The action after the drop, cut on the strongest beats rather than a fixed count, each shot lined up so its action lands on its accent.       |
+| 06  | **Outro**     | One last held shot, slowed, fading to black.                                                                                                 |
 
 The tape along the bottom of the app draws this arc over the song's waveform and the shots, so you can see exactly why each cut is where it is.
 
@@ -75,14 +75,22 @@ The tape along the bottom of the app draws this arc over the song's waveform and
 
 **Six styles**
 
-| Style | For | Feel |
-| --- | --- | --- |
-| **Aura** | UFC, boxing, tributes | Black-and-white walkout, colour slamming in on a freeze-framed knockout |
-| **Phonk** | Aggressive sports, cars, gym | Cowbell cuts, RGB splits, hard shakes, all in black and white |
-| **Velocity** | Skate, dance, cars | Speed ramps that slow on the hit and rip back up |
-| **Cinematic** | Trailers, retirements, travel | Letterbox, slow pushes, a hero shot that breathes |
-| **Smooth** | Vlogs, travel, products | Whip pans and an easy rhythm |
-| **Throwback** | Recaps, friends, old footage | Film grain and warm fades |
+| Style         | For                           | Feel                                                                    |
+| ------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| **Aura**      | UFC, boxing, tributes         | Black-and-white walkout, colour slamming in on a freeze-framed knockout |
+| **Phonk**     | Aggressive sports, cars, gym  | Cowbell cuts, RGB splits, hard shakes, all in black and white           |
+| **Velocity**  | Skate, dance, cars            | Speed ramps that slow on the hit and rip back up                        |
+| **Cinematic** | Trailers, retirements, travel | Letterbox, slow pushes, a hero shot that breathes                       |
+| **Smooth**    | Vlogs, travel, products       | Whip pans and an easy rhythm                                            |
+| **Throwback** | Recaps, friends, old footage  | Film grain and warm fades                                               |
+
+**Cut on hits.** Strums, stabs and fills between the beats get their own cuts (on by default), a run at most every few bars, so a three-strum riff lands three cuts without every beat becoming one.
+
+**Learn a style from your edits.** Drop in edits you love (or paste TikTok, YouTube or Instagram links in the desktop app). AutoClip watches each one frame by frame and listens to its music, lines every cut up with the beat, and learns the pacing, how the build tightens, what happens on the drop (a hero shot, a freeze-frame, a flash), how it cuts after, the effects and the look. It shows what it learned in plain words and saves it as a style of your own, next to the built-in six. Teach it more edits any time. Three to ten edits in one vibe work best.
+
+<p align="center"><img src="docs/learn.jpg" width="80%" alt="Learning a style from three edits: each edit's rhythm, and what was learned in plain words" /></p>
+
+**Moments.** Long clips (a full round, a whole game) get a **Moments** button: AutoClip suggests their best few seconds, previews each on a loop, lets you trim them or drag out your own on the clip's action line, and adds the ones you pick as clips of their own. Nothing is re-encoded.
 
 **Takes, not drafts.** Every cut is kept as a numbered take. **Remix** shoots a new one (shots you've locked stay put), **C** flips back to the last take to compare, and you can star, rename and duplicate. Changing the style or length re-cuts the current take unless you've starred or edited it.
 
@@ -106,31 +114,36 @@ The tape along the bottom of the app draws this arc over the song's waveform and
 
 **Export:** one-click presets for TikTok/Reels/Shorts, YouTube, Instagram feed and a 4K60 master, or set resolution (up to 4K), frame rate (24/30/60) and quality by hand. H.264 + AAC MP4, encoded in a few seconds on your hardware. Captions as `.srt` and the soundtrack as `.wav` too.
 
-**And:** autosave (your song, clips and takes are kept in the browser, so a closed tab loses nothing), a one-click demo that shoots its own footage and synthesizes its own track, drag-and-drop anywhere, three looks, and a keyboard for everything.
+**Songs and footage from links** (desktop app): paste a Spotify, YouTube, TikTok, Instagram, X or SoundCloud link, or just paste anywhere in the window. Spotify tracks are matched to the best upload of the song. Downloads run in parallel and retry on their own when a site refuses a stream.
 
-| Key | Action |
-| --- | --- |
-| <kbd>Space</kbd> | Play / pause |
-| <kbd>R</kbd> | Remix |
-| <kbd>C</kbd> | Compare with the previous take |
-| <kbd>E</kbd> | Export |
-| <kbd>D</kbd> | Director mode |
-| <kbd>[</kbd> <kbd>]</kbd> | Previous / next take |
-| <kbd>←</kbd> <kbd>→</kbd> | Previous / next shot |
-| <kbd>S</kbd> / <kbd>L</kbd> / <kbd>⌫</kbd> | Split / lock / remove the shot |
-| <kbd>⌘</kbd><kbd>Z</kbd> | Undo (with <kbd>⇧</kbd> to redo) |
-| <kbd>⌘</kbd><kbd>.</kbd> | Change the look |
+**And:** autosave (your song, clips and takes are kept on your device, so closing the app loses nothing), a one-click demo that shoots its own footage and synthesizes its own track, drag-and-drop anywhere, four layouts, and a keyboard for everything.
 
-**Three looks**
+| Key                                        | Action                           |
+| ------------------------------------------ | -------------------------------- |
+| <kbd>Space</kbd>                           | Play / pause                     |
+| <kbd>R</kbd>                               | Remix                            |
+| <kbd>C</kbd>                               | Compare with the previous take   |
+| <kbd>E</kbd>                               | Export                           |
+| <kbd>D</kbd>                               | Director mode                    |
+| <kbd>[</kbd> <kbd>]</kbd>                  | Previous / next take             |
+| <kbd>←</kbd> <kbd>→</kbd>                  | Previous / next shot             |
+| <kbd>S</kbd> / <kbd>L</kbd> / <kbd>⌫</kbd> | Split / lock / remove the shot   |
+| <kbd>⌘</kbd><kbd>Z</kbd>                   | Undo (with <kbd>⇧</kbd> to redo) |
+| <kbd>⌘</kbd><kbd>.</kbd>                   | Change the look                  |
 
-| Look | Feel |
-| --- | --- |
-| **Fight Night** (default) | Arena black, bone white, broadcast red |
-| **Press** | The printed fight poster: newsprint and black ink |
-| **Afterhours** | Violet black and an acid-lime signal |
+**Four layouts, three colourways each**
 
-<p align="center"><img src="docs/theme-press.jpg" width="49%" alt="The Press look" /> <img src="docs/theme-afterhours.jpg" width="49%" alt="The Afterhours look" /></p>
-<p align="center"><img src="docs/export.jpg" width="70%" alt="A finished export, rendered in 4.2 seconds" /></p>
+Not just colours: each layout is its own take on the whole app, down to how takes, styles and controls are drawn. Pick from the palette button, or press <kbd>⌘</kbd><kbd>.</kbd> to step through all twelve.
+
+| Layout             | Feel                                                                                                         | Colourways              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| **Deck** (default) | A hardware sampler: an LCD, a screen in a bezel, style keys with LEDs, knobs and a pad per take              | Bone · Graphite · Neon  |
+| **Studio**         | A pro editor: media pool, viewer with take tabs, an inspector and the timeline always docked                 | Graphite · Ivory · Neon |
+| **Flyer**          | A Y2K club flyer: chrome type, sticker panels, round style stickers and polaroid takes that bump on the beat | Chrome · Acid · Neon    |
+| **Glass**          | Your edit blurred huge behind floating frosted glass                                                         | Night · Day · Neon      |
+
+<p align="center"><img src="docs/studio.jpg" width="49%" alt="The Studio layout with a learned style selected" /> <img src="docs/welcome-flyer.jpg" width="49%" alt="The Flyer start screen, laid out like a club poster" /></p>
+<p align="center"><img src="docs/welcome-glass.jpg" width="49%" alt="The Glass start screen in its Neon colourway" /></p>
 
 ## Run from source
 
@@ -152,13 +165,13 @@ Releases are automated: push a tag like `v1.0.0` and GitHub Actions builds the W
 
 ## Scripts
 
-| Command | What it does |
-| --- | --- |
-| `pnpm dev` | Dev server |
-| `pnpm build` | Type-check and build the static site into `dist/` |
-| `pnpm desktop` / `pnpm dist:desktop` | Run the Electron app / package installers into `release/` |
-| `pnpm test` | Unit tests (Vitest): beat tracking, drop detection, the arc planner, footage matching, edits, captions |
-| `pnpm typecheck` / `pnpm lint` / `pnpm format` | TypeScript, oxlint, Prettier |
+| Command                                        | What it does                                                                                           |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`                                     | Dev server                                                                                             |
+| `pnpm build`                                   | Type-check and build the static site into `dist/`                                                      |
+| `pnpm desktop` / `pnpm dist:desktop`           | Run the Electron app / package installers into `release/`                                              |
+| `pnpm test`                                    | Unit tests (Vitest): beat tracking, drop detection, the arc planner, footage matching, edits, captions |
+| `pnpm typecheck` / `pnpm lint` / `pnpm format` | TypeScript, oxlint, Prettier                                                                           |
 
 ## How it works
 
@@ -185,13 +198,16 @@ Releases are automated: push a tag like `v1.0.0` and GitHub Actions builds the W
 ```
 electron/main.mjs           desktop shell (serves the app from app://)
 src/
-├── App.tsx                 the shell: header, three columns, the tape
+├── App.tsx                 picks the layout's shell, mounts the dialogs
 ├── components/             sound, footage, stage, takes, rail (style, format, look, text, voice, sound), tape, dialogs
+│   └── shell/              the four layouts (Deck, Studio, Flyer, Glass), start screens, look picker, beat pulse
 ├── state/                  store, actions, derived render state, settings, autosave, playhead
-├── workers/                song analysis, clip analysis, Whisper, Kokoro
+├── styles/                 colourways, the shared control kit, one stylesheet per layout
+├── workers/                song analysis, clip analysis, reference edits, Whisper, Kokoro
 └── lib/
     ├── audio/              FFT, features, tempo and beats, structure and drops, mix, WAV
-    ├── video/              frame metrics, cut detection, clip analysis
+    ├── video/              frame metrics, cut detection, clip analysis, moments
+    ├── learn/              reading reference edits and learning a style from them
     ├── edit/               styles, window, arc planner (slots), footage matching, plan, speed ramps, timeline, hand edits
     ├── render/             WebGL shader and compositor, live preview, MP4 export
     ├── captions/           parsing (SRT/LRC/words), six animated styles, nameplate
@@ -218,11 +234,11 @@ AutoClip stands on open models and open-source software.
 
 **Models** (downloaded on first use, then cached; they run on your device)
 
-| Model | By | Used for | License |
-| --- | --- | --- | --- |
-| [Whisper](https://github.com/openai/whisper) (Tiny, Base, Small, with word timestamps) | OpenAI | Lyric captions | MIT |
-| [Kokoro 82M](https://huggingface.co/hexgrad/Kokoro-82M) | hexgrad | The announcer voice | Apache 2.0 |
-| [ONNX conversions](https://huggingface.co/onnx-community) | Hugging Face onnx-community | Browser-ready versions of the above | Same as each model |
+| Model                                                                                  | By                          | Used for                            | License            |
+| -------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------- | ------------------ |
+| [Whisper](https://github.com/openai/whisper) (Tiny, Base, Small, with word timestamps) | OpenAI                      | Lyric captions                      | MIT                |
+| [Kokoro 82M](https://huggingface.co/hexgrad/Kokoro-82M)                                | hexgrad                     | The announcer voice                 | Apache 2.0         |
+| [ONNX conversions](https://huggingface.co/onnx-community)                              | Hugging Face onnx-community | Browser-ready versions of the above | Same as each model |
 
 **Software:** [Mediabunny](https://mediabunny.dev) (MPL 2.0) for WebCodecs decoding and MP4 muxing, [Transformers.js](https://github.com/huggingface/transformers.js) (Apache 2.0), [kokoro-js](https://github.com/hexgrad/kokoro) (Apache 2.0), [ONNX Runtime Web](https://onnxruntime.ai) (MIT), React, Vite, Tailwind CSS, [Lucide](https://lucide.dev) (ISC) and [Electron](https://www.electronjs.org) (MIT).
 

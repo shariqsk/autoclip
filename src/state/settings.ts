@@ -2,6 +2,7 @@
 
 import type { StyleId } from '../lib/edit/presets'
 import type { LengthChoice } from '../lib/edit/window'
+import type { Platform } from '../lib/share/post'
 import type { AspectId, CaptionPosition, CaptionStyle, ContentMix, FitMode, Grade, TitleAt, TitleLook } from '../lib/types'
 
 export type CaptionSource = 'off' | 'auto' | 'file' | 'text'
@@ -70,6 +71,8 @@ export interface Settings {
     quality: 'standard' | 'high' | 'max'
     /** Keep the file under this many MB (Discord's limit), or null for no limit. */
     limitMb: number | null
+    /** Where it's going, when it's a short-form platform: sets up the post kit after export. */
+    platform: Platform | null
   }
 }
 
@@ -111,7 +114,7 @@ export const DEFAULT_SETTINGS: Settings = {
   nameplate: { name: '', sub: '' },
   handle: '',
   voiceover: { enabled: false, text: 'Remember the name.', voice: 'am_michael', speed: 1, placement: 'intro' },
-  export: { resolution: 1080, fps: 30, quality: 'high', limitMb: null },
+  export: { resolution: 1080, fps: 30, quality: 'high', limitMb: null, platform: null },
 }
 
 export const ASPECTS: { id: AspectId; label: string; note: string; w: number; h: number }[] = [

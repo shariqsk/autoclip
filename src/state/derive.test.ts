@@ -3,7 +3,7 @@ import { analyzeSong } from '../lib/audio/analyze'
 import { synthesizeDemoSong } from '../lib/demo/song'
 import type { EditPlan } from '../lib/types'
 import { captionsFor } from './actions'
-import { lookFor, renderPlan, voiceoverAt } from './derive'
+import { captionOptionsFor, lookFor, renderPlan, voiceoverAt } from './derive'
 import { DEFAULT_SETTINGS } from './settings'
 import type { Draft } from './store'
 
@@ -63,6 +63,20 @@ describe('derived render state', () => {
     expect(lines[0].title).toBe(true)
     expect(lines[0].start).toBe(0)
     for (const l of lines.slice(1)) expect(l.start).toBeGreaterThanOrEqual(lines[0].end - 0.01)
+  })
+
+  it('puts the title card on the drop or at the end when asked', () => {
+    const onDrop = captionsFor(draft, inputs({ title: 'Main event', titleAt: 'drop' })).find((l) => l.title)!
+    expect(onDrop.start).toBeCloseTo(8, 1)
+    const atEnd = captionsFor(draft, inputs({ title: 'Main event', titleAt: 'end' })).find((l) => l.title)!
+    expect(atEnd.end).toBeCloseTo(16, 1)
+    expect(atEnd.start).toBeGreaterThan(11)
+  })
+
+  it('follows the style for the title look unless you pick one', () => {
+    expect(captionOptionsFor('hype', DEFAULT_SETTINGS).titleLook).toBe('slam')
+    const picked = { ...DEFAULT_SETTINGS, captions: { ...DEFAULT_SETTINGS.captions, titleLook: 'spread' as const } }
+    expect(captionOptionsFor('hype', picked).titleLook).toBe('spread')
   })
 
   it('times a drop voiceover to finish on the drop', () => {

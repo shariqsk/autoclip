@@ -30,6 +30,7 @@ export function captionOptionsFor(style: Draft['style'], s: Settings): CaptionOp
     scale: c.scale,
     accent: c.accent,
     handle: s.handle.trim(),
+    titleLook: c.titleLook === 'style' ? (getStyle(style).title ?? 'slam') : c.titleLook,
   }
 }
 

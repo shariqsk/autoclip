@@ -39,6 +39,8 @@ export interface CaptionOptions {
   handle?: string
   /** How the title card moves. */
   titleLook?: TitleLook
+  /** Draw the title huge and behind the people (on the layer drawBehind fills), not over them. */
+  titleBehind?: boolean
 }
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -173,8 +175,9 @@ function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOption
   ctx.lineJoin = 'round'
 
   if (line.title) {
-    if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h)
-    else drawTitle(ctx, line, t, unit, w, h)
+    if (opts.titleBehind) return false
+    if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h, false)
+    else drawTitle(ctx, line, t, unit, w, h, false)
     return true
   }
 
@@ -418,26 +421,45 @@ function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOption
   }
 }
 
-function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number) {
+/**
+ * The title behind the people: huge, filling the width a word or two to a row, a little above the
+ * middle so it sits behind heads and shoulders. Returns false when there's no title up.
+ */
+export function drawBehind(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOptions, w: number, h: number): boolean {
+  ctx.clearRect(0, 0, w, h)
+  if (!opts.titleBehind) return false
+  const line = activeLine(lines, t)
+  if (!line?.title || !line.words.length) return false
+  const unit = Math.min(w, h) * opts.scale
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h, true)
+  else drawTitle(ctx, line, t, unit, w, h, true)
+  return true
+}
+
+function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number, behind: boolean) {
   const age = t - line.start
   const left = line.end - t
   const text = line.words
     .map((x) => x.text)
     .join(' ')
     .toUpperCase()
-  const size = unit * 0.17
+  const size = unit * (behind ? 0.34 : 0.17)
   ctx.font = `${size}px ${CAPTION_FONTS.display}`
-  const rows = wrap(ctx, text.split(' '), w * 0.88)
-  const lh = size * 0.98
+  const rows = wrap(ctx, text.split(' '), w * (behind ? 0.94 : 0.88))
+  const lh = size * (behind ? 0.9 : 0.98)
   const appear = easeOutBack(clamp01(age / 0.25))
   const out = clamp01(left / 0.15)
-  let y = h / 2 - ((rows.length - 1) * lh) / 2
+  let y = h * (behind ? 0.4 : 0.5) - ((rows.length - 1) * lh) / 2
   ctx.save()
   ctx.globalAlpha = out
   for (const r of rows) {
     ctx.save()
     ctx.translate(w / 2, y)
-    const s = 1.4 - 0.4 * appear
+    // Behind the people, every row is stretched to the full width, like a poster.
+    const fit = behind ? Math.min(1.6, (w * 0.94) / Math.max(1, ctx.measureText(r.join(' ')).width)) : 1
+    const s = (1.4 - 0.4 * appear) * fit
     ctx.scale(s, s)
     ctx.shadowColor = 'rgba(0,0,0,0.6)'
     ctx.shadowBlur = size * 0.3
@@ -453,7 +475,7 @@ function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: numb
  * A title that glitches in, then lets its letters drift apart (and glitches out at the end), like the
  * opening card of a broadcast package.
  */
-function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number) {
+function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number, behind: boolean) {
   const age = t - line.start
   const left = line.end - t
   const text = line.words
@@ -461,7 +483,7 @@ function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w
     .join(' ')
     .toUpperCase()
   const life = Math.max(0.5, line.end - line.start)
-  const size = unit * 0.16
+  const size = unit * (behind ? 0.3 : 0.16)
   // Letters start tight and drift apart for the whole time the card is up.
   const spread = size * (0.04 + 0.3 * clamp01(age / life))
   ctx.save()
@@ -471,7 +493,7 @@ function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w
   const natural = ctx.measureText(text).width
   const fit = Math.min(1, (w * 0.88) / Math.max(1, natural))
   const glitch = Math.max(clamp01(1 - age / 0.22), clamp01(1 - left / 0.18))
-  ctx.translate(w / 2, h / 2)
+  ctx.translate(w / 2, h * (behind ? 0.4 : 0.5))
   ctx.scale(fit, fit)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'

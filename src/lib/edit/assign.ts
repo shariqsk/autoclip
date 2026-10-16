@@ -5,7 +5,8 @@
 // are never reused while fresh ones remain, the same clip never plays twice in a row, and a shot
 // never runs across a hard cut that's already inside a clip.
 
-import type { ClipAnalysis, ClipKind, SpeedRamp } from '../types'
+import { CONTENT_KINDS } from '../content/classify'
+import type { ClipAnalysis, ClipKind, ContentKind, ContentMix, SpeedRamp } from '../types'
 import type { Rng } from './rng'
 import type { Slot, SlotRole } from './slots'
 import { sourceDuration, sourceOffset } from './speed'
@@ -21,6 +22,8 @@ export interface AssignableClip {
   avoid?: number[]
   /** 0–1 per analysis sample: someone else on screen with none of your stars. */
   others?: number[]
+  /** Odds of each shot type per analysis sample (see lib/content). */
+  content?: Record<ContentKind, number[]>
 }
 
 export interface Assignment {
@@ -36,11 +39,27 @@ export interface AssignOptions {
   variety: number
   /** Slots already decided (locked shots), by slot index. */
   fixed?: Map<number, Assignment>
+  /** How much of each shot type to use. */
+  mix?: ContentMix
 }
 
 // How much each part of the arc wants your stars on screen: the drop is theirs, and the intro is
 // where the viewer meets them.
 const STAR_WEIGHT: Record<SlotRole, number> = { hero: 2.6, tease: 1.4, intro: 1.8, build: 1.1, flurry: 1.1, ride: 1, outro: 1.4 }
+
+// Which shot types suit each part of the arc, before your mix: b-roll to open, the big moment on the
+// drop, action through the build and after it, a celebration to close. Talking heads and text are
+// rarely what an edit wants, so they lean out unless you ask for more.
+const CONTENT_FIT: Record<SlotRole, Partial<Record<ContentKind, number>>> = {
+  intro: { broll: 0.7, celebrate: 0.1, finish: -0.2, talk: -0.4, text: -0.6 },
+  tease: { finish: 0.6, action: 0.3, talk: -0.6, text: -0.8 },
+  build: { action: 0.5, finish: 0.2, broll: 0.1, talk: -0.5, text: -0.8 },
+  hero: { finish: 1.2, action: 0.4, celebrate: -0.2, broll: -0.4, talk: -1, text: -1 },
+  flurry: { action: 0.6, finish: 0.6, talk: -0.6, text: -0.8 },
+  ride: { action: 0.4, broll: 0.2, talk: -0.3, text: -0.6 },
+  outro: { celebrate: 0.8, broll: 0.4, talk: -0.2, text: -0.4 },
+}
+const MIX_WEIGHT = { none: -3, some: 0, more: 1 } as const
 
 // How much movement each part of the arc wants, and the order slots are filled in: the drop gets
 // first pick of everything, the cold open gets the next-best flash of action, and so on.
@@ -62,6 +81,7 @@ interface Indexed {
     star: Float64Array | null
     avoid: Float64Array | null
     others: Float64Array | null
+    content: Record<ContentKind, Float64Array> | null
   }
   used: [number, number][]
   uses: number
@@ -88,6 +108,9 @@ function index(clips: AssignableClip[]): Indexed[] {
         star: clip.star ? prefixSum(clip.star) : null,
         avoid: clip.avoid ? prefixSum(clip.avoid) : null,
         others: clip.others ? prefixSum(clip.others) : null,
+        content: clip.content
+          ? (Object.fromEntries(CONTENT_KINDS.map((k) => [k, prefixSum(clip.content![k])])) as Record<ContentKind, Float64Array>)
+          : null,
       },
       used: [],
       uses: 0,
@@ -128,6 +151,8 @@ export function assignFootage(
   const pool = index(clips.filter((c) => c.pin !== 'skip'))
   // Once there's a star, footage nobody has looked for faces in is a weaker pick.
   const cast = pool.some((c) => c.prefix.star)
+  // Likewise, once you've ruled shot types out, footage nobody has looked at is a weaker pick.
+  const filtering = !!opts.mix && Object.values(opts.mix).includes('none') && pool.some((c) => c.prefix.content)
   const result: (Assignment | null)[] = slots.map(() => null)
   if (!pool.length) return result
   const totalFootage = pool.reduce((a, c) => a + (c.clip.kind === 'image' ? 3 : c.clip.analysis.duration), 0)
@@ -219,6 +244,13 @@ export function assignFootage(
         if (c.prefix.star) score += STAR_WEIGHT[slot.role] * meanOver(c.prefix.star, c.dt, s, e)
         else if (cast) score -= 0.25 * STAR_WEIGHT[slot.role]
         if (c.prefix.avoid) score -= 1.4 * meanOver(c.prefix.avoid, c.dt, s, e)
+        // What kind of shot it is: what this part of the arc wants, and how much of it you asked for.
+        if (c.prefix.content) {
+          for (const k of CONTENT_KINDS) {
+            const w = (CONTENT_FIT[slot.role][k] ?? 0) + (opts.mix ? MIX_WEIGHT[opts.mix[k]] : 0)
+            if (w) score += w * meanOver(c.prefix.content[k], c.dt, s, e)
+          }
+        } else if (filtering) score -= 0.25
         // With a star, a shot of somebody else entirely is the wrong shot, however good it is.
         if (cast && c.prefix.others) score -= 1.3 * meanOver(c.prefix.others, c.dt, s, e)
 

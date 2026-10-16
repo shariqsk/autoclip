@@ -3,6 +3,9 @@ import { analyzeSong } from '../audio/analyze'
 import { synthesizeDemoSong } from '../demo/song'
 import type { ClipAnalysis } from '../types'
 import type { AssignableClip } from './assign'
+import { MIX_PRESETS } from '../../state/settings'
+import { CONTENT_KINDS } from '../content/classify'
+import type { ContentKind } from '../types'
 import { makePlan } from './plan'
 import { sourceDuration } from './speed'
 
@@ -32,8 +35,8 @@ function clip(id: string, duration: number, peaks: number[], cuts: number[] = []
   return { id, kind: 'video', analysis }
 }
 
-const plan = (clips: AssignableClip[], seed = 3) =>
-  makePlan(song, clips, { style: 'hype', length: 30, order: 'best', hitCuts: true, variety: 0.5, seed })
+const plan = (clips: AssignableClip[], seed = 3, mix = MIX_PRESETS[0].mix) =>
+  makePlan(song, clips, { style: 'hype', length: 30, order: 'best', hitCuts: true, variety: 0.5, seed, mix })
 
 describe('flow', () => {
   it('plays a montage forward instead of jumping around it', () => {
@@ -68,5 +71,37 @@ describe('the cast', () => {
     expect(p.shots.find((s) => s.phase === 'hero')!.clipId).toBe('fighter')
     const share = p.shots.filter((s) => s.clipId === 'fighter').length / p.shots.length
     expect(share).toBeGreaterThan(0.75)
+  })
+})
+
+/** Every sample of a clip read as one shot type. */
+const readAs = (c: AssignableClip, kind: ContentKind): AssignableClip => ({
+  ...c,
+  content: Object.fromEntries(CONTENT_KINDS.map((k) => [k, c.analysis.times.map(() => (k === kind ? 0.9 : 0.02))])) as Record<
+    ContentKind,
+    number[]
+  >,
+})
+
+describe('the content mix', () => {
+  const finishes = readAs(clip('finishes', 40, [8, 20, 32]), 'finish')
+  const broll = readAs(clip('broll', 40, [10, 30], [], 0.25), 'broll')
+  // Lots of movement, but it's a press conference.
+  const presser = readAs(clip('presser', 60, [5, 15, 25, 35, 45], [], 0.55), 'talk')
+
+  it('keeps out what you set to none and puts a big moment on the drop', () => {
+    const preset = MIX_PRESETS.find((p) => p.id === 'finishes')!
+    const p = plan([finishes, broll, presser], 3, preset.mix)
+    expect(p.shots.some((s) => s.clipId === 'presser')).toBe(false)
+    expect(p.shots.find((s) => s.phase === 'hero')!.clipId).toBe('finishes')
+    // A bit of b-roll still makes it in, at the start.
+    expect(p.shots.filter((s) => s.phase === 'intro').some((s) => s.clipId === 'broll')).toBe(true)
+  })
+
+  it('opens on b-roll and saves the big moment for the drop, even at "some"', () => {
+    const p = plan([finishes, broll])
+    const intro = p.shots.filter((s) => s.phase === 'intro')
+    expect(intro.filter((s) => s.clipId === 'broll').length).toBeGreaterThanOrEqual(intro.length / 2)
+    expect(p.shots.find((s) => s.phase === 'hero')!.clipId).toBe('finishes')
   })
 })

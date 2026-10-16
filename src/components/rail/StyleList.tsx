@@ -1,9 +1,11 @@
-// The styles (the six built in, then any learned from your edits), drawn for each layout: keys with an LED on Deck, a list on Studio, round
-// stickers on Flyer, chips on Glass. Picking one re-cuts the current take.
+// The styles, grouped by feeling (Hype, Cinematic, Chill, then any learned from your edits) and drawn
+// for each layout: keys with an LED on Deck, a list on Studio, round stickers on Flyer, chips on Glass.
+// Under them, what the chosen style actually does, in plain words. Picking one re-cuts the current take.
 
 import { Check, Sparkles, Trash2 } from 'lucide-react'
 import { useLook } from '../../hooks/useTheme'
-import { type StylePreset } from '../../lib/edit/presets'
+import { styleFeatures } from '../../lib/edit/describe'
+import { getStyle, STYLE_GROUPS, type StylePreset } from '../../lib/edit/presets'
 import { makeEdit } from '../../state/actions'
 import { setState, updateSettings, useApp } from '../../state/store'
 import { getSavedStyle, removeLearnedStyle, useAllStyles, useSavedStyles } from '../../state/styles'
@@ -26,7 +28,6 @@ export function ArcSketch({ style, className }: { style: StylePreset; className?
 }
 
 function StyleGrid() {
-  const { layout } = useLook()
   const styles = useAllStyles()
   const current = useApp((s) => s.settings.style)
   const hasSong = useApp((s) => !!s.song?.analysis)
@@ -35,6 +36,61 @@ function StyleGrid() {
     updateSettings({ style: id })
     if (hasSong) makeEdit({ recut: true })
   }
+  // Letters run on across the groups (A, B, C… on Deck's keys).
+  const groups = STYLE_GROUPS.map((g) => ({ ...g, styles: styles.filter((s) => (s.group ?? 'mine') === g.id) })).filter(
+    (g) => g.styles.length,
+  )
+  const starts = groups.map((_, i) => groups.slice(0, i).reduce((a, g) => a + g.styles.length, 0))
+  return (
+    <div className="space-y-3">
+      {groups.map((g, i) => (
+        <section key={g.id} className="style-group space-y-1.5" aria-label={g.name}>
+          <div className="flex items-baseline gap-2">
+            <span className="style-group-name text-xs font-semibold">{g.name}</span>
+            <span className="tag truncate">{g.note}</span>
+          </div>
+          <StyleItems styles={g.styles} current={current} pick={pick} from={starts[i]} />
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/** What the chosen style does, so picking one isn't a guess. */
+function StyleCard() {
+  const id = useApp((s) => s.settings.style)
+  useAllStyles()
+  const style = getStyle(id)
+  return (
+    <div className="style-card space-y-2 border border-line p-2.5">
+      <div>
+        <div className="text-sm font-semibold">{style.name}</div>
+        <p className="text-xs leading-snug text-ink-2">{style.tagline}</p>
+      </div>
+      <ul className="flex flex-wrap gap-1" aria-label="What you get">
+        {styleFeatures(style).map((f) => (
+          <li key={f} className="style-chip">
+            {f}
+          </li>
+        ))}
+      </ul>
+      <p className="tag">Best for: {style.bestFor}</p>
+    </div>
+  )
+}
+
+function StyleItems({
+  styles,
+  current,
+  pick,
+  from,
+}: {
+  styles: StylePreset[]
+  current: string
+  pick: (id: StylePreset['id']) => void
+  from: number
+}) {
+  const { layout } = useLook()
 
   if (layout === 'deck')
     return (
@@ -48,7 +104,7 @@ function StyleGrid() {
             title={`${s.tagline}. Best for: ${s.bestFor}`}
           >
             <span className="deck-key-led" />
-            <span className="tag">{String.fromCharCode(65 + i)}</span>
+            <span className="tag">{String.fromCharCode(65 + from + i)}</span>
             <span className="deck-key-name">{s.name}</span>
           </button>
         ))}
@@ -65,7 +121,7 @@ function StyleGrid() {
             data-on={current === s.id}
             onClick={() => pick(s.id)}
             title={`${s.tagline}. Best for: ${s.bestFor}`}
-            style={{ ['--tilt' as string]: `${[-8, 5, -3, 7, -6, 4][i]}deg` }}
+            style={{ ['--tilt' as string]: `${[-8, 5, -3, 7, -6, 4][(from + i) % 6]}deg` }}
           >
             <span>{s.name}</span>
           </button>
@@ -144,6 +200,7 @@ export function StyleList() {
   return (
     <>
       <StyleGrid />
+      <StyleCard />
       <LearnBar />
     </>
   )

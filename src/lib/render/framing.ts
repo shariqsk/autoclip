@@ -12,6 +12,14 @@ export function focusAt(a: ClipAnalysis, t: number): { x: number; y: number } {
   return { x: a.focusX[i] * (1 - k) + a.focusX[i + 1] * k, y: a.focusY[i] * (1 - k) + a.focusY[i + 1] * k }
 }
 
+/** How much is moving in a clip at a source time, 0–1. */
+export function motionAt(a: ClipAnalysis, t: number): number {
+  if (a.times.length < 2) return a.motion[0] ?? 0
+  const dt = a.times[1] - a.times[0]
+  const i = Math.min(a.times.length - 1, Math.max(0, Math.round(t / dt)))
+  return a.motion[i] ?? 0
+}
+
 /** Stills get a slow Ken Burns push so they never sit dead on screen. */
 export function stillZoom(layer: Layer): number {
   return 1.02 + 0.1 * layer.progress

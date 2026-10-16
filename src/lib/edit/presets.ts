@@ -2,7 +2,7 @@
 // mood, how the build tightens, what happens on the drop, how the action is cut after it and how it
 // ends. The planner reads these; nothing else is style-specific.
 
-import type { CaptionStyle, Grade, SpeedRamp, TitleLook, TransitionType } from '../types'
+import type { CaptionStyle, FitMode, Grade, SpeedRamp, TitleLook, TransitionType } from '../types'
 
 export type BuiltInStyleId = 'hype' | 'phonk' | 'velocity' | 'cinematic' | 'smooth' | 'throwback'
 /** Styles learned from the user's own reference edits get ids like `learned-…`. */
@@ -50,7 +50,20 @@ export interface StylePreset {
   fx: { pulse: number; shake: number; rgb: number; flash: number; push: number }
   /** Speed ramps on flurry shots long enough to feel them. */
   velocity: boolean
-  look: { grade: Grade; grain: number; vignette: number; letterbox: boolean }
+  look: {
+    grade: Grade
+    grain: number
+    vignette: number
+    letterbox: boolean
+    /** 0–1 bloom on the bright parts. */
+    glow?: number
+    /** 0–1 light leaks and bokeh. */
+    leaks?: number
+    /** 0–1 motion blur on fast movement. */
+    blur?: number
+    /** How footage that doesn't match the frame's shape is framed (cropped to fill when not set). */
+    fit?: FitMode
+  }
   captions: CaptionStyle
   /** How the title card moves (slammed in when not set). */
   title?: TitleLook
@@ -193,4 +206,5 @@ export const TRANSITION_NAMES: Record<TransitionType, string> = {
   glitch: 'Glitch',
   dip: 'Dip to black',
   spin: 'Spin',
+  panels: 'Picture in picture',
 }

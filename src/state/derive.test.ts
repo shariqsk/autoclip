@@ -85,6 +85,16 @@ describe('derived render state', () => {
   })
 })
 
+describe('effects', () => {
+  it('follows the style for leaks, glow, motion blur and framing unless you set them', () => {
+    const look = lookFor('hype', DEFAULT_SETTINGS)
+    expect(look.fit).toBe('fill')
+    expect(look.leaks).toBe(0)
+    const mine = lookFor('hype', { ...DEFAULT_SETTINGS, leaks: 0.7, glow: 0.4, blur: 0.5, framing: 'bars' })
+    expect(mine).toMatchObject({ leaks: 0.7, glow: 0.4, blur: 0.5, fit: 'bars' })
+  })
+})
+
 describe('cinema bars', () => {
   it('draws a style’s bars on widescreen only, but always when you turn them on', () => {
     expect(lookFor('cinematic', { ...DEFAULT_SETTINGS, aspect: '16:9' }).letterbox).toBe(true)

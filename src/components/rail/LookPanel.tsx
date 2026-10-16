@@ -55,6 +55,27 @@ export function LookPanel() {
           format={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
         />
         <Slider
+          label="Light leaks"
+          hint="Warm light and soft bokeh drifting over the picture"
+          value={s.leaks === 'style' ? (base.leaks ?? 0) : s.leaks}
+          onChange={(leaks) => updateSettings({ leaks })}
+          format={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
+        <Slider
+          label="Glow"
+          hint="Bright parts bloom softly"
+          value={s.glow === 'style' ? (base.glow ?? 0) : s.glow}
+          onChange={(glow) => updateSettings({ glow })}
+          format={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
+        <Slider
+          label="Motion blur"
+          hint="Fast movement, punches and whips smear"
+          value={s.blur === 'style' ? (base.blur ?? 0) : s.blur}
+          onChange={(blur) => updateSettings({ blur })}
+          format={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
+        <Slider
           label="Film grain"
           value={s.grain === 'style' ? base.grain : s.grain}
           max={0.6}
@@ -72,10 +93,26 @@ export function LookPanel() {
         checked={s.letterbox === 'style' ? base.letterbox : s.letterbox}
         onChange={(letterbox) => updateSettings({ letterbox })}
       />
-      {(s.grade !== 'style' || s.grain !== 'style' || s.vignette !== 'style' || s.letterbox !== 'style') && (
+      {(s.grade !== 'style' ||
+        s.grain !== 'style' ||
+        s.vignette !== 'style' ||
+        s.letterbox !== 'style' ||
+        s.leaks !== 'style' ||
+        s.glow !== 'style' ||
+        s.blur !== 'style') && (
         <button
           className="tag text-signal hover:underline"
-          onClick={() => updateSettings({ grade: 'style', grain: 'style', vignette: 'style', letterbox: 'style' })}
+          onClick={() =>
+            updateSettings({
+              grade: 'style',
+              grain: 'style',
+              vignette: 'style',
+              letterbox: 'style',
+              leaks: 'style',
+              glow: 'style',
+              blur: 'style',
+            })
+          }
         >
           Reset to the {getStyle(styleId).name} look
         </button>

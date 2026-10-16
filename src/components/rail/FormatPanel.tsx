@@ -1,13 +1,17 @@
 import { makeEdit } from '../../state/actions'
 import { autoFindFaces } from '../../state/people'
 import { ASPECTS, LENGTHS } from '../../state/settings'
-import { getState, setState, updateSettings, useApp } from '../../state/store'
+import { getStyle } from '../../lib/edit/presets'
+import { activeDraft, getState, setState, updateSettings, useApp } from '../../state/store'
 import { Seg, Slider, Toggle } from '../ui'
 
 const recut = () => getState().song?.analysis && getState().drafts.length && makeEdit({ recut: true })
 
 export function FormatPanel() {
   const s = useApp((st) => st.settings)
+  const styleId = useApp((st) => activeDraft(st)?.style ?? st.settings.style)
+  const styleFit = getStyle(styleId).look.fit ?? 'fill'
+  const fit = s.framing === 'style' ? styleFit : s.framing
   return (
     <>
       <div className="segs">
@@ -48,11 +52,12 @@ export function FormatPanel() {
       <div className="space-y-1.5">
         <div className="tag">Framing</div>
         <Seg
-          value={s.fit}
-          onChange={(fit) => updateSettings({ fit })}
+          value={fit}
+          onChange={(f) => updateSettings({ framing: f === styleFit ? 'style' : f })}
           options={[
-            { value: 'fill', label: 'Track the action', title: 'Fill the frame and follow the movement' },
-            { value: 'blur', label: 'Show it all', title: 'Fit the whole shot over a blurred copy' },
+            { value: 'fill', label: 'Crop to fill', title: 'Fill the frame, following the people and the action' },
+            { value: 'blur', label: 'Blurred', title: 'The whole shot over a blurred copy of itself' },
+            { value: 'bars', label: 'Black bars', title: 'The whole shot on black, nothing cropped' },
           ]}
         />
       </div>

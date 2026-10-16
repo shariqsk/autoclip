@@ -18,7 +18,10 @@ export function lookFor(style: Draft['style'], s: Settings): Look {
     // A style's cinema bars belong on a widescreen frame; on a tall one they only eat the picture.
     // Turned on by hand, they're drawn whatever the shape.
     letterbox: s.letterbox === 'style' ? base.letterbox && s.aspect === '16:9' : s.letterbox,
-    fit: s.fit,
+    fit: s.framing === 'style' ? (base.fit ?? 'fill') : s.framing,
+    glow: s.glow === 'style' ? (base.glow ?? 0) : s.glow,
+    leaks: s.leaks === 'style' ? (base.leaks ?? 0) : s.leaks,
+    blur: s.blur === 'style' ? (base.blur ?? 0) : s.blur,
   }
 }
 

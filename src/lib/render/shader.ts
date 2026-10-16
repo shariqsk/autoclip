@@ -1,6 +1,6 @@
-// The whole look of an AutoClip edit is one fragment shader: framing (smart crop or blurred fill),
-// transitions between two shots, beat punches and shakes, chromatic aberration, color grade, grain,
-// vignette, letterbox, and the caption layer on top.
+// The whole look of an AutoClip edit is one fragment shader: framing (smart crop, blurred fill or black
+// bars), transitions between two shots, beat punches and shakes, chromatic aberration, glow, light
+// leaks, motion blur, color grade, grain, vignette, letterbox, and the caption layer on top.
 
 export const VERTEX = /* glsl */ `#version 300 es
 in vec2 aPos;
@@ -15,6 +15,7 @@ uniform vec2 uOut;
 uniform sampler2D uA;
 uniform sampler2D uB;
 uniform sampler2D uCaption;
+uniform sampler2D uPrev;  // the last frame drawn, for motion blur
 uniform vec2 uSizeA;
 uniform vec2 uSizeB;
 uniform vec2 uFocusA;
@@ -24,7 +25,7 @@ uniform float uZoomB;
 uniform bool uHasA;
 uniform bool uHasB;
 uniform bool uHasCaption;
-uniform int uTrans;      // 0 none, 1 fade, 2 flash, 3 zoom, 4 whip, 5 glitch, 6 dip, 7 spin
+uniform int uTrans;      // 0 none, 1 fade, 2 flash, 3 zoom, 4 whip, 5 glitch, 6 dip, 7 spin, 8 panels
 uniform float uProg;
 uniform vec2 uShake;
 uniform float uRot;
@@ -33,7 +34,7 @@ uniform float uFlash;
 uniform float uRgb;
 uniform float uMonoMix;
 uniform float uDim;
-uniform int uFit;        // 0 fill (smart crop), 1 blurred background
+uniform int uFit;        // 0 fill (smart crop), 1 blurred background, 2 black bars
 uniform float uTime;
 // Grade
 uniform float uContrast;
@@ -45,6 +46,10 @@ uniform bool uMono;
 uniform float uGrain;
 uniform float uVignette;
 uniform float uLetterbox;
+uniform float uGlow;
+uniform float uLeaks;
+uniform float uLeakBurst;
+uniform float uTrail;
 
 const float PI = 3.14159265;
 
@@ -88,10 +93,11 @@ vec3 tapBlur(sampler2D tex, vec2 uv, float r) {
 }
 
 vec3 sampleLayer(sampler2D tex, vec2 p, vec2 size, vec2 focus, float zoom) {
-  if (uFit == 1) {
+  if (uFit == 1 || uFit == 2) {
     bool inside;
     vec2 uv = containUV(p, size, zoom, inside);
     if (inside) return texture(tex, uv).rgb;
+    if (uFit == 2) return vec3(0.0);
     vec2 bg = coverUV(p, size, vec2(0.5), 1.15);
     return tapBlur(tex, bg, 0.06) * 0.55;
   }
@@ -139,6 +145,12 @@ vec2 rotateAround(vec2 p, float a) {
   return d + 0.5;
 }
 
+// A panel of a different shape from the frame shows a crop of the shot, not a squashed copy.
+vec2 panelCrop(vec2 size) {
+  float pa = size.x / max(size.y, 1e-4);
+  return vec2(min(1.0, pa), min(1.0, 1.0 / pa));
+}
+
 vec3 composite(vec2 p) {
   float z = 1.0 + uZoom;
   if (uTrans == 0 || !uHasB) return layerA(p, z, uRgb);
@@ -178,6 +190,29 @@ vec3 composite(vec2 p) {
     float split = 0.6 * strength;
     return showB ? layerB(q, z, uRgb + split) : layerA(q, z, uRgb + split);
   }
+  if (uTrans == 8) {
+    // Picture in picture: the next shot opens in a panel over this one, a second panel joins it,
+    // then the first grows to fill the frame.
+    vec3 c = layerA(p, z, uRgb) * 0.8;
+    float grow = easeInOut(clamp((t - 0.72) / 0.28, 0.0, 1.0));
+    float in1 = easeInOut(clamp(t / 0.22, 0.0, 1.0));
+    vec2 size1 = mix(vec2(0.0), vec2(0.62, 0.5), in1);
+    vec2 lo1 = mix(vec2(0.08, 0.36) + (vec2(0.62, 0.5) - size1) * 0.5, vec2(0.0), grow);
+    vec2 hi1 = mix(lo1 + size1, vec2(1.0), grow);
+    float in2 = easeInOut(clamp((t - 0.3) / 0.22, 0.0, 1.0)) * (1.0 - grow);
+    vec2 size2 = vec2(0.46, 0.34) * in2;
+    vec2 lo2 = vec2(0.47, 0.12) + (vec2(0.46, 0.34) - size2) * 0.5;
+    vec2 hi2 = lo2 + size2;
+    if (in2 > 0.0 && all(greaterThanEqual(p, lo2)) && all(lessThanEqual(p, hi2))) {
+      vec2 q = (p - lo2) / max(size2, vec2(1e-4));
+      c = layerB(0.5 + (q - 0.5) * panelCrop(size2) / 1.5, z, uRgb);
+    }
+    if (in1 > 0.0 && all(greaterThanEqual(p, lo1)) && all(lessThanEqual(p, hi1))) {
+      vec2 q = (p - lo1) / max(hi1 - lo1, vec2(1e-4));
+      c = layerB(0.5 + (q - 0.5) * panelCrop(hi1 - lo1), z, uRgb);
+    }
+    return c;
+  }
   if (uTrans == 7) {
     float e = easeInOut(t);
     float a = t < 0.5 ? e * 1.2 : -(1.0 - e) * 1.2;
@@ -186,6 +221,52 @@ vec3 composite(vec2 p) {
     return t < 0.5 ? layerA(q, zz, uRgb) : layerB(q, zz, uRgb);
   }
   return layerA(p, z, uRgb);
+}
+
+// Bloom: the bright parts of the picture bleed a soft glow into their surroundings.
+vec3 glow(vec2 p) {
+  if (!uHasA || uGlow < 0.01) return vec3(0.0);
+  float z = uZoomA * (1.0 + uZoom);
+  vec3 s = vec3(0.0);
+  for (int i = 0; i < 12; i++) {
+    float a = float(i) * 2.3998;
+    float d = 0.006 + 0.03 * sqrt(float(i) / 12.0);
+    vec3 x = sampleLayer(uA, p + vec2(cos(a), sin(a)) * d, uSizeA, uFocusA, z);
+    s += max(x - 0.55, 0.0);
+  }
+  return s / 12.0 * 2.2;
+}
+
+// Light leaks: warm and cool washes drifting in from the edges, a few soft bokeh orbs, and a band of
+// light that sweeps across on each new shot.
+vec3 leaks(vec2 p, float t) {
+  float aspect = uOut.x / uOut.y;
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    // Each wash hugs the edge of the frame and drifts along it.
+    float a = t * (0.13 + 0.04 * fi) + fi * 2.1;
+    vec2 c = vec2(0.5 + 0.62 * cos(a), 0.5 + 0.62 * sin(a * 1.3));
+    vec2 d = p - c;
+    d.x *= aspect;
+    float r = 0.32 + 0.1 * sin(t * 0.3 + fi);
+    vec3 col = i == 0 ? vec3(1.0, 0.45, 0.15) : i == 1 ? vec3(1.0, 0.22, 0.45) : vec3(0.15, 0.6, 1.0);
+    acc += col * exp(-dot(d, d) / (r * r)) * 0.5;
+  }
+  for (int i = 0; i < 7; i++) {
+    float fi = float(i);
+    vec2 c = vec2(fract(0.17 + fi * 0.37 + t * 0.012 * (1.0 + fi * 0.3)), fract(0.61 + fi * 0.23 + sin(t * 0.2 + fi) * 0.04));
+    vec2 d = p - c;
+    d.x *= aspect;
+    float rad = 0.025 + 0.035 * hash(vec2(fi, 3.1));
+    float dist = length(d);
+    float orb = smoothstep(rad, rad * 0.8, dist) * (0.55 + 0.45 * smoothstep(rad * 0.3, rad * 0.95, dist));
+    acc += vec3(1.0, 0.9, 0.85) * orb * 0.22;
+  }
+  float x = p.x + (p.y - 0.5) * 0.35;
+  float band = exp(-pow((x - (1.4 - 1.9 * (1.0 - uLeakBurst))) / 0.28, 2.0)) * uLeakBurst;
+  acc += vec3(1.0, 0.55, 0.25) * band * 1.4;
+  return acc;
 }
 
 vec3 grade(vec3 c) {
@@ -203,7 +284,9 @@ void main() {
   vec2 p = gl_FragCoord.xy / uOut;
   vec2 q = rotateAround(p, uRot) + uShake;
   vec3 c = composite(q);
+  c += glow(q) * uGlow * vec3(1.0, 0.92, 0.85);
   c = grade(c);
+  if (uLeaks > 0.01) c = 1.0 - (1.0 - c) * (1.0 - clamp(leaks(p, uTime) * uLeaks, 0.0, 1.0));
   // Per-shot black and white, with a little extra contrast so it reads as a choice, not a fault.
   float mono = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(c, vec3(clamp((mono - 0.5) * 1.15 + 0.5, 0.0, 1.0)), clamp(uMonoMix, 0.0, 1.0));
@@ -217,6 +300,9 @@ void main() {
 
   float g = hash(gl_FragCoord.xy + fract(uTime * 7.13) * 100.0) - 0.5;
   c += g * uGrain * 0.22;
+
+  // Motion blur: fast movement smears into the last frame.
+  if (uTrail > 0.0) c = mix(c, texture(uPrev, p).rgb, uTrail);
 
   if (p.y < uLetterbox || p.y > 1.0 - uLetterbox) c = vec3(0.0);
 

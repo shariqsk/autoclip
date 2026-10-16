@@ -69,6 +69,8 @@ function transitionFor(slots: Slot[], i: number, style: StylePreset, beatPeriod:
   const type: TransitionType = weightedPick(rng, weights)
   if (type === 'cut') return { type, duration: 0 }
   const shortest = Math.min(slot.end - slot.start, slots[i - 1].end - slots[i - 1].start)
+  // Picture in picture plays out over a couple of beats; the rest are quick.
+  if (type === 'panels') return { type, duration: Math.max(0.3, Math.min(beatPeriod * 2, shortest * 0.9)) }
   const duration = Math.max(0.08, Math.min(style.transitionBeats * beatPeriod, shortest * 0.45))
   return { type, duration }
 }

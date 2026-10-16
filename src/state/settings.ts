@@ -19,7 +19,8 @@ export interface Settings {
   style: StyleId
   length: LengthChoice
   aspect: AspectId
-  fit: FitMode
+  /** How footage of another shape is framed. 'style' follows the edit style. */
+  framing: FitMode | 'style'
   order: 'best' | 'story'
   /** Cut on standout hits in the music (strums, stabs, fills), not only the beat. */
   hitCuts: boolean
@@ -31,6 +32,9 @@ export interface Settings {
   grain: number | 'style'
   vignette: number | 'style'
   letterbox: boolean | 'style'
+  glow: number | 'style'
+  leaks: number | 'style'
+  blur: number | 'style'
   intensity: number
   sfx: boolean
   sfxVolume: number
@@ -69,7 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
   style: 'hype',
   length: 30,
   aspect: '9:16',
-  fit: 'fill',
+  framing: 'style',
   order: 'best',
   hitCuts: true,
   mix: { finish: 'some', action: 'some', broll: 'some', celebrate: 'some', talk: 'some', text: 'none' },
@@ -78,6 +82,9 @@ export const DEFAULT_SETTINGS: Settings = {
   grain: 'style',
   vignette: 'style',
   letterbox: 'style',
+  glow: 'style',
+  leaks: 'style',
+  blur: 'style',
   intensity: 1,
   sfx: true,
   sfxVolume: 0.7,
@@ -131,7 +138,10 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULT_SETTINGS
-    const saved = JSON.parse(raw) as Partial<Settings>
+    const saved = JSON.parse(raw) as Partial<Settings> & { fit?: FitMode }
+    // Framing used to be a plain choice; a crop was the default, anything else was picked on purpose.
+    if (saved.fit && !saved.framing && saved.fit !== 'fill') saved.framing = saved.fit
+    delete saved.fit
     return {
       ...DEFAULT_SETTINGS,
       ...saved,

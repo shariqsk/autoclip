@@ -17,6 +17,10 @@ export interface LayerInput {
   focusY: number
   /** Extra zoom for this layer (slow push on stills), 1 = none. */
   zoom: number
+  /** 0–1: how much is moving in the source right now (for motion blur). */
+  motion?: number
+  /** Which shot this frame belongs to: motion blur never carries across a cut. */
+  key?: string
 }
 
 export interface Look {
@@ -25,6 +29,12 @@ export interface Look {
   vignette: number
   letterbox: boolean
   fit: FitMode
+  /** 0–1 bloom on the bright parts. */
+  glow: number
+  /** 0–1 light leaks and bokeh drifting over the picture. */
+  leaks: number
+  /** 0–1 motion blur on fast movement. */
+  blur: number
 }
 
 export interface RenderInput {
@@ -36,7 +46,18 @@ export interface RenderInput {
   time: number
 }
 
-const TRANSITION_CODE: Record<TransitionType, number> = { cut: 0, fade: 1, flash: 2, zoom: 3, whip: 4, glitch: 5, dip: 6, spin: 7 }
+const TRANSITION_CODE: Record<TransitionType, number> = {
+  cut: 0,
+  fade: 1,
+  flash: 2,
+  zoom: 3,
+  whip: 4,
+  glitch: 5,
+  dip: 6,
+  spin: 7,
+  panels: 8,
+}
+const BLURRY: TransitionType[] = ['zoom', 'whip', 'spin', 'glitch']
 
 interface GradeParams {
   contrast: number
@@ -114,6 +135,8 @@ export class Compositor {
   private uniforms = new Map<string, WebGLUniformLocation | null>()
   private captionDirty = false
   private captionSource: TexImageSource | null = null
+  private prevSize = [0, 0]
+  private last: { key?: string; time: number } | null = null
 
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas) {
     this.canvas = canvas
@@ -135,7 +158,7 @@ export class Compositor {
     gl.enableVertexAttribArray(loc)
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
 
-    this.textures = [0, 1, 2].map((unit) => {
+    this.textures = [0, 1, 2, 3].map((unit) => {
       const tex = gl.createTexture()!
       gl.activeTexture(gl.TEXTURE0 + unit)
       gl.bindTexture(gl.TEXTURE_2D, tex)
@@ -149,6 +172,7 @@ export class Compositor {
     gl.uniform1i(this.u('uA'), 0)
     gl.uniform1i(this.u('uB'), 1)
     gl.uniform1i(this.u('uCaption'), 2)
+    gl.uniform1i(this.u('uPrev'), 3)
   }
 
   private link(): WebGLProgram {
@@ -229,7 +253,7 @@ export class Compositor {
     gl.uniform1f(this.u('uRgb'), fx.rgb)
     gl.uniform1f(this.u('uMonoMix'), fx.mono)
     gl.uniform1f(this.u('uDim'), fx.dim)
-    gl.uniform1i(this.u('uFit'), input.look.fit === 'blur' ? 1 : 0)
+    gl.uniform1i(this.u('uFit'), input.look.fit === 'blur' ? 1 : input.look.fit === 'bars' ? 2 : 0)
     gl.uniform1f(this.u('uTime'), input.time)
 
     const g = GRADES[input.look.grade]
@@ -243,8 +267,51 @@ export class Compositor {
     gl.uniform1f(this.u('uVignette'), input.look.vignette)
     const aspect = width / height
     gl.uniform1f(this.u('uLetterbox'), input.look.letterbox ? (aspect >= 1 ? Math.max(0, (1 - aspect / 2.39) / 2) : 0.1) : 0)
+    gl.uniform1f(this.u('uGlow'), input.look.glow)
+    gl.uniform1f(this.u('uLeaks'), input.look.leaks)
+    gl.uniform1f(this.u('uLeakBurst'), input.look.leaks > 0 ? fx.leak : 0)
+    gl.uniform1f(this.u('uTrail'), this.trail(input))
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    if (input.look.blur > 0) this.keepFrame(width, height)
+    this.last = { key: input.a?.key, time: input.time }
+  }
+
+  /**
+   * How much of the last frame to blend in: more for fast movement, punches and whips. Weighted for
+   * the time since that frame, so the preview (60 Hz) and an export (24–60 fps) smear alike, and off
+   * on a cut, a seek or a repaint of the same instant.
+   */
+  private trail(input: RenderInput): number {
+    const blur = input.look.blur
+    const last = this.last
+    if (blur <= 0 || !last || !input.a || input.a.key !== last.key) return 0
+    if (this.prevSize[0] !== this.canvas.width || this.prevSize[1] !== this.canvas.height) return 0
+    const dt = input.time - last.time
+    if (dt <= 0 || dt > 0.1) return 0
+    const fx = input.fx
+    const moving =
+      // Motion is relative to the clip; only the busier half of it smears.
+      Math.max(0, (input.a.motion ?? 0) - 0.35) * 1.4 +
+      fx.zoom * 3 +
+      Math.hypot(fx.shakeX, fx.shakeY) * 12 +
+      (input.transition && BLURRY.includes(input.transition.type) ? 0.6 : 0)
+    // The new frame always stays the stronger one; the smear trails behind it.
+    const perFrame = blur * Math.min(0.55, moving)
+    return Math.pow(perFrame, dt * 30)
+  }
+
+  /** Copy what was just drawn into the motion-blur texture. */
+  private keepFrame(width: number, height: number) {
+    const gl = this.gl
+    gl.activeTexture(gl.TEXTURE3)
+    gl.bindTexture(gl.TEXTURE_2D, this.textures[3])
+    if (this.prevSize[0] !== width || this.prevSize[1] !== height) {
+      // RGB, like the canvas itself (it has no alpha), or the copy is refused.
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null)
+      this.prevSize = [width, height]
+    }
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, width, height)
   }
 
   dispose() {

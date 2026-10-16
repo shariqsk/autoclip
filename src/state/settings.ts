@@ -2,7 +2,7 @@
 
 import type { StyleId } from '../lib/edit/presets'
 import type { LengthChoice } from '../lib/edit/window'
-import type { AspectId, CaptionPosition, CaptionStyle, ContentMix, FitMode, Grade } from '../lib/types'
+import type { AspectId, CaptionPosition, CaptionStyle, ContentMix, FitMode, Grade, TitleAt, TitleLook } from '../lib/types'
 
 export type CaptionSource = 'off' | 'auto' | 'file' | 'text'
 
@@ -45,8 +45,11 @@ export interface Settings {
     model: string
     /** Free text: one word per beat into the drop. */
     beatText: string
-    /** Big title card at the start. */
+    /** Big title card. */
     title: string
+    titleAt: TitleAt
+    /** 'style' follows the edit style. */
+    titleLook: TitleLook | 'style'
   }
   /** Fighter nameplate that slams in on the drop. */
   nameplate: { name: string; sub: string }
@@ -89,6 +92,8 @@ export const DEFAULT_SETTINGS: Settings = {
     model: 'onnx-community/whisper-base.en_timestamped',
     beatText: '',
     title: '',
+    titleAt: 'start',
+    titleLook: 'style',
   },
   nameplate: { name: '', sub: '' },
   handle: '',

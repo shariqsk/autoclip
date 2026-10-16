@@ -22,6 +22,8 @@ const PREVIEW: Record<string, React.CSSProperties> = {
   clean: { fontFamily: CAPTION_FONTS.body, fontWeight: 600, background: 'rgba(10,10,14,.75)', padding: '1px 6px' },
   glitch: { fontFamily: CAPTION_FONTS.mono, fontWeight: 800, textShadow: '-2px 0 #ff003c, 2px 0 #00f0ff', textTransform: 'uppercase' },
   typewriter: { fontFamily: CAPTION_FONTS.mono },
+  subtitle: { fontFamily: CAPTION_FONTS.body, fontStyle: 'italic', textTransform: 'lowercase' },
+  stack: { fontFamily: CAPTION_FONTS.display, textTransform: 'uppercase', fontSize: '1.05rem' },
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -44,6 +46,7 @@ export function TextPanel() {
   const fileRef = useRef<HTMLInputElement>(null)
   const set = (patch: Partial<typeof c>) => updateSettings((s) => ({ captions: { ...s.captions, ...patch } }))
   const shown = c.style === 'style' ? getStyle(styleId).captions : c.style
+  const titleLook = c.titleLook === 'style' ? (getStyle(styleId).title ?? 'slam') : c.titleLook
 
   return (
     <>
@@ -111,9 +114,32 @@ export function TextPanel() {
         </Field>
       )}
 
-      <Field label="Title card · opens the edit">
-        <input className="field" placeholder="THE COMEBACK" value={c.title} onChange={(e) => set({ title: e.target.value })} />
-      </Field>
+      <div className="space-y-1.5">
+        <Field label="Title card">
+          <input className="field" placeholder="THE COMEBACK" value={c.title} onChange={(e) => set({ title: e.target.value })} />
+        </Field>
+        {c.title.trim() && (
+          <div className="grid grid-cols-2 gap-1.5">
+            <Seg
+              value={c.titleAt}
+              onChange={(titleAt) => set({ titleAt })}
+              options={[
+                { value: 'start', label: 'Start', title: 'Opens the edit' },
+                { value: 'drop', label: 'Drop', title: 'Lands on the drop' },
+                { value: 'end', label: 'End', title: 'The last few seconds' },
+              ]}
+            />
+            <Seg
+              value={titleLook}
+              onChange={(look) => set({ titleLook: look === (getStyle(styleId).title ?? 'slam') ? 'style' : look })}
+              options={[
+                { value: 'slam', label: 'Slam', title: 'Big and slammed in' },
+                { value: 'spread', label: 'Spread', title: 'Glitches in, then the letters drift apart' },
+              ]}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-[1.4fr_1fr] gap-2">
         <Field label="Nameplate · on the drop">

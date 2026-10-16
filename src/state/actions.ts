@@ -439,9 +439,23 @@ export function captionsFor(d: Draft, s: CaptionInputs = getState()): CaptionLin
     lines.push(...toEditTime(beatWords(c.beatText, beats, beats[startIdx] ?? songStart), songStart, songEnd))
   }
   if (c.title.trim()) {
-    const first = song?.beats.find((b) => b.time >= songStart + 0.01)
-    const end = Math.min(songEnd, (song?.drops.find((x) => x.time > songStart)?.time ?? songStart + 2.5) - 0.05, songStart + 3.5)
-    lines.unshift(...toEditTime([titleCard(c.title.trim(), songStart, Math.max(first?.time ?? songStart + 1.5, end))], songStart, songEnd))
+    const beat = 60 / Math.max(40, song?.bpm ?? 120)
+    const drop = song?.drops.find((x) => x.time > songStart + 0.5 && x.time < songEnd - 1)?.time
+    let from = songStart
+    let to: number
+    if (c.titleAt === 'drop' && drop !== undefined) {
+      // On the drop, for a bar or so.
+      from = drop
+      to = Math.min(songEnd, drop + Math.min(3.5, Math.max(2, beat * 4)))
+    } else if (c.titleAt === 'end') {
+      // The last few seconds: the name to remember.
+      from = Math.max(songStart, songEnd - Math.min(3.5, Math.max(2, beat * 6)))
+      to = songEnd
+    } else {
+      const first = song?.beats.find((b) => b.time >= songStart + 0.01)
+      to = Math.max(first?.time ?? songStart + 1.5, Math.min(songEnd, (drop ?? songStart + 2.5) - 0.05, songStart + 3.5))
+    }
+    lines.unshift(...toEditTime([titleCard(c.title.trim(), from, to)], songStart, songEnd))
   }
   const plate = s.settings.nameplate
   const hero = d.plan.shots.find((x) => x.phase === 'hero')
@@ -454,9 +468,11 @@ export function captionsFor(d: Draft, s: CaptionInputs = getState()): CaptionLin
       nameplate: { sub: plate.sub.trim() },
     })
   }
-  // A title card takes the screen on its own: hold other captions until it's gone.
+  // A title card takes the screen on its own: other captions sit out while it's up.
   const title = lines.find((l) => l.title)
-  return lines.filter((l) => l.title || l.nameplate || !title || l.start >= title.end - 0.01).sort((a, b) => a.start - b.start)
+  return lines
+    .filter((l) => l.title || l.nameplate || !title || l.start >= title.end - 0.01 || l.end <= title.start + 0.01)
+    .sort((a, b) => a.start - b.start)
 }
 
 // ——— Voiceover ———

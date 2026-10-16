@@ -19,6 +19,8 @@ export interface AssignableClip {
   star?: number[]
   /** 0–1 per analysis sample: someone you cut on screen. */
   avoid?: number[]
+  /** 0–1 per analysis sample: someone else on screen with none of your stars. */
+  others?: number[]
 }
 
 export interface Assignment {
@@ -38,7 +40,7 @@ export interface AssignOptions {
 
 // How much each part of the arc wants your stars on screen: the drop is theirs, and the intro is
 // where the viewer meets them.
-const STAR_WEIGHT: Record<SlotRole, number> = { hero: 1.6, tease: 0.9, intro: 1.1, build: 0.7, flurry: 0.7, ride: 0.6, outro: 0.9 }
+const STAR_WEIGHT: Record<SlotRole, number> = { hero: 2.6, tease: 1.4, intro: 1.8, build: 1.1, flurry: 1.1, ride: 1, outro: 1.4 }
 
 // How much movement each part of the arc wants, and the order slots are filled in: the drop gets
 // first pick of everything, the cold open gets the next-best flash of action, and so on.
@@ -59,6 +61,7 @@ interface Indexed {
     bright: Float64Array
     star: Float64Array | null
     avoid: Float64Array | null
+    others: Float64Array | null
   }
   used: [number, number][]
   uses: number
@@ -84,6 +87,7 @@ function index(clips: AssignableClip[]): Indexed[] {
         bright: prefixSum(a.brightness),
         star: clip.star ? prefixSum(clip.star) : null,
         avoid: clip.avoid ? prefixSum(clip.avoid) : null,
+        others: clip.others ? prefixSum(clip.others) : null,
       },
       used: [],
       uses: 0,
@@ -215,6 +219,8 @@ export function assignFootage(
         if (c.prefix.star) score += STAR_WEIGHT[slot.role] * meanOver(c.prefix.star, c.dt, s, e)
         else if (cast) score -= 0.25 * STAR_WEIGHT[slot.role]
         if (c.prefix.avoid) score -= 1.4 * meanOver(c.prefix.avoid, c.dt, s, e)
+        // With a star, a shot of somebody else entirely is the wrong shot, however good it is.
+        if (cast && c.prefix.others) score -= 1.3 * meanOver(c.prefix.others, c.dt, s, e)
 
         // Never the same scene twice in a row, and no near-repeats of moments already on screen.
         if (neighbourScenes.includes(`${c.clip.id}#${sceneOf(a.cuts, s)}`)) score -= 0.6
@@ -241,5 +247,45 @@ export function assignFootage(
     c.used.push([best.srcStart, best.srcStart + sourceDuration(best.speed, dur)])
     c.uses++
   }
-  return result
+  return inStoryOrder(result, slots, pool, opts.fixed ?? new Map())
+}
+
+/**
+ * Flow: footage is chosen most important slot first, so on its own a montage plays in a jumble
+ * (the celebration, then the walkout, then the fight). Editors move forward through the story, so
+ * each clip's chosen moments are dealt back out in the order they happen. The drop's hero shot and
+ * the cold open keep their moments, and locked shots stay put. A clip whose moments can't be
+ * refitted to their new slots (too short, or a cut in the way) keeps the order it had.
+ */
+export function inStoryOrder(
+  result: (Assignment | null)[],
+  slots: Slot[],
+  pool: { clip: AssignableClip }[],
+  fixed: Map<number, Assignment>,
+): (Assignment | null)[] {
+  const out = [...result]
+  for (const { clip } of pool) {
+    if (clip.kind === 'image') continue
+    const a = clip.analysis
+    const idx = out
+      .map((_, i) => i)
+      .filter((i) => out[i]?.clipId === clip.id && !fixed.has(i) && slots[i].role !== 'hero' && slots[i].role !== 'tease')
+    if (idx.length < 2) continue
+    const starts = idx.map((i) => out[i]!.srcStart).sort((x, y) => x - y)
+    const crosses = (s: number, len: number) => a.cuts.some((x) => x > s + 0.04 && x < s + len - 0.04)
+    const moved: [number, Assignment][] = []
+    let ok = true
+    idx.forEach((i, k) => {
+      if (!ok) return
+      const need = sourceDuration(out[i]!.speed, slots[i].end - slots[i].start)
+      let s = Math.min(starts[k], a.duration - 0.04 - need)
+      // Stay inside one scene: if a cut falls inside, slide to whichever side of it fits.
+      const cut = a.cuts.find((x) => x > s + 0.04 && x < s + need - 0.04)
+      if (cut !== undefined) s = cut - s < need / 2 && cut + 0.02 + need <= a.duration - 0.04 ? cut + 0.02 : cut - 0.02 - need
+      if (s < 0 || crosses(s, need)) ok = false
+      else moved.push([i, { ...out[i]!, srcStart: Math.round(s * 1000) / 1000 }])
+    })
+    if (ok) for (const [i, x] of moved) out[i] = x
+  }
+  return out
 }

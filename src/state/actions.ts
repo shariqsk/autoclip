@@ -235,7 +235,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
     song,
     clips.map((c) => {
       const cast = castPresence({ id: c.id, analysis: c.analysis! })
-      return { id: c.id, kind: c.kind, analysis: c.analysis!, pin: c.pin, star: cast?.star, avoid: cast?.avoid }
+      return { id: c.id, kind: c.kind, analysis: c.analysis!, pin: c.pin, star: cast?.star, avoid: cast?.avoid, others: cast?.others }
     }),
     {
       style,

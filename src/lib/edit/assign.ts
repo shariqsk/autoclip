@@ -85,9 +85,13 @@ interface Indexed {
     others: Float64Array | null
     content: Record<ContentKind, Float64Array> | null
   }
-  used: [number, number][]
+  /** Source ranges already on screen, and the slot each one fills. */
+  used: [number, number, number][]
   uses: number
 }
+
+/** How close on the timeline a moment may come back: a replay this soon looks like a glitch. */
+const REPLAY_GAP = 3
 
 function prefixSum(xs: number[]): Float64Array {
   const p = new Float64Array(xs.length + 1)
@@ -166,7 +170,7 @@ export function assignFootage(
     result[i] = fixed
     const c = pool.find((p) => p.clip.id === fixed.clipId)
     if (c) {
-      c.used.push([fixed.srcStart, fixed.srcStart + sourceDuration(fixed.speed, slots[i].end - slots[i].start)])
+      c.used.push([fixed.srcStart, fixed.srcStart + sourceDuration(fixed.speed, slots[i].end - slots[i].start), i])
       c.uses++
     }
   }
@@ -256,15 +260,17 @@ export function assignFootage(
         // With a star, a shot of somebody else entirely is the wrong shot, however good it is.
         if (cast && c.prefix.others) score -= 1.3 * meanOver(c.prefix.others, c.dt, s, e)
 
-        // Never the same scene twice in a row, and no near-repeats of moments already on screen.
+        // Never the same scene twice in a row, and no repeats of moments already on screen. Any
+        // overlap is a repeat the viewer sees, and one a few shots apart is a glitch, not a callback.
         if (neighbourScenes.includes(`${c.clip.id}#${sceneOf(a.cuts, s)}`)) score -= 0.6
         let overlap = 0
-        let near = false
-        for (const [u0, u1] of c.used) {
-          overlap = Math.max(overlap, Math.max(0, Math.min(e, u1) - Math.max(s, u0)) / srcDur)
-          if (Math.abs(s - u0) < 0.8) near = true
+        let soon = false
+        for (const [u0, u1, j] of c.used) {
+          const o = Math.max(0, Math.min(e, u1) - Math.max(s, u0)) / srcDur
+          overlap = Math.max(overlap, o)
+          if ((o > 0 || Math.abs(s - u0) < 0.8) && Math.abs(si - j) <= REPLAY_GAP) soon = true
         }
-        score -= reusePenalty * overlap + (near ? 0.3 : 0)
+        score -= (overlap > 0 ? reusePenalty * (0.4 + overlap) : 0) + (soon ? 4 : 0)
         score += rng() * 0.12 * opts.variety
         if (!best || score > best.score) best = { clipId: c.clip.id, score, srcStart: s, speed }
       }
@@ -278,7 +284,7 @@ export function assignFootage(
     }
     result[si] = { clipId: best.clipId, srcStart: best.srcStart, speed: best.speed }
     const c = pool.find((p) => p.clip.id === best.clipId)!
-    c.used.push([best.srcStart, best.srcStart + sourceDuration(best.speed, dur)])
+    c.used.push([best.srcStart, best.srcStart + sourceDuration(best.speed, dur), si])
     c.uses++
   }
   return inStoryOrder(result, slots, pool, opts.fixed ?? new Map())
@@ -309,17 +315,45 @@ export function inStoryOrder(
     const crosses = (s: number, len: number) => a.cuts.some((x) => x > s + 0.04 && x < s + len - 0.04)
     const moved: [number, Assignment][] = []
     let ok = true
+    let prevEnd = 0
     idx.forEach((i, k) => {
       if (!ok) return
       const need = sourceDuration(out[i]!.speed, slots[i].end - slots[i].start)
-      let s = Math.min(starts[k], a.duration - 0.04 - need)
+      // A moment that was used twice would now play twice in a row: carry on from the last one instead.
+      let s = Math.min(Math.max(starts[k], prevEnd), a.duration - 0.04 - need)
       // Stay inside one scene: if a cut falls inside, slide to whichever side of it fits.
       const cut = a.cuts.find((x) => x > s + 0.04 && x < s + need - 0.04)
       if (cut !== undefined) s = cut - s < need / 2 && cut + 0.02 + need <= a.duration - 0.04 ? cut + 0.02 : cut - 0.02 - need
       if (s < 0 || crosses(s, need)) ok = false
-      else moved.push([i, { ...out[i]!, srcStart: Math.round(s * 1000) / 1000 }])
+      else {
+        moved.push([i, { ...out[i]!, srcStart: Math.round(s * 1000) / 1000 }])
+        prevEnd = s + need
+      }
     })
-    if (ok) for (const [i, x] of moved) out[i] = x
+    if (!ok) continue
+    // Dealing moments out in order can put a repeat right next to the moment it repeats.
+    const trial = [...out]
+    for (const [i, x] of moved) trial[i] = x
+    if (replaysOf(trial, slots, clip.id) <= replaysOf(out, slots, clip.id)) for (const [i, x] of moved) out[i] = x
   }
   return out
+}
+
+/** Pairs of shots from one clip, a few slots apart, that show some of the same seconds. */
+function replaysOf(out: (Assignment | null)[], slots: Slot[], clipId: string): number {
+  const range = (i: number) => {
+    const a = out[i]!
+    return [a.srcStart, a.srcStart + sourceDuration(a.speed, slots[i].end - slots[i].start)]
+  }
+  let n = 0
+  for (let i = 0; i < out.length; i++) {
+    if (out[i]?.clipId !== clipId) continue
+    const [a0, a1] = range(i)
+    for (let j = i + 1; j <= i + REPLAY_GAP && j < out.length; j++) {
+      if (out[j]?.clipId !== clipId) continue
+      const [b0, b1] = range(j)
+      if (Math.min(a1, b1) - Math.max(a0, b0) > 0.05) n++
+    }
+  }
+  return n
 }

@@ -247,5 +247,45 @@ export function assignFootage(
     c.used.push([best.srcStart, best.srcStart + sourceDuration(best.speed, dur)])
     c.uses++
   }
-  return result
+  return inStoryOrder(result, slots, pool, opts.fixed ?? new Map())
+}
+
+/**
+ * Flow: footage is chosen most important slot first, so on its own a montage plays in a jumble
+ * (the celebration, then the walkout, then the fight). Editors move forward through the story, so
+ * each clip's chosen moments are dealt back out in the order they happen. The drop's hero shot and
+ * the cold open keep their moments, and locked shots stay put. A clip whose moments can't be
+ * refitted to their new slots (too short, or a cut in the way) keeps the order it had.
+ */
+export function inStoryOrder(
+  result: (Assignment | null)[],
+  slots: Slot[],
+  pool: { clip: AssignableClip }[],
+  fixed: Map<number, Assignment>,
+): (Assignment | null)[] {
+  const out = [...result]
+  for (const { clip } of pool) {
+    if (clip.kind === 'image') continue
+    const a = clip.analysis
+    const idx = out
+      .map((_, i) => i)
+      .filter((i) => out[i]?.clipId === clip.id && !fixed.has(i) && slots[i].role !== 'hero' && slots[i].role !== 'tease')
+    if (idx.length < 2) continue
+    const starts = idx.map((i) => out[i]!.srcStart).sort((x, y) => x - y)
+    const crosses = (s: number, len: number) => a.cuts.some((x) => x > s + 0.04 && x < s + len - 0.04)
+    const moved: [number, Assignment][] = []
+    let ok = true
+    idx.forEach((i, k) => {
+      if (!ok) return
+      const need = sourceDuration(out[i]!.speed, slots[i].end - slots[i].start)
+      let s = Math.min(starts[k], a.duration - 0.04 - need)
+      // Stay inside one scene: if a cut falls inside, slide to whichever side of it fits.
+      const cut = a.cuts.find((x) => x > s + 0.04 && x < s + need - 0.04)
+      if (cut !== undefined) s = cut - s < need / 2 && cut + 0.02 + need <= a.duration - 0.04 ? cut + 0.02 : cut - 0.02 - need
+      if (s < 0 || crosses(s, need)) ok = false
+      else moved.push([i, { ...out[i]!, srcStart: Math.round(s * 1000) / 1000 }])
+    })
+    if (ok) for (const [i, x] of moved) out[i] = x
+  }
+  return out
 }

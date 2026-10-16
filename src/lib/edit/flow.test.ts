@@ -4,6 +4,7 @@ import { synthesizeDemoSong } from '../demo/song'
 import type { ClipAnalysis } from '../types'
 import type { AssignableClip } from './assign'
 import { makePlan } from './plan'
+import { sourceDuration } from './speed'
 
 const song = analyzeSong(synthesizeDemoSong(22050).samples, { sampleRate: 22050 })
 
@@ -33,6 +34,26 @@ function clip(id: string, duration: number, peaks: number[], cuts: number[] = []
 
 const plan = (clips: AssignableClip[], seed = 3) =>
   makePlan(song, clips, { style: 'hype', length: 30, order: 'best', hitCuts: true, variety: 0.5, seed })
+
+describe('flow', () => {
+  it('plays a montage forward instead of jumping around it', () => {
+    // One long montage, with scenes every few seconds and action all through it.
+    const cuts = Array.from({ length: 40 }, (_, i) => (i + 1) * 4.5)
+    const peaks = Array.from({ length: 60 }, (_, i) => 1.5 + i * 3)
+    for (const seed of [1, 2, 3, 4]) {
+      const p = plan([clip('montage', 185, peaks, cuts)], seed)
+      const story = p.shots.filter((s) => s.phase !== 'hero' && s.phase !== 'tease').map((s) => s.srcStart)
+      expect(story.length).toBeGreaterThan(8)
+      for (let i = 1; i < story.length; i++) expect(story[i]).toBeGreaterThanOrEqual(story[i - 1])
+      // Moments never straddle a scene cut.
+      for (const s of p.shots) {
+        const len = sourceDuration(s.speed, s.end - s.start)
+        const crossed = cuts.filter((c) => c > s.srcStart + 0.05 && c < s.srcStart + len - 0.05)
+        expect({ phase: s.phase, srcStart: s.srcStart, len, crossed }).toMatchObject({ crossed: [] })
+      }
+    }
+  })
+})
 
 describe('the cast', () => {
   it('builds the edit around the star, not whoever else is on screen', () => {

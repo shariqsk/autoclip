@@ -205,3 +205,46 @@ export type AspectId = '9:16' | '16:9' | '1:1' | '4:5'
 export type FitMode = 'fill' | 'blur'
 
 export type Grade = 'none' | 'punch' | 'teal-orange' | 'mono' | 'warm' | 'cold' | 'vintage' | 'neon'
+
+/** One face seen in one sampled frame of a clip. */
+export interface FaceSighting {
+  /** Seconds, in the clip's own time. */
+  t: number
+  /** Normalized box: left, top, width, height (0–1 of the frame). */
+  box: [number, number, number, number]
+  /** Detector confidence, 0–1. */
+  score: number
+  /** 128-number identity fingerprint: near for the same person, far for different people. */
+  descriptor: Float32Array
+  /** The person it was grouped into, once people are found. */
+  personId?: string
+}
+
+/** The faces found in a clip, sampled every `step` seconds. */
+export interface ClipFaces {
+  step: number
+  sightings: FaceSighting[]
+}
+
+export type CastRole = 'star' | 'cut' | null
+
+/** Someone who keeps showing up across the footage. */
+export interface Person {
+  id: string
+  name: string
+  /** Star: build the edit around them. Cut: keep them out. */
+  role: CastRole
+  /**
+   * Their fingerprints (one per look: a person merged by hand, or seen front-on and side-on, has
+   * several), to recognize them again when more footage comes in.
+   */
+  centroids: number[][]
+  sightings: number
+  /** Seconds of footage they're in, roughly. */
+  seconds: number
+  clipIds: string[]
+  /** Their clearest, biggest face, for the portrait. */
+  best: { clipId: string; t: number; box: [number, number, number, number] }
+  /** The portrait (an object URL), once grabbed. */
+  thumb?: string
+}

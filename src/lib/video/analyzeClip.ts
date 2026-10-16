@@ -164,15 +164,18 @@ export async function analyzeVideo(file: Blob, onProgress: (fraction: number) =>
     const loudness = await loudnessSeries(input, times, dt).catch(() => times.map(() => 0))
     const scored = interestScore({ motion: raw.motion, sharpness: raw.sharpness, brightness: raw.brightness, loudness })
 
-    // Smart-crop focus: follow the action, but slowly, like a camera operator would.
+    // Smart-crop focus: follow the action, but slowly, like a camera operator would, and start
+    // fresh at each cut so one scene's framing doesn't drift into the next.
     const radius = Math.max(1, Math.round(1.2 / dt))
     const focusX = smoothSeries(
       raw.focusX.map((x, k) => (scored.motion[k] > 0.15 ? x : 0.5)),
       radius,
+      cutIdx,
     )
     const focusY = smoothSeries(
       raw.focusY.map((y, k) => (scored.motion[k] > 0.15 ? y : 0.5)),
       radius,
+      cutIdx,
     )
 
     onProgress(0.9)

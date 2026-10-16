@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectCuts, interestScore, motion, sharpness, signature, signatureDistance, type Gray } from './metrics'
+import { detectCuts, interestScore, motion, sharpness, signature, signatureDistance, smoothSeries, type Gray } from './metrics'
 
 const W = 32
 const H = 18
@@ -56,5 +56,15 @@ describe('interestScore', () => {
     const peak = s.interest.indexOf(Math.max(...s.interest))
     expect(peak).toBeGreaterThan(19)
     expect(peak).toBeLessThan(28)
+  })
+})
+
+describe('smoothSeries', () => {
+  it('averages neighbours, but never across the start of a new scene', () => {
+    const xs = [0.2, 0.2, 0.2, 0.8, 0.8, 0.8]
+    expect(smoothSeries(xs, 1)[2]).toBeCloseTo(0.4, 5)
+    const kept = smoothSeries(xs, 1, [3])
+    expect(kept[2]).toBeCloseTo(0.2, 5)
+    expect(kept[3]).toBeCloseTo(0.8, 5)
   })
 })

@@ -118,11 +118,14 @@ export function percentileNormalize(xs: number[], lo = 0.05, hi = 0.97): number[
   return xs.map((x) => Math.min(1, Math.max(0, (x - a) / range)))
 }
 
-export function smoothSeries(xs: number[], radius: number): number[] {
+/** A moving average. `starts` (sample indices where a new scene begins) keep it from crossing cuts. */
+export function smoothSeries(xs: number[], radius: number, starts: number[] = []): number[] {
   return xs.map((_, i) => {
     let s = 0
     let n = 0
-    for (let j = Math.max(0, i - radius); j <= Math.min(xs.length - 1, i + radius); j++) {
+    const lo = Math.max(0, i - radius, ...starts.filter((k) => k <= i))
+    const hi = Math.min(xs.length - 1, i + radius, ...starts.filter((k) => k > i).map((k) => k - 1))
+    for (let j = lo; j <= hi; j++) {
       s += xs[j]
       n++
     }

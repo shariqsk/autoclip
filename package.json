@@ -1,7 +1,7 @@
 {
   "name": "autoclip",
   "private": true,
-  "version": "1.5.4",
+  "version": "1.6.0",
   "type": "module",
   "description": "Drop in a song and a pile of clips. AutoClip listens for the beats, builds and drops, finds the best moments in your footage and cuts a synced edit on its own.",
   "license": "MIT",

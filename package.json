@@ -140,5 +140,8 @@
       "artifactName": "AutoClip-linux-${arch}.${ext}",
       "maintainer": "Shariq <00khanshariq@gmail.com>"
     }
+  },
+  "dependencies": {
+    "@vladmandic/face-api": "1.7.15"
   }
 }

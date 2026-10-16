@@ -11,7 +11,7 @@ import { captionStatus, importCaptions, runAutoCaptions } from '../../state/acti
 import type { CaptionSource } from '../../state/settings'
 import { activeDraft, updateSettings, useApp } from '../../state/store'
 import { cx } from '../format'
-import { Progress, Seg, Slider } from '../ui'
+import { Progress, Seg, Slider, Toggle } from '../ui'
 
 const ACCENTS = ['#ffd21f', '#ff2a14', '#c2ff2e', '#22e5ff', '#ff4fd8', '#ffffff']
 
@@ -47,6 +47,7 @@ export function TextPanel() {
   const set = (patch: Partial<typeof c>) => updateSettings((s) => ({ captions: { ...s.captions, ...patch } }))
   const shown = c.style === 'style' ? getStyle(styleId).captions : c.style
   const titleLook = c.titleLook === 'style' ? (getStyle(styleId).title ?? 'slam') : c.titleLook
+  const titleBehind = c.titleBehind === 'style' ? !!getStyle(styleId).titleBehind : c.titleBehind
 
   return (
     <>
@@ -138,6 +139,14 @@ export function TextPanel() {
               ]}
             />
           </div>
+        )}
+        {c.title.trim() && (
+          <Toggle
+            label="Behind people"
+            hint="Huge, with the people in shot standing in front of it. Cut out on this device."
+            checked={titleBehind}
+            onChange={(on) => set({ titleBehind: on === !!getStyle(styleId).titleBehind ? 'style' : on })}
+          />
         )}
       </div>
 

@@ -54,6 +54,8 @@ export interface Settings {
     titleAt: TitleAt
     /** 'style' follows the edit style. */
     titleLook: TitleLook | 'style'
+    /** Draw the title behind the people in shot. 'style' follows the edit style. */
+    titleBehind: boolean | 'style'
   }
   /** Fighter nameplate that slams in on the drop. */
   nameplate: { name: string; sub: string }
@@ -101,6 +103,7 @@ export const DEFAULT_SETTINGS: Settings = {
     title: '',
     titleAt: 'start',
     titleLook: 'style',
+    titleBehind: 'style',
   },
   nameplate: { name: '', sub: '' },
   handle: '',

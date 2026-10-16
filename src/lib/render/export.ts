@@ -17,11 +17,12 @@ import {
   type InputVideoTrack,
   type WrappedCanvas,
 } from 'mediabunny'
-import { drawCaptions, type CaptionOptions } from '../captions/render'
+import { drawBehind, drawCaptions, type CaptionOptions } from '../captions/render'
 import { frameAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
 import { Compositor, type LayerInput, type Look } from './compositor'
 import { focusAt, motionAt, stillZoom } from './framing'
+import { loadMatte, matteFrame } from '../people/matte'
 
 export interface ExportClip {
   id: string
@@ -158,6 +159,13 @@ export async function exportEdit(opts: ExportOptions): Promise<Blob> {
   const captionCanvas = new OffscreenCanvas(width, height)
   const captionCtx = captionCanvas.getContext('2d')!
   let captionShown = false
+  const behindCanvas = new OffscreenCanvas(width, height)
+  const behindCtx = behindCanvas.getContext('2d')!
+  let behindShown = false
+  // Text behind people: cut the people out of every frame the title is up. If the segmenter can't
+  // load, the title is still drawn, just over them.
+  const behind = !!opts.captions?.titleBehind && plan.captions.some((l) => l.title)
+  if (behind) await loadMatte().catch(() => {})
 
   const format = new Mp4OutputFormat({ fastStart: 'in-memory' })
   const codec = await getFirstEncodableVideoCodec(format.getSupportedVideoCodecs(), { width, height })
@@ -205,6 +213,12 @@ export async function exportEdit(opts: ExportOptions): Promise<Blob> {
         const shown = drawCaptions(captionCtx, plan.captions, t, opts.captions, width, height)
         if (shown || captionShown) compositor.setCaption(shown ? captionCanvas : null)
         captionShown = shown
+      }
+      if (behind) {
+        const shown = drawBehind(behindCtx, plan.captions, t, opts.captions!, width, height)
+        if (shown || behindShown) compositor.setBehind(shown ? behindCanvas : null)
+        behindShown = shown
+        compositor.setMatte(shown && a && !state.transition ? matteFrame(a.source) : null)
       }
       compositor.render({ a, b, transition: state.transition, fx: state.fx, look: opts.look, time: t })
       await videoSource.add(t, 1 / fps)

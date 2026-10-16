@@ -2,7 +2,8 @@
 // next shot can be cued while the current one plays), the clock is the audio output, and the
 // compositor and captions are the same ones the exporter uses.
 
-import { drawCaptions, type CaptionOptions } from '../captions/render'
+import { drawBehind, drawCaptions, type CaptionOptions } from '../captions/render'
+import { loadMatte, matteFrame } from '../people/matte'
 import { speedAt } from '../edit/speed'
 import { frameAt, shotIndexAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
@@ -33,6 +34,9 @@ export class PreviewEngine {
   private captionCanvas: OffscreenCanvas
   private captionCtx: OffscreenCanvasRenderingContext2D
   private captionShown = false
+  private behindCanvas: OffscreenCanvas
+  private behindCtx: OffscreenCanvasRenderingContext2D
+  private behindShown = false
   private project: PreviewProject | null = null
   private clips = new Map<string, PreviewClip>()
   private videos = new Map<string, HTMLVideoElement>()
@@ -58,6 +62,8 @@ export class PreviewEngine {
     this.compositor = new Compositor(canvas)
     this.captionCanvas = new OffscreenCanvas(canvas.width, canvas.height)
     this.captionCtx = this.captionCanvas.getContext('2d')!
+    this.behindCanvas = new OffscreenCanvas(canvas.width, canvas.height)
+    this.behindCtx = this.behindCanvas.getContext('2d')!
     this.ctx = audioContext
     this.gain = this.ctx.createGain()
     this.gain.connect(this.ctx.destination)
@@ -83,6 +89,10 @@ export class PreviewEngine {
     this.captionCanvas.height = height
     this.captionShown = false
     this.compositor.setCaption(null)
+    this.behindCanvas.width = width
+    this.behindCanvas.height = height
+    this.behindShown = false
+    this.compositor.setBehind(null)
     this.dirty = true
   }
 
@@ -100,6 +110,11 @@ export class PreviewEngine {
       }
     }
     if (this.offset > this.duration) this.offset = 0
+    // Text behind people needs the segmenter: start loading it now, so it's ready when the title is up.
+    if (project.captions?.titleBehind && project.plan.captions.some((l) => l.title))
+      void loadMatte()
+        .then(() => (this.dirty = true))
+        .catch(() => {})
     if (audioChanged && this.playing) this.startAudio(this.currentTime)
     this.dirty = true
   }
@@ -283,6 +298,7 @@ export class PreviewEngine {
       this.compositor.setCaption(null)
       this.captionShown = false
     }
+    this.drawBehind(t, a, !!state.transition)
     this.compositor.render({ a, b, transition: state.transition, fx: state.fx, look: project.look, time: t })
     this.dirty = false
     if (this.captures.length && a) {
@@ -290,6 +306,17 @@ export class PreviewEngine {
       for (const resolve of this.captures.splice(0)) resolve(shot)
     }
     this.onTime(t)
+  }
+
+  /** The text-behind-people layer, and where the people are in the frame for it to go behind. */
+  private drawBehind(t: number, a: LayerInput | null, transition: boolean) {
+    const project = this.project!
+    const shown =
+      !!project.captions?.titleBehind &&
+      drawBehind(this.behindCtx, project.plan.captions, t, project.captions, this.canvas.width, this.canvas.height)
+    if (shown || this.behindShown) this.compositor.setBehind(shown ? this.behindCanvas : null)
+    this.behindShown = shown
+    this.compositor.setMatte(shown && a && !transition ? matteFrame(a.source) : null)
   }
 
   /** Grab the current frame as an image (for draft thumbnails). */

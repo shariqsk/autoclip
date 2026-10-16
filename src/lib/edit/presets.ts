@@ -67,6 +67,8 @@ export interface StylePreset {
   captions: CaptionStyle
   /** How the title card moves (slammed in when not set). */
   title?: TitleLook
+  /** Put the title behind the people in shot. */
+  titleBehind?: boolean
 }
 
 export const STYLES: StylePreset[] = [

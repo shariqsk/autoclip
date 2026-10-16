@@ -16,6 +16,10 @@ uniform sampler2D uA;
 uniform sampler2D uB;
 uniform sampler2D uCaption;
 uniform sampler2D uPrev;  // the last frame drawn, for motion blur
+uniform sampler2D uMatte; // where the people are in shot A (rows from the top)
+uniform sampler2D uBehind; // text that goes behind the people
+uniform bool uHasMatte;
+uniform bool uHasBehind;
 uniform vec2 uSizeA;
 uniform vec2 uSizeB;
 uniform vec2 uFocusA;
@@ -269,6 +273,20 @@ vec3 leaks(vec2 p, float t) {
   return acc;
 }
 
+// How much of output point p is a person in shot A, read through the same framing as the picture.
+float matteAt(vec2 p) {
+  float zoom = uZoomA * (1.0 + uZoom);
+  vec2 uv;
+  if (uFit == 1 || uFit == 2) {
+    bool inside;
+    uv = containUV(p, uSizeA, zoom, inside);
+    if (!inside) return 0.0;
+  } else {
+    uv = clamp(coverUV(p, uSizeA, uFocusA, zoom), 0.0, 1.0);
+  }
+  return smoothstep(0.3, 0.7, texture(uMatte, vec2(uv.x, 1.0 - uv.y)).r);
+}
+
 vec3 grade(vec3 c) {
   c = c + uLift * (1.0 - c);
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
@@ -290,6 +308,14 @@ void main() {
   // Per-shot black and white, with a little extra contrast so it reads as a choice, not a fault.
   float mono = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(c, vec3(clamp((mono - 0.5) * 1.15 + 0.5, 0.0, 1.0)), clamp(uMonoMix, 0.0, 1.0));
+  // Text behind the people: drawn over the picture, then the people are put back on top of it. Mid
+  // transition there's no single shot to cut out, so the text just sits on top.
+  if (uHasBehind) {
+    vec4 bt = texture(uBehind, vec2(p.x, 1.0 - p.y));
+    vec3 under = c * (1.0 - bt.a) + bt.rgb;
+    float m = uHasMatte && uTrans == 0 ? matteAt(q) : 0.0;
+    c = mix(under, c, m);
+  }
   c *= 1.0 - clamp(uDim, 0.0, 1.0);
   c = mix(c, vec3(1.0), clamp(uFlash, 0.0, 1.0) * 0.85);
 

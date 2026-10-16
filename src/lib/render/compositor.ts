@@ -4,6 +4,7 @@
 
 import type { FrameFx } from '../edit/timeline'
 import type { FitMode, Grade, TransitionType } from '../types'
+import type { Matte } from '../people/matte'
 import { FRAGMENT, VERTEX } from './shader'
 
 export type FrameSource = TexImageSource
@@ -136,6 +137,9 @@ export class Compositor {
   private captionDirty = false
   private captionSource: TexImageSource | null = null
   private prevSize = [0, 0]
+  private behindDirty = false
+  private behindSource: TexImageSource | null = null
+  private hasMatte = false
   private last: { key?: string; time: number } | null = null
 
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas) {
@@ -158,7 +162,7 @@ export class Compositor {
     gl.enableVertexAttribArray(loc)
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
 
-    this.textures = [0, 1, 2, 3].map((unit) => {
+    this.textures = [0, 1, 2, 3, 4, 5].map((unit) => {
       const tex = gl.createTexture()!
       gl.activeTexture(gl.TEXTURE0 + unit)
       gl.bindTexture(gl.TEXTURE_2D, tex)
@@ -173,6 +177,8 @@ export class Compositor {
     gl.uniform1i(this.u('uB'), 1)
     gl.uniform1i(this.u('uCaption'), 2)
     gl.uniform1i(this.u('uPrev'), 3)
+    gl.uniform1i(this.u('uMatte'), 4)
+    gl.uniform1i(this.u('uBehind'), 5)
   }
 
   private link(): WebGLProgram {
@@ -210,6 +216,26 @@ export class Compositor {
     this.captionDirty = true
   }
 
+  /** Text drawn behind the people (a transparent canvas the size of the output), or null for none. */
+  setBehind(source: TexImageSource | null) {
+    this.behindSource = source
+    this.behindDirty = true
+  }
+
+  /** Where the people are in the current shot (see lib/people/matte), or null when unknown. */
+  setMatte(matte: Matte | null) {
+    this.hasMatte = !!matte
+    if (!matte) return
+    const gl = this.gl
+    gl.activeTexture(gl.TEXTURE4)
+    gl.bindTexture(gl.TEXTURE_2D, this.textures[4])
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, matte.width, matte.height, 0, gl.RED, gl.UNSIGNED_BYTE, matte.data)
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4)
+  }
+
   private upload(unit: number, source: TexImageSource, flip: boolean, premultiply: boolean) {
     const gl = this.gl
     gl.activeTexture(gl.TEXTURE0 + unit)
@@ -242,6 +268,12 @@ export class Compositor {
       this.captionDirty = false
     }
     gl.uniform1i(this.u('uHasCaption'), this.captionSource ? 1 : 0)
+    if (this.behindDirty) {
+      if (this.behindSource) this.upload(5, this.behindSource, false, true)
+      this.behindDirty = false
+    }
+    gl.uniform1i(this.u('uHasBehind'), this.behindSource ? 1 : 0)
+    gl.uniform1i(this.u('uHasMatte'), this.hasMatte ? 1 : 0)
 
     gl.uniform1i(this.u('uTrans'), input.transition ? TRANSITION_CODE[input.transition.type] : 0)
     gl.uniform1f(this.u('uProg'), input.transition?.progress ?? 0)

@@ -14,6 +14,7 @@ import { clearSaved } from './persist'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
 import { sliceAnalysis } from '../lib/video/moments'
+import { clipContent } from './content'
 import { castPresence } from './people'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
@@ -129,7 +130,8 @@ export function removeClip(id: string) {
   }
   setState((s) => {
     const { [id]: _gone, ...faces } = s.faces
-    return { clips: s.clips.filter((c) => c.id !== id), faces }
+    const { [id]: _read, ...content } = s.content
+    return { clips: s.clips.filter((c) => c.id !== id), faces, content }
   })
 }
 
@@ -165,11 +167,24 @@ export function addMoments(sourceId: string, moments: { start: number; end: numb
         }),
       )
     : {}
+  const parentContent = getState().content[sourceId]
+  const content = parentContent
+    ? Object.fromEntries(
+        added.map((c, i) => {
+          const m = moments[i]
+          const keep = parentContent.times.map((t, k) => [t, k] as const).filter(([t]) => t >= m.start && t < m.end)
+          return [
+            c.id,
+            { step: parentContent.step, times: keep.map(([t]) => t - m.start), probs: keep.map(([, k]) => parentContent.probs[k]) },
+          ]
+        }),
+      )
+    : {}
   setState((s) => {
     const at = s.clips.findIndex((c) => c.id === sourceId)
     const clips = s.clips.map((c) => (c.id === sourceId && benchSource ? { ...c, pin: 'skip' as const } : c))
     clips.splice(at + 1, 0, ...added)
-    return { clips, faces: { ...s.faces, ...faces } }
+    return { clips, faces: { ...s.faces, ...faces }, content: { ...s.content, ...content } }
   })
   toast(`${added.length} moment${added.length === 1 ? '' : 's'} added${benchSource ? `; the full clip is benched` : ''}.`, 'success')
 }
@@ -235,13 +250,23 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
     song,
     clips.map((c) => {
       const cast = castPresence({ id: c.id, analysis: c.analysis! })
-      return { id: c.id, kind: c.kind, analysis: c.analysis!, pin: c.pin, star: cast?.star, avoid: cast?.avoid, others: cast?.others }
+      return {
+        id: c.id,
+        kind: c.kind,
+        analysis: c.analysis!,
+        pin: c.pin,
+        star: cast?.star,
+        avoid: cast?.avoid,
+        others: cast?.others,
+        content: clipContent({ id: c.id, analysis: c.analysis! }),
+      }
     }),
     {
       style,
       length: s.settings.length,
       order: s.settings.order,
       hitCuts: s.settings.hitCuts,
+      mix: s.settings.mix,
       variety: s.settings.variety,
       seed: newSeed(),
       window: s.windowOverride ?? undefined,
@@ -502,6 +527,7 @@ export function resetProject() {
     song: null,
     clips: [],
     faces: {},
+    content: {},
     people: [],
     drafts: [],
     activeDraftId: null,

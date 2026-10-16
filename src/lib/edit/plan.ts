@@ -1,6 +1,6 @@
 // The auto-editor: song analysis + clip analyses + a style → a complete edit plan.
 
-import type { CaptionLine, EditPlan, Hit, Shot, ShotFx, SongAnalysis, SpeedRamp, Transition, TransitionType } from '../types'
+import type { CaptionLine, ContentMix, EditPlan, Hit, Shot, ShotFx, SongAnalysis, SpeedRamp, Transition, TransitionType } from '../types'
 import { assignFootage, type AssignableClip, type Assignment } from './assign'
 import { getStyle, type StyleId, type StylePreset } from './presets'
 import { createRng, weightedPick, type Rng } from './rng'
@@ -21,6 +21,8 @@ export interface PlanOptions {
   captions?: CaptionLine[]
   /** Cut on standout hits in the music, not only on the beat grid. Defaults to on. */
   hitCuts?: boolean
+  /** How much of each shot type to use (when the footage has been read for them). */
+  mix?: ContentMix
 }
 
 const FX_SCALE: Record<Slot['role'], number> = { tease: 1, intro: 0.35, build: 0.8, hero: 1, flurry: 1, ride: 0.6, outro: 0.3 }
@@ -108,7 +110,7 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     }
   }
 
-  const assignments = assignFootage(slots, speeds, clips, rng, { order: opts.order, variety: opts.variety, fixed })
+  const assignments = assignFootage(slots, speeds, clips, rng, { order: opts.order, variety: opts.variety, fixed, mix: opts.mix })
   const lockedByIndex = new Map([...fixed.keys()].map((i) => [i, opts.locked!.find((l) => Math.abs(l.start - slots[i].start) < 0.03)!]))
 
   const shots: Shot[] = []

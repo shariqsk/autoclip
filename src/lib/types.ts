@@ -248,3 +248,17 @@ export interface Person {
   /** The portrait (an object URL), once grabbed. */
   thumb?: string
 }
+
+/** What kind of shot footage is: the big moment, action, b-roll, a celebration, talking, or text. */
+export type ContentKind = 'finish' | 'action' | 'broll' | 'celebrate' | 'talk' | 'text'
+
+/** Shot types found in a clip, sampled every `step` seconds; `probs[i][k]` follows CONTENT_KINDS. */
+export interface ClipContent {
+  step: number
+  times: number[]
+  probs: number[][]
+}
+
+/** How much of each shot type the edit should use. */
+export type ContentAmount = 'none' | 'some' | 'more'
+export type ContentMix = Record<ContentKind, ContentAmount>

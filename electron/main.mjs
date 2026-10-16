@@ -49,7 +49,14 @@ app.whenReady().then(() => {
     const file = path.normalize(path.join(root, decodeURIComponent(pathname)))
     // Never serve anything outside the bundled app.
     if (!file.startsWith(root)) return new Response('Not found', { status: 404 })
-    return net.fetch(pathToFileURL(file).toString())
+    // Cross-origin isolation, so the on-device models (Whisper, the shot model) can run on every CPU
+    // core. "credentialless" still lets the models download from their hosts.
+    return net.fetch(pathToFileURL(file).toString()).then((res) => {
+      const headers = new Headers(res.headers)
+      headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+      headers.set('Cross-Origin-Embedder-Policy', 'credentialless')
+      return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+    })
   })
 
   // Import from a link: yt-dlp lives in the app's data folder; YouTube's player challenges run on the

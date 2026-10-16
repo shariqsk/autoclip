@@ -90,6 +90,8 @@ The tape along the bottom of the app draws this arc over the song's waveform and
 
 <p align="center"><img src="docs/learn.jpg" width="80%" alt="Learning a style from three edits: each edit's rhythm, and what was learned in plain words" /></p>
 
+**Mix.** AutoClip reads every shot in your footage (on your device) as a big moment, action, b-roll, a celebration, talking or text, and you pick how much of each goes in: none, some or more, or a preset like **Finishes + B-roll** for a montage that mixes fights with press conferences and interviews. The arc uses the types too: b-roll opens the edit, a big moment lands on the drop and a celebration closes it.
+
 **Cast.** Find everyone in your footage (faces are found and recognized on your device), then star who the edit is about: one fighter, or several for a rivalry or a team. Stars get the drop, open the edit and pull the vertical framing onto their face; anyone you cut is kept out. When one person shows up as two (side-on, or behind a glove), merge them and AutoClip remembers.
 
 **Moments.** Long clips (a full round, a whole game) get a **Moments** button: AutoClip suggests their best few seconds, previews each on a loop, lets you trim them or drag out your own on the clip's action line, and adds the ones you pick as clips of their own. Nothing is re-encoded.
@@ -205,12 +207,13 @@ src/
 │   └── shell/              the four layouts (Deck, Studio, Flyer, Glass), start screens, look picker, beat pulse
 ├── state/                  store, actions, derived render state, settings, autosave, playhead
 ├── styles/                 colourways, the shared control kit, one stylesheet per layout
-├── workers/                song analysis, clip analysis, reference edits, faces, Whisper, Kokoro
+├── workers/                song analysis, clip analysis, reference edits, faces, shot types, Whisper, Kokoro
 └── lib/
     ├── audio/              FFT, features, tempo and beats, structure and drops, mix, WAV
     ├── video/              frame metrics, cut detection, clip analysis, moments
     ├── learn/              reading reference edits and learning a style from them
     ├── people/             finding faces, grouping them into people, where the cast is on screen
+    ├── content/            reading shot types (big moments, action, b-roll…) with CLIP
     ├── edit/               styles, window, arc planner (slots), footage matching, plan, speed ramps, timeline, hand edits
     ├── render/             WebGL shader and compositor, live preview, MP4 export
     ├── captions/           parsing (SRT/LRC/words), six animated styles, nameplate
@@ -242,6 +245,7 @@ AutoClip stands on open models and open-source software.
 | [Whisper](https://github.com/openai/whisper) (Tiny, Base, Small, with word timestamps)                                   | OpenAI                          | Lyric captions                      | MIT                |
 | [Kokoro 82M](https://huggingface.co/hexgrad/Kokoro-82M)                                                                  | hexgrad                         | The announcer voice                 | Apache 2.0         |
 | [ONNX conversions](https://huggingface.co/onnx-community)                                                                | Hugging Face onnx-community     | Browser-ready versions of the above | Same as each model |
+| [CLIP ViT-B/32](https://github.com/openai/CLIP) (8-bit image encoder)                                                    | OpenAI                          | Reading shot types for the mix      | MIT                |
 | [SSD MobileNet v1, 68-point landmarks and face recognition](https://github.com/vladmandic/face-api) (ships with the app) | Vincent Mühler, Vladimir Mandic | Finding and recognizing the cast    | MIT                |
 
 **Software:** [Mediabunny](https://mediabunny.dev) (MPL 2.0) for WebCodecs decoding and MP4 muxing, [Transformers.js](https://github.com/huggingface/transformers.js) (Apache 2.0), [kokoro-js](https://github.com/hexgrad/kokoro) (Apache 2.0), [ONNX Runtime Web](https://onnxruntime.ai) (MIT), [face-api](https://github.com/vladmandic/face-api) and TensorFlow.js (MIT, Apache 2.0), React, Vite, Tailwind CSS, [Lucide](https://lucide.dev) (ISC) and [Electron](https://www.electronjs.org) (MIT).

@@ -625,8 +625,8 @@
     overflow: hidden;
   }
   .rail-nav {
-    gap: 6px;
-    padding: 12px 12px 6px;
+    gap: 2px;
+    padding: 12px 8px 6px;
   }
   .rail-tab {
     padding: 8px 2px 6px;

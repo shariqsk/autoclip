@@ -655,3 +655,17 @@
     }
   }
 }
+
+/* Eight tabs: the narrower face keeps every label whole. */
+[data-layout='deck'] {
+  .rail-nav {
+    gap: 4px;
+    padding: 10px 8px 4px;
+  }
+  .rail-tab-label {
+    font-family: 'Space Grotesk Variable', sans-serif;
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+}

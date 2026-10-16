@@ -60,15 +60,26 @@ export function framedOnStars(a: ClipAnalysis, p: Pick<Presence, 'focus'> | null
   if (!p || !p.focus.some(Boolean)) return a
   const fx = a.focusX.map((x, i) => (p.focus[i] ? 0.25 * x + 0.75 * p.focus[i]!.x : x))
   const fy = a.focusY.map((y, i) => (p.focus[i] ? 0.25 * y + 0.75 * p.focus[i]!.y : y))
-  // Glide between samples rather than snap.
-  const glide = (xs: number[]) => xs.map((_, i) => (xs[Math.max(0, i - 1)] + 2 * xs[i] + xs[Math.min(xs.length - 1, i + 1)]) / 4)
+  // Glide between samples rather than snap, but never across a cut: a new shot frames itself.
+  const scene = a.times.map((t) => a.cuts.filter((c) => c <= t).length)
+  const glide = (xs: number[]) =>
+    xs.map((_, i) => {
+      const prev = i > 0 && scene[i - 1] === scene[i] ? xs[i - 1] : xs[i]
+      const next = i < xs.length - 1 && scene[i + 1] === scene[i] ? xs[i + 1] : xs[i]
+      return (prev + 2 * xs[i] + next) / 4
+    })
   return { ...a, focusX: glide(fx), focusY: glide(fy) }
 }
 
+// How tall (of the frame) a face has to be to be who the shot is about. Smaller ones are the crowd,
+// a referee in the back, people behind glass: framing on them crops out the action.
+const SUBJECT = 0.12
+
 /**
  * Where to frame each analysis sample from the faces in it: your stars' biggest face if any are on
- * screen; otherwise the biggest face, or the middle of two faces of about the same size (two people
- * facing off). Null where there are no faces, so framing falls back to following the action.
+ * screen; otherwise the biggest face that's big enough to be the subject, or the middle of two of
+ * about the same size (two people facing off). Null where there's no such face, so framing falls
+ * back to following the action.
  */
 export function faceFocus(a: ClipAnalysis, faces: ClipFaces | undefined, starIds: Set<string>): ({ x: number; y: number } | null)[] | null {
   if (!faces || !faces.sightings.length) return null
@@ -82,7 +93,8 @@ export function faceFocus(a: ClipAnalysis, faces: ClipFaces | undefined, starIds
     for (let j = k; j < list.length && list[j].t <= t + reach; j++) here.push(list[j])
     if (!here.length) return null
     const stars = here.filter((f) => f.personId && starIds.has(f.personId))
-    const pool = (stars.length ? stars : here).map(centre).sort((p, q) => q.h - p.h)
+    const pool = (stars.length ? stars : here.filter((f) => f.box[3] >= SUBJECT)).map(centre).sort((p, q) => q.h - p.h)
+    if (!pool.length) return null
     const [first, second] = pool
     if (!stars.length && second && second.h > first.h * 0.75) return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }
     return { x: first.x, y: first.y }

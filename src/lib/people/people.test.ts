@@ -142,6 +142,14 @@ describe('framing on faces', () => {
     expect(f[9]).toBeNull()
   })
 
+  it('ignores small faces in the background, so the action stays in frame', () => {
+    // A wide shot: the crowd behind the cage, nobody close to camera.
+    const faces: ClipFaces = { step: 0.5, sightings: [face(0, 0.2, 0.08), face(0, 0.3, 0.07), face(1, 0.8, 0.25)] }
+    const f = faceFocus(a, faces, new Set())!
+    expect(f[0]).toBeNull()
+    expect(f[2]!.x).toBeCloseTo(0.8, 2)
+  })
+
   it('frames on your star even when someone else is bigger', () => {
     const faces: ClipFaces = { step: 0.5, sightings: [face(0, 0.2, 0.4), face(0, 0.85, 0.15, 'star')] }
     expect(faceFocus(a, faces, new Set(['star']))![0]!.x).toBeCloseTo(0.85, 2)

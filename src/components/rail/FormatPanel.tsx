@@ -12,6 +12,8 @@ export function FormatPanel() {
   const styleId = useApp((st) => activeDraft(st)?.style ?? st.settings.style)
   const styleFit = getStyle(styleId).look.fit ?? 'fill'
   const fit = s.framing === 'style' ? styleFit : s.framing
+  const styleCollage = !!getStyle(styleId).collage
+  const collage = s.collage === 'style' ? styleCollage : s.collage
   return (
     <>
       <div className="segs">
@@ -76,6 +78,16 @@ export function FormatPanel() {
           ]}
         />
       </div>
+
+      <Toggle
+        label="Collage intro"
+        hint="The first shots arrive in picture-in-picture panels over each other"
+        checked={collage}
+        onChange={(on) => {
+          updateSettings({ collage: on === styleCollage ? 'style' : on })
+          recut()
+        }}
+      />
 
       <Toggle
         label="Cut on hits"

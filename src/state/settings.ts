@@ -35,6 +35,8 @@ export interface Settings {
   glow: number | 'style'
   leaks: number | 'style'
   blur: number | 'style'
+  /** Open on a collage of picture-in-picture panels. 'style' follows the edit style. */
+  collage: boolean | 'style'
   intensity: number
   sfx: boolean
   sfxVolume: number
@@ -87,6 +89,7 @@ export const DEFAULT_SETTINGS: Settings = {
   glow: 'style',
   leaks: 'style',
   blur: 'style',
+  collage: 'style',
   intensity: 1,
   sfx: true,
   sfxVolume: 0.7,

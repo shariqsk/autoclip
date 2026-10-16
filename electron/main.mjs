@@ -2,11 +2,13 @@
 // WebAssembly, WebCodecs, fetch and WebGPU behave exactly as they do on the web. Everything still runs
 // locally; models are cached in the app's own storage.
 
-import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, net, Notification, protocol, shell } from 'electron'
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createLibrary } from './library.mjs'
 import { createLinkImporter } from './links.mjs'
+import { PLATFORM_NAME, startScheduler, textFor, UPLOAD_PAGE } from './scheduler.mjs'
 import { copyVideoToClipboard, saveVideo, UPLOAD_PAGES } from './share.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -14,6 +16,7 @@ const root = path.join(here, '..', 'dist')
 const ORIGIN = 'app://autoclip'
 // Downloads from links wait here until the app has read them (see links.mjs).
 const importsDir = path.join(app.getPath('temp'), 'autoclip-imports')
+let libraryRef = null
 const IMPORT_NAME = /^[a-z0-9]+-[a-z0-9]+\.[a-z0-9]{2,5}$/
 
 protocol.registerSchemesAsPrivileged([
@@ -52,6 +55,9 @@ app.whenReady().then(() => {
   void rm(importsDir, { recursive: true, force: true })
   protocol.handle('app', (request) => {
     const { pathname } = new URL(request.url)
+    // A library item's video or poster frame.
+    const lib = pathname.match(/^\/__library\/([a-z0-9]{6,32})\/(video\.mp4|thumb\.jpg)$/)
+    if (lib && libraryRef) return net.fetch(pathToFileURL(libraryRef.file(lib[1], lib[2])).toString())
     // A finished download, read straight from disk.
     const imported = pathname.match(/^\/__import\/(.+)$/)?.[1]
     if (imported) {
@@ -114,6 +120,60 @@ app.whenReady().then(() => {
   ipcMain.handle('share:copy-video', async (event, { data, name }) => {
     if (!fromApp(event) || !(data instanceof Uint8Array) || typeof name !== 'string') throw new Error('Bad request')
     await copyVideoToClipboard(data, name)
+  })
+
+  // The library and its schedule (see library.mjs, scheduler.mjs).
+  const library = createLibrary({
+    dir: path.join(app.getPath('videos'), 'AutoClip', 'Library'),
+    onChange: () => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('library:changed')),
+  })
+  libraryRef = library
+  // Posting by hand: the video shown in Finder, its words on the clipboard, the upload page open.
+  const handoff = async (item, platform) => {
+    clipboard.writeText(textFor(item.posts[platform], platform))
+    shell.showItemInFolder(library.file(item.id, 'video.mp4'))
+    await shell.openExternal(UPLOAD_PAGE[platform])
+  }
+  const nudges = new Set()
+  const scheduler = startScheduler({
+    library,
+    // Accounts aren't connected yet: everything due is a nudge.
+    upload: async () => null,
+    nudge: (item, platform) => {
+      if (!Notification.isSupported()) return
+      const n = new Notification({
+        title: `Time to post to ${PLATFORM_NAME[platform]}`,
+        body: `${item.name}: click to open ${PLATFORM_NAME[platform]} with the video ready and the caption copied.`,
+      })
+      nudges.add(n)
+      n.on('click', () => void handoff(item, platform))
+      n.on('close', () => nudges.delete(n))
+      n.show()
+    },
+    log: (m) => console.log(`[library] ${m}`),
+  })
+  ipcMain.handle('library:list', (event) => (fromApp(event) ? library.list() : []))
+  ipcMain.handle('library:add', (event, item) => {
+    if (!fromApp(event)) throw new Error('Bad request')
+    return library.add(item)
+  })
+  ipcMain.handle('library:update', async (event, { id, patch }) => {
+    if (!fromApp(event)) throw new Error('Bad request')
+    const item = await library.update(id, patch)
+    // Anything just scheduled for now goes out straight away.
+    void scheduler.tick()
+    return item
+  })
+  ipcMain.handle('library:remove', (event, ids) => {
+    if (!fromApp(event) || !Array.isArray(ids)) throw new Error('Bad request')
+    return library.remove(ids)
+  })
+  ipcMain.handle('library:handoff', async (event, { id, platform }) => {
+    if (!fromApp(event) || !UPLOAD_PAGE[platform]) throw new Error('Bad request')
+    await handoff(await library.read(id), platform)
+  })
+  ipcMain.handle('library:reveal', (event, id) => {
+    if (fromApp(event)) shell.showItemInFolder(library.file(id, 'video.mp4'))
   })
 
   createWindow()

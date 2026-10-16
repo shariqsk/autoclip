@@ -176,8 +176,8 @@ function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOption
 
   if (line.title) {
     if (opts.titleBehind) return false
-    if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h, false)
-    else drawTitle(ctx, line, t, unit, w, h, false)
+    if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h, null)
+    else drawTitle(ctx, line, t, unit, w, h, null)
     return true
   }
 
@@ -425,20 +425,35 @@ function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOption
  * The title behind the people: huge, filling the width a word or two to a row, a little above the
  * middle so it sits behind heads and shoulders. Returns false when there's no title up.
  */
-export function drawBehind(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOptions, w: number, h: number): boolean {
+export function drawBehind(
+  ctx: Ctx,
+  lines: CaptionLine[],
+  t: number,
+  opts: CaptionOptions,
+  w: number,
+  h: number,
+  /** Where the picture is (fractions of the height), when it doesn't fill the frame (black bars). */
+  picture: { top: number; height: number } = { top: 0, height: 1 },
+): boolean {
   ctx.clearRect(0, 0, w, h)
   if (!opts.titleBehind) return false
   const line = activeLine(lines, t)
   if (!line?.title || !line.words.length) return false
-  const unit = Math.min(w, h) * opts.scale
+  // Sized and placed on the picture itself, so it never spills onto the bars.
+  const unit = Math.min(w, picture.height * h) * opts.scale
+  const place = { cy: (picture.top + picture.height * 0.4) * h }
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h, true)
-  else drawTitle(ctx, line, t, unit, w, h, true)
+  if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h, place)
+  else drawTitle(ctx, line, t, unit, w, h, place)
   return true
 }
 
-function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number, behind: boolean) {
+/** Where a title behind the people goes (its middle, in pixels), or null for a normal title. */
+type Place = { cy: number } | null
+
+function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number, place: Place) {
+  const behind = !!place
   const age = t - line.start
   const left = line.end - t
   const text = line.words
@@ -451,7 +466,7 @@ function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: numb
   const lh = size * (behind ? 0.9 : 0.98)
   const appear = easeOutBack(clamp01(age / 0.25))
   const out = clamp01(left / 0.15)
-  let y = h * (behind ? 0.4 : 0.5) - ((rows.length - 1) * lh) / 2
+  let y = (place?.cy ?? h * 0.5) - ((rows.length - 1) * lh) / 2
   ctx.save()
   ctx.globalAlpha = out
   for (const r of rows) {
@@ -475,7 +490,8 @@ function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: numb
  * A title that glitches in, then lets its letters drift apart (and glitches out at the end), like the
  * opening card of a broadcast package.
  */
-function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number, behind: boolean) {
+function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number, place: Place) {
+  const behind = !!place
   const age = t - line.start
   const left = line.end - t
   const text = line.words
@@ -493,7 +509,7 @@ function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w
   const natural = ctx.measureText(text).width
   const fit = Math.min(1, (w * 0.88) / Math.max(1, natural))
   const glitch = Math.max(clamp01(1 - age / 0.22), clamp01(1 - left / 0.18))
-  ctx.translate(w / 2, h * (behind ? 0.4 : 0.5))
+  ctx.translate(w / 2, place?.cy ?? h * 0.5)
   ctx.scale(fit, fit)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'

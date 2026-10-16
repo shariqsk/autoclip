@@ -8,7 +8,7 @@ import { speedAt } from '../edit/speed'
 import { frameAt, shotIndexAt, type Layer } from '../edit/timeline'
 import type { ClipAnalysis, EditPlan } from '../types'
 import { Compositor, type LayerInput, type Look } from './compositor'
-import { focusAt, motionAt, stillZoom } from './framing'
+import { focusAt, motionAt, pictureArea, stillZoom } from './framing'
 
 export interface PreviewClip {
   id: string
@@ -313,7 +313,15 @@ export class PreviewEngine {
     const project = this.project!
     const shown =
       !!project.captions?.titleBehind &&
-      drawBehind(this.behindCtx, project.plan.captions, t, project.captions, this.canvas.width, this.canvas.height)
+      drawBehind(
+        this.behindCtx,
+        project.plan.captions,
+        t,
+        project.captions,
+        this.canvas.width,
+        this.canvas.height,
+        pictureArea(project.look.fit, a, this.canvas),
+      )
     if (shown || this.behindShown) this.compositor.setBehind(shown ? this.behindCanvas : null)
     this.behindShown = shown
     this.compositor.setMatte(shown && a && !transition ? matteFrame(a.source) : null)

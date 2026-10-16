@@ -15,6 +15,10 @@ export interface AssignableClip {
   kind: ClipKind
   analysis: ClipAnalysis
   pin?: 'hero' | 'skip'
+  /** 0–1 per analysis sample: one of your stars on screen (see lib/people). */
+  star?: number[]
+  /** 0–1 per analysis sample: someone you cut on screen. */
+  avoid?: number[]
 }
 
 export interface Assignment {
@@ -32,6 +36,10 @@ export interface AssignOptions {
   fixed?: Map<number, Assignment>
 }
 
+// How much each part of the arc wants your stars on screen: the drop is theirs, and the intro is
+// where the viewer meets them.
+const STAR_WEIGHT: Record<SlotRole, number> = { hero: 1.6, tease: 0.9, intro: 1.1, build: 0.7, flurry: 0.7, ride: 0.6, outro: 0.9 }
+
 // How much movement each part of the arc wants, and the order slots are filled in: the drop gets
 // first pick of everything, the cold open gets the next-best flash of action, and so on.
 const TARGET_MOTION: Record<SlotRole, number> = { tease: 0.95, intro: 0.22, build: 0.65, hero: 1, flurry: 0.85, ride: 0.55, outro: 0.3 }
@@ -44,7 +52,14 @@ interface Indexed {
   clip: AssignableClip
   order: number
   dt: number
-  prefix: { interest: Float64Array; motion: Float64Array; sharp: Float64Array; bright: Float64Array }
+  prefix: {
+    interest: Float64Array
+    motion: Float64Array
+    sharp: Float64Array
+    bright: Float64Array
+    star: Float64Array | null
+    avoid: Float64Array | null
+  }
   used: [number, number][]
   uses: number
 }
@@ -67,6 +82,8 @@ function index(clips: AssignableClip[]): Indexed[] {
         motion: prefixSum(a.motion),
         sharp: prefixSum(a.sharpness),
         bright: prefixSum(a.brightness),
+        star: clip.star ? prefixSum(clip.star) : null,
+        avoid: clip.avoid ? prefixSum(clip.avoid) : null,
       },
       used: [],
       uses: 0,
@@ -105,6 +122,8 @@ export function assignFootage(
   opts: AssignOptions,
 ): (Assignment | null)[] {
   const pool = index(clips.filter((c) => c.pin !== 'skip'))
+  // Once there's a star, footage nobody has looked for faces in is a weaker pick.
+  const cast = pool.some((c) => c.prefix.star)
   const result: (Assignment | null)[] = slots.map(() => null)
   if (!pool.length) return result
   const totalFootage = pool.reduce((a, c) => a + (c.clip.kind === 'image' ? 3 : c.clip.analysis.duration), 0)
@@ -191,6 +210,11 @@ export function assignFootage(
           score += 0.4 * interest + 0.2 * (1 - Math.abs(motion - target)) + 0.1 * sharp + (action ? 0.6 : 0.2) * hitInterest
           if (slot.role === 'hero' || slot.role === 'tease') score += 0.9 * impact
         }
+
+        // Your cast: stars pull the shot their way (hardest on the drop), people you cut push it away.
+        if (c.prefix.star) score += STAR_WEIGHT[slot.role] * meanOver(c.prefix.star, c.dt, s, e)
+        else if (cast) score -= 0.25 * STAR_WEIGHT[slot.role]
+        if (c.prefix.avoid) score -= 1.4 * meanOver(c.prefix.avoid, c.dt, s, e)
 
         // Never the same scene twice in a row, and no near-repeats of moments already on screen.
         if (neighbourScenes.includes(`${c.clip.id}#${sceneOf(a.cuts, s)}`)) score -= 0.6

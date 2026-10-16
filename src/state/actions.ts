@@ -607,8 +607,7 @@ export async function downloadLink(raw: string, mode: 'audio' | 'video'): Promis
   const off = desktop.onImportProgress((p) => p.id === id && updateDownload(id, { stage: p.stage, fraction: p.fraction }))
   try {
     const result = await desktop.importLink(id, link.url, mode)
-    if (result.files.length > 1) updateDownload(id, { stage: 'Putting picture and sound together', fraction: null })
-    const file = await toFile(result, mode)
+    const file = await toFile(result, mode).finally(() => void desktop!.releaseImport(result.file.name).catch(() => {}))
     dropDownload(id)
     return { file, title: result.title, site: result.site }
   } catch (err) {

@@ -5,15 +5,20 @@
 //
 // yt-dlp is downloaded on first use (or warmed up when the app starts) into the app's own data
 // folder and refreshed every couple of weeks, since sites change often. No ffmpeg is needed: we only pick formats that are already
-// playable files (or a separate video and audio stream, which the app merges itself).
+// playable files (or a separate video and audio stream, which are merged here, on disk).
+//
+// The finished file stays on disk, in the imports folder, and the app reads it from there (see
+// main.mjs). Sending its bytes across instead copied a long video several times over in memory, and
+// a half-hour video crashed the app.
 
 import { spawn } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { mergeFiles } from './merge.mjs'
 import { unzip } from './unzip.mjs'
 
 const RELEASES = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/'
@@ -128,7 +133,9 @@ export function chooseFormats(info, mode) {
 
   const audioOnly = formats.filter((f) => hasA(f) && !hasV(f))
   const audio = audioOnly.filter((f) => f.ext === 'm4a' || /^mp4a/.test(f.acodec)).sort(byAbr)[0] ?? audioOnly.sort(byAbr)[0]
-  const muxed = formats.filter((f) => hasV(f) && hasA(f) && h264(f) && (f.height ?? 0) <= 1080).sort(byHeight)
+  const muxed = formats
+    .filter((f) => hasV(f) && hasA(f) && h264(f) && (f.height ?? 0) <= ((info.duration ?? 0) > 600 ? 720 : 1080))
+    .sort(byHeight)
 
   if (mode === 'audio') {
     if (audio) return [{ id: audio.format_id, ext: audio.ext, role: 'audio' }]
@@ -136,9 +143,13 @@ export function chooseFormats(info, mode) {
     return any ? [{ id: any.format_id, ext: any.ext, role: 'av' }] : null
   }
 
-  // Footage: H.264 (every browser can decode it), up to 1080p. A ready-made file if it's at least
-  // 720p, otherwise the best separate video stream plus audio, merged by the app.
-  const videoOnly = formats.filter((f) => hasV(f) && !hasA(f) && h264(f) && (f.height ?? 0) <= 1080 && f.ext === 'mp4').sort(byHeight)
+  // Footage: H.264 (every browser can decode it), up to 1080p, or 720p for anything over ten minutes
+  // (plenty to cut from, and half the size). A ready-made file if it's at least 720p, otherwise the
+  // best separate video stream plus audio, merged after the download.
+  const maxHeight = (info.duration ?? 0) > 600 ? 720 : 1080
+  const videoOnly = formats
+    .filter((f) => hasV(f) && !hasA(f) && h264(f) && (f.height ?? 0) <= maxHeight && f.ext === 'mp4')
+    .sort(byHeight)
   if (muxed[0] && ((muxed[0].height ?? 0) >= 720 || !videoOnly[0] || (videoOnly[0].height ?? 0) <= (muxed[0].height ?? 0)))
     return [{ id: muxed[0].format_id, ext: muxed[0].ext, role: 'av' }]
   if (videoOnly[0]) {
@@ -150,7 +161,7 @@ export function chooseFormats(info, mode) {
   return any ? [{ id: any.format_id, ext: any.ext, role: hasA(any) ? 'av' : 'video' }] : null
 }
 
-export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
+export function createLinkImporter({ toolsDir, importsDir, nodePath, log = () => {} }) {
   const home = path.join(toolsDir, 'yt-dlp')
   let ready = null
 
@@ -248,7 +259,8 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
 
   /**
    * Import a link. `mode` is 'audio' for the song or 'video' for footage. Reports
-   * { stage, fraction } and resolves with the downloaded files' bytes.
+   * { stage, fraction } and resolves with { title, site, file: { name, ext } }: the finished file, by
+   * name, in the imports folder.
    */
   async function importLink(rawUrl, mode, onProgress, signal) {
     const link = classifyLink(rawUrl)
@@ -301,11 +313,7 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
         if (Number(duration) > 20 * 60) throw new Error('That is over 20 minutes long. Paste a single song.')
         const file = (await readdir(dir)).find((f) => f.startsWith('song.'))
         if (!file) throw new Error('Nothing was downloaded')
-        return {
-          title: title ?? name ?? 'Imported',
-          site: link.site,
-          files: [{ role: 'audio', ext: path.extname(file).slice(1), data: await readFile(path.join(dir, file)) }],
-        }
+        return { title: title ?? name ?? 'Imported', site: link.site, file: await keep(path.join(dir, file)) }
       }
 
       // Footage: read the link once, choose formats, then fetch the picture and sound in parallel
@@ -331,10 +339,18 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
               onProgress({ stage: 'Downloading', fraction: done.reduce((a, d, k) => a + d * w[k], 0) / w.reduce((a, b) => a + b, 0) })
             },
           })
-          return { role: p.role, ext: p.ext, data: await readFile(file) }
+          return { role: p.role, file }
         }),
       )
-      return { title: title ?? info.title ?? 'Imported', site: link.site, files }
+      const video = files.find((f) => f.role === 'video')
+      const audio = files.find((f) => f.role === 'audio')
+      let final = (files.find((f) => f.role === 'av') ?? video ?? files[0]).file
+      if (video && audio) {
+        onProgress({ stage: 'Putting picture and sound together', fraction: null })
+        final = path.join(dir, 'merged.mp4')
+        await mergeFiles(video.file, audio.file, final)
+      }
+      return { title: title ?? info.title ?? 'Imported', site: link.site, file: await keep(final) }
     }
 
     // YouTube now and then refuses a stream URL it has just handed out (an HTTP 403), and a fresh
@@ -360,6 +376,15 @@ export function createLinkImporter({ toolsDir, nodePath, log = () => {} }) {
         await rm(dir, { recursive: true, force: true }).catch(() => {})
       }
     }
+  }
+
+  /** Move a finished download into the imports folder, where the app reads it from. */
+  async function keep(file) {
+    await mkdir(importsDir, { recursive: true })
+    const ext = path.extname(file).slice(1) || 'mp4'
+    const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    await rename(file, path.join(importsDir, name))
+    return { name, ext }
   }
 
   /** Install (if needed) and start yt-dlp once, so the first import doesn't wait for either. */

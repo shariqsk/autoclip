@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('autoclipDesktop', {
   importLink: (id, url, mode) => ipcRenderer.invoke('links:import', { id, url, mode }),
   cancelImport: (id) => ipcRenderer.invoke('links:cancel', id),
+  releaseImport: (name) => ipcRenderer.invoke('links:release', name),
   copyVideo: (data, name) => ipcRenderer.invoke('share:copy-video', { data, name }),
   onImportProgress: (fn) => {
     const handler = (_event, progress) => fn(progress)

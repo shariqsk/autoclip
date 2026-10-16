@@ -26,6 +26,8 @@ export interface DesktopBridge {
   onImportProgress(fn: (p: ImportProgress) => void): () => void
   /** Put a video on the clipboard as a file, ready to paste into a chat or a folder. */
   copyVideo(data: Uint8Array, name: string): Promise<void>
+  /** Save a video to Movies/AutoClip, show it, and open a platform's upload page. Returns the path. */
+  postVideo(data: Uint8Array, name: string, url: string): Promise<string>
 }
 
 export const desktop: DesktopBridge | null = (globalThis as { autoclipDesktop?: DesktopBridge }).autoclipDesktop ?? null

@@ -13,10 +13,12 @@
     <!-- Apply the saved look before first paint so there's no flash of the default theme. -->
     <script>
       try {
-        const t = localStorage.getItem('autoclip:theme')
-        document.documentElement.dataset.theme = ['fight', 'press', 'afterhours'].includes(t) ? t : 'fight'
+        const v = JSON.parse(localStorage.getItem('autoclip:look') || 'null')
+        document.documentElement.dataset.layout = (v && v.layout) || 'deck'
+        document.documentElement.dataset.theme = (v && v.colorway) || 'deck-bone'
       } catch {
-        document.documentElement.dataset.theme = 'fight'
+        document.documentElement.dataset.layout = 'deck'
+        document.documentElement.dataset.theme = 'deck-bone'
       }
     </script>
     <title>AutoClip · beat-synced edits, cut for you</title>

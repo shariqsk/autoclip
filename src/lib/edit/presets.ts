@@ -4,7 +4,9 @@
 
 import type { CaptionStyle, Grade, SpeedRamp, TransitionType } from '../types'
 
-export type StyleId = 'hype' | 'phonk' | 'velocity' | 'cinematic' | 'smooth' | 'throwback'
+export type BuiltInStyleId = 'hype' | 'phonk' | 'velocity' | 'cinematic' | 'smooth' | 'throwback'
+/** Styles learned from the user's own reference edits get ids like `learned-…`. */
+export type StyleId = BuiltInStyleId | `learned-${string}`
 
 type Weights = Partial<Record<TransitionType, number>>
 
@@ -169,8 +171,15 @@ export const STYLES: StylePreset[] = [
   },
 ]
 
+// Learned styles live with the user (see state/styles.ts); the planner finds them here.
+let learned: StylePreset[] = []
+
+export function setLearnedStyles(list: StylePreset[]) {
+  learned = list
+}
+
 export function getStyle(id: StyleId): StylePreset {
-  return STYLES.find((s) => s.id === id) ?? STYLES[0]
+  return STYLES.find((s) => s.id === id) ?? learned.find((s) => s.id === id) ?? STYLES[0]
 }
 
 export const TRANSITION_NAMES: Record<TransitionType, string> = {

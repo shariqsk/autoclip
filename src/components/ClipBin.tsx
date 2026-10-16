@@ -1,13 +1,14 @@
 // 02 FOOTAGE: the bin, as an editor's list. Each row shows the clip, how long it is, where the action
 // is (the line) and which moments are on screen in the current take (the blocks).
 
-import { ArrowDown, ArrowUp, Ban, Crown, Link2, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { ArrowDown, ArrowUp, Ban, Crown, Link2, Plus, Scissors, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
 import { sourceDuration } from '../lib/edit/speed'
+import { MOMENT_MIN_CLIP } from '../lib/video/moments'
 import type { Clip } from '../lib/types'
 import { desktop } from '../lib/desktop'
 import { addClips, moveClip, openLinkDialog, pinClip, removeClip } from '../state/actions'
-import { activeDraft, useApp } from '../state/store'
+import { activeDraft, setState, useApp } from '../state/store'
 import { cx } from './format'
 import { Progress } from './ui'
 
@@ -41,7 +42,7 @@ function ActionLine({ clip, used }: { clip: Clip; used: [number, number][] }) {
 function Row({ clip, index, count, used }: { clip: Clip; index: number; count: number; used: [number, number][] }) {
   const thumb = clip.thumbs[Math.min(1, clip.thumbs.length - 1)]
   return (
-    <li className={cx('group relative flex gap-3 border-b border-line px-4 py-2.5', clip.pin === 'skip' && 'opacity-40')}>
+    <li className={cx('clip-row group relative flex gap-3 border-b border-line px-4 py-2.5', clip.pin === 'skip' && 'opacity-40')}>
       {clip.pin === 'hero' && <span className="absolute inset-y-0 left-0 w-1 bg-signal" />}
       <div className="relative h-11 w-[4.4rem] shrink-0 overflow-hidden bg-bg-3">
         {thumb ? <img src={thumb} alt="" className="size-full object-cover" draggable={false} /> : <div className="halftone size-full" />}
@@ -52,8 +53,18 @@ function Row({ clip, index, count, used }: { clip: Clip; index: number; count: n
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="min-w-0 flex-1 truncate text-[0.82rem] font-semibold">{clip.name}</span>
+          {clip.momentOf && <span className="tag">Moment</span>}
           {clip.pin === 'hero' && <span className="tag text-signal">Hero</span>}
           {clip.pin === 'skip' && <span className="tag">Benched</span>}
+          {clip.status === 'ready' && clip.kind === 'video' && !clip.momentOf && (clip.analysis?.duration ?? 0) >= MOMENT_MIN_CLIP && (
+            <button
+              className="clip-moments tag flex shrink-0 items-center gap-1 text-signal hover:underline"
+              title="Find the best moments in this clip and pick which to use"
+              onClick={() => setState({ moments: { clipId: clip.id } })}
+            >
+              <Scissors className="size-3" /> Moments
+            </button>
+          )}
         </div>
         {clip.status === 'ready' ? (
           <ActionLine clip={clip} used={used} />
@@ -108,11 +119,11 @@ export function ClipBin() {
       .map((s) => [s.srcStart, s.srcStart + sourceDuration(s.speed, s.end - s.start)] as [number, number]) ?? []
 
   return (
-    <section className="flex min-h-0 flex-col">
-      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <div className="rule-head flex-1">
-          <span className="tag text-signal">02</span>
-          <span className="head text-lg">Footage</span>
+    <section className="pane block-footage flex min-h-0 flex-col">
+      <div className="block-top flex items-center gap-2">
+        <div className="block-head flex-1">
+          <span className="block-num">02</span>
+          <h2 className="block-title">Footage</h2>
           <span className="tag">
             {clips.length}
             {watching > 0 && ` · ${watching} in review`}
@@ -148,7 +159,7 @@ export function ClipBin() {
           <Progress value={demo} />
         </div>
       )}
-      <ul className="min-h-0 overflow-y-auto border-t border-line">
+      <ul className="clip-list min-h-0 overflow-y-auto border-t border-line">
         {clips.map((c, i) => (
           <Row key={c.id} clip={c} index={i} count={clips.length} used={usedBy(c.id)} />
         ))}

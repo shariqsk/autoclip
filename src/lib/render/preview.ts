@@ -14,6 +14,8 @@ export interface PreviewClip {
   kind: 'video' | 'image'
   url: string
   analysis: ClipAnalysis
+  /** Seconds into the file where this clip starts (moments cut from a longer clip). */
+  offset?: number
 }
 
 export interface PreviewProject {
@@ -188,7 +190,7 @@ export class PreviewEngine {
       return { source: img, width: img.naturalWidth, height: img.naturalHeight, focusX: 0.5, focusY: 0.5, zoom: stillZoom(layer) }
     }
     const v = this.video(clip.id, shotIndex % 2)
-    const want = layer.srcTime
+    const want = layer.srcTime + (clip.offset ?? 0)
     const shot = layer.shot
     const rate = speedAt(shot.speed, layer.progress)
     if (this.playing && rate > 0.07) {
@@ -201,7 +203,7 @@ export class PreviewEngine {
       if (Math.abs(v.currentTime - want) > 0.02 && !v.seeking) v.currentTime = want
     }
     if (v.readyState < 2) return 'pending'
-    const focus = focusAt(clip.analysis, want)
+    const focus = focusAt(clip.analysis, layer.srcTime)
     return { source: v, width: v.videoWidth, height: v.videoHeight, focusX: focus.x, focusY: focus.y, zoom: 1 }
   }
 
@@ -214,7 +216,7 @@ export class PreviewEngine {
     const clip = this.clips.get(next.clipId)
     if (!clip || clip.kind !== 'video') return
     const v = this.video(clip.id, (i + 1) % 2)
-    const want = next.srcStart - next.transition.duration / 2
+    const want = next.srcStart + (clip.offset ?? 0) - next.transition.duration / 2
     if (!v.seeking && Math.abs(v.currentTime - want) > 0.05 && v.paused) v.currentTime = Math.max(0, want)
   }
 

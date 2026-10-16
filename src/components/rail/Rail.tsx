@@ -1,9 +1,8 @@
-// The right rail: every creative choice, in numbered sections. Style, length and order re-cut the
-// edit; everything else updates the stage live.
+// Every creative choice, one tab at a time: a nav bar across the top, the chosen section below.
 
-import { getStyle } from '../../lib/edit/presets'
-import { useApp } from '../../state/store'
-import { Section } from '../ui'
+import { Aperture, AudioLines, Crop, Mic, Sparkles, Type, type LucideIcon } from 'lucide-react'
+import { useState } from 'react'
+import { cx } from '../format'
 import { FormatPanel } from './FormatPanel'
 import { LookPanel } from './LookPanel'
 import { SoundPanel } from './SoundPanel'
@@ -11,28 +10,59 @@ import { StyleList } from './StyleList'
 import { TextPanel } from './TextPanel'
 import { VoicePanel } from './VoicePanel'
 
-export function Rail() {
-  const style = useApp((s) => getStyle(s.settings.style))
+export type RailTab = 'style' | 'format' | 'look' | 'text' | 'voice' | 'sound'
+
+const TABS: { id: RailTab; label: string; icon: LucideIcon; body: () => React.ReactNode }[] = [
+  { id: 'style', label: 'Style', icon: Sparkles, body: () => <StyleList /> },
+  { id: 'format', label: 'Format', icon: Crop, body: () => <FormatPanel /> },
+  { id: 'look', label: 'Look', icon: Aperture, body: () => <LookPanel /> },
+  { id: 'text', label: 'Text', icon: Type, body: () => <TextPanel /> },
+  { id: 'voice', label: 'Voice', icon: Mic, body: () => <VoicePanel /> },
+  { id: 'sound', label: 'Sound', icon: AudioLines, body: () => <SoundPanel /> },
+]
+
+const KEY = 'autoclip:rail'
+
+function saved(): RailTab {
+  const v = localStorage.getItem(KEY)
+  return TABS.some((t) => t.id === v) ? (v as RailTab) : 'style'
+}
+
+export function Rail({ className }: { className?: string }) {
+  const [tab, setTab] = useState(saved)
+  const pick = (id: RailTab) => {
+    setTab(id)
+    localStorage.setItem(KEY, id)
+  }
+  const current = TABS.find((t) => t.id === tab)!
   return (
-    <div className="min-h-0 overflow-y-auto">
-      <Section n="03" title="Style" aside={<span className="tag truncate">{style.bestFor.split(',')[0]}</span>}>
-        <StyleList />
-      </Section>
-      <Section n="04" title="Format">
-        <FormatPanel />
-      </Section>
-      <Section n="05" title="Look" defaultOpen={false}>
-        <LookPanel />
-      </Section>
-      <Section n="06" title="Text" defaultOpen={false}>
-        <TextPanel />
-      </Section>
-      <Section n="07" title="Voice" defaultOpen={false}>
-        <VoicePanel />
-      </Section>
-      <Section n="08" title="Sound" defaultOpen={false}>
-        <SoundPanel />
-      </Section>
+    <div className={cx('rail flex min-h-0 flex-col', className)}>
+      <nav className="rail-nav" role="tablist" aria-label="Edit settings">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            role="tab"
+            id={`rail-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls="rail-panel"
+            data-on={tab === id}
+            className="rail-tab"
+            onClick={() => pick(id)}
+          >
+            <Icon className="rail-tab-icon" />
+            <span className="rail-tab-label">{label}</span>
+          </button>
+        ))}
+      </nav>
+      <div
+        id="rail-panel"
+        role="tabpanel"
+        aria-labelledby={`rail-tab-${tab}`}
+        className={cx('rail-body space-y-3.5', `rail-body-${tab}`)}
+        key={tab}
+      >
+        {current.body()}
+      </div>
     </div>
   )
 }

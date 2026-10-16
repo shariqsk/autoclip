@@ -13,6 +13,7 @@ import type { CaptionLine, Clip, EditPlan } from '../lib/types'
 import { clearSaved } from './persist'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
+import { sliceAnalysis } from '../lib/video/moments'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -127,6 +128,39 @@ export function removeClip(id: string) {
   }
   setState((s) => ({ clips: s.clips.filter((c) => c.id !== id) }))
 }
+
+/**
+ * Add moments of a long clip as clips of their own. They share the clip's file (nothing is
+ * re-encoded); each keeps its slice of the analysis and where it starts in the file. With
+ * `benchSource`, the full clip is benched so the edit uses only the moments.
+ */
+export function addMoments(sourceId: string, moments: { start: number; end: number; poster?: string }[], benchSource: boolean) {
+  const src = getState().clips.find((c) => c.id === sourceId)
+  if (!src?.analysis || !moments.length) return
+  const base = src.offset ?? 0
+  const added: Clip[] = moments.map((m) => ({
+    id: `clip${Date.now().toString(36)}${(clipCounter++).toString(36)}`,
+    name: `${src.name} · ${fmtClock(base + m.start)}`,
+    kind: 'video',
+    file: src.file,
+    url: URL.createObjectURL(src.file),
+    thumbs: m.poster ? [m.poster] : [],
+    analysis: sliceAnalysis(src.analysis!, m.start, m.end),
+    status: 'ready',
+    progress: 1,
+    offset: base + m.start,
+    momentOf: src.momentOf ?? src.id,
+  }))
+  setState((s) => {
+    const at = s.clips.findIndex((c) => c.id === sourceId)
+    const clips = s.clips.map((c) => (c.id === sourceId && benchSource ? { ...c, pin: 'skip' as const } : c))
+    clips.splice(at + 1, 0, ...added)
+    return { clips }
+  })
+  toast(`${added.length} moment${added.length === 1 ? '' : 's'} added${benchSource ? `; the full clip is benched` : ''}.`, 'success')
+}
+
+const fmtClock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
 export function pinClip(id: string, pin: Clip['pin']) {
   const clip = getState().clips.find((c) => c.id === id)
@@ -484,12 +518,25 @@ function dropDownload(id: string, delay = 0) {
 }
 
 /** Import a song (`audio`) or a clip (`video`) from a link, through the desktop app. */
-export async function importFromLink(raw: string, mode: 'audio' | 'video') {
-  if (!desktop) return toast('Importing from links works in the desktop app.', 'error')
+/**
+ * Download a link through the desktop app, showing it in the downloads list. Resolves with the file,
+ * or null when it failed (the reason stays in the list for a few seconds) or was cancelled.
+ */
+export async function downloadLink(raw: string, mode: 'audio' | 'video'): Promise<{ file: File; title: string; site: string } | null> {
+  if (!desktop) {
+    toast('Importing from links works in the desktop app.', 'error')
+    return null
+  }
   const problem = linkProblem(raw)
-  if (problem) return toast(problem, 'error')
+  if (problem) {
+    toast(problem, 'error')
+    return null
+  }
   const link = parseLink(raw)
-  if (!link) return toast("That doesn't look like a link.", 'error')
+  if (!link) {
+    toast("That doesn't look like a link.", 'error')
+    return null
+  }
   const id = `dl${Date.now().toString(36)}${linkCounter++}`
   setState((s) => ({ downloads: [...s.downloads, { id, site: link.site, mode, stage: 'Starting', fraction: null }] }))
   const off = desktop.onImportProgress((p) => p.id === id && updateDownload(id, { stage: p.stage, fraction: p.fraction }))
@@ -497,19 +544,28 @@ export async function importFromLink(raw: string, mode: 'audio' | 'video') {
     const result = await desktop.importLink(id, link.url, mode)
     if (result.files.length > 1) updateDownload(id, { stage: 'Putting picture and sound together', fraction: null })
     const file = await toFile(result, mode)
-    if (mode === 'audio') void setSongFile(file)
-    else addClips([file])
-    toast(`${mode === 'audio' ? 'Song' : 'Footage'} in from ${result.site}: ${result.title}`, 'success')
     dropDownload(id)
+    return { file, title: result.title, site: result.site }
   } catch (err) {
     // Electron wraps errors from the main process; keep just the reason.
     const message = (err instanceof Error ? err.message : String(err)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-    if (message === 'Cancelled') return dropDownload(id)
-    updateDownload(id, { error: message, stage: message, fraction: null })
-    dropDownload(id, 8000)
+    if (message === 'Cancelled') dropDownload(id)
+    else {
+      updateDownload(id, { error: message, stage: message, fraction: null })
+      dropDownload(id, 8000)
+    }
+    return null
   } finally {
     off()
   }
+}
+
+export async function importFromLink(raw: string, mode: 'audio' | 'video') {
+  const got = await downloadLink(raw, mode)
+  if (!got) return
+  if (mode === 'audio') void setSongFile(got.file)
+  else addClips([got.file])
+  toast(`${mode === 'audio' ? 'Song' : 'Footage'} in from ${got.site}: ${got.title}`, 'success')
 }
 
 export function cancelDownload(id: string) {

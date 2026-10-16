@@ -1,18 +1,20 @@
 import { updateSettings, useApp } from '../../state/store'
-import { Seg, Slider, Toggle } from '../ui'
+import { Seg, Slider, SliderBank, Toggle } from '../ui'
 
 export function SoundPanel() {
   const s = useApp((st) => st.settings)
   return (
     <>
-      <Slider label="Music" value={s.musicVolume} max={1.2} onChange={(musicVolume) => updateSettings({ musicVolume })} />
+      <SliderBank>
+        <Slider label="Music" value={s.musicVolume} max={1.2} onChange={(musicVolume) => updateSettings({ musicVolume })} />
+        {s.sfx && <Slider label="Effects" value={s.sfxVolume} onChange={(sfxVolume) => updateSettings({ sfxVolume })} />}
+      </SliderBank>
       <Toggle
         label="Sound effects"
         hint="Whooshes on whips and zooms; a sub hit and a swell on every drop"
         checked={s.sfx}
         onChange={(sfx) => updateSettings({ sfx })}
       />
-      {s.sfx && <Slider label="Effects level" value={s.sfxVolume} onChange={(sfxVolume) => updateSettings({ sfxVolume })} />}
       <div className="space-y-1.5">
         <div className="tag">Clip sound</div>
         <Seg

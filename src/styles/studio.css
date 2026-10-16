@@ -1,0 +1,388 @@
+/* Studio: a pro editor. Flat panes on hairlines, compact type, a black viewer, tabs for takes, the
+   timeline docked along the bottom. Nothing decorative; everything dense and quiet. */
+
+[data-layout='studio'] {
+  .studio-app {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .studio-bar {
+    display: flex;
+    height: 2.6rem;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 0.6rem 0 0.9rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-3);
+  }
+  .studio-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Inter Tight Variable', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 650;
+  }
+  .studio-logo-mark {
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 3px;
+    background: linear-gradient(
+      90deg,
+      var(--signal) 0 30%,
+      transparent 30% 40%,
+      var(--signal) 40% 55%,
+      transparent 55% 65%,
+      var(--signal) 65%
+    );
+  }
+  .studio-sep {
+    width: 1px;
+    height: 1.1rem;
+    background: var(--line-2);
+  }
+  .studio-status {
+    font-size: 0.75rem;
+  }
+  .studio-cut {
+    height: 1.75rem;
+    padding: 0 0.85rem;
+    font-family: 'Inter Variable', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+
+  .studio-main {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+  @media (min-width: 1024px) {
+    .studio-main {
+      grid-template-columns: 290px minmax(0, 1fr) 320px;
+      overflow: hidden;
+    }
+  }
+  .studio-pane {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    background: var(--bg-2);
+    border-color: var(--line);
+  }
+  .studio-pane:first-child {
+    border-right: 1px solid var(--line);
+  }
+  .studio-pane:last-child {
+    border-left: 1px solid var(--line);
+  }
+  .studio-pane-head {
+    display: flex;
+    height: 2rem;
+    flex-shrink: 0;
+    align-items: center;
+    padding: 0 0.9rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+
+  /* Panels inside panes: plain headed groups. */
+  .pane,
+  .rail {
+    border-bottom: 1px solid var(--line);
+  }
+  .block-num {
+    display: none;
+  }
+  .block-rule {
+    display: none;
+  }
+  .block-title {
+    font-family: 'Inter Variable', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .block-top {
+    padding: 0.55rem 0.9rem;
+  }
+  .block-body,
+  .rail-body {
+    padding: 0.2rem 0.9rem 0.9rem;
+  }
+  .clip-row {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+  .clip-row:hover {
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+  }
+  .clip-row img,
+  .clip-row .halftone {
+    border-radius: 3px;
+  }
+
+  /* Viewer. */
+  .studio-viewer {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    background: var(--bg);
+  }
+  .studio-tabs {
+    display: flex;
+    height: 2.4rem;
+    flex-shrink: 0;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: 0 0.4rem 0 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-3);
+  }
+  .take-list-studio {
+    gap: 0;
+  }
+  .studio-tab {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.85rem;
+    border-right: 1px solid var(--line);
+    font-size: 0.74rem;
+    font-weight: 550;
+    color: var(--ink-2);
+    position: relative;
+  }
+  .studio-tab:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+  }
+  .studio-tab[data-on='true'] {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .studio-tab[data-on='true']::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    background: var(--signal);
+  }
+  .studio-viewer .stage {
+    background: var(--stage);
+  }
+  .studio-viewer .hud {
+    order: 2;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: #0a0a0b;
+    color: #9a9ca3;
+    font-size: 0.68rem;
+  }
+  .studio-viewer .hud-time {
+    color: #f2f2f2;
+    font-size: 0.78rem;
+  }
+  .studio-viewer .hud-phase-drop {
+    color: var(--signal);
+  }
+  .studio-viewer .stage-hint .tag {
+    color: #8a8c93;
+  }
+  .studio-viewer .stage-hint-big {
+    color: #f2f2f2;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+  }
+  .studio-transport {
+    height: 2.75rem;
+    flex-shrink: 0;
+    justify-content: center;
+    padding: 0 0.6rem;
+    border-top: 1px solid var(--line);
+    background: var(--bg-3);
+  }
+  .transport-play {
+    border-radius: 50%;
+    box-shadow: none;
+  }
+
+  .studio-row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 6px;
+    text-align: left;
+  }
+  .studio-row:hover {
+    background: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
+  .studio-row[data-on='true'] {
+    background: color-mix(in srgb, var(--signal) 14%, transparent);
+    box-shadow: inset 2px 0 0 var(--signal);
+  }
+  .studio-list {
+    margin: 0 -0.4rem;
+  }
+
+  .btn,
+  .opt,
+  .field {
+    font-size: 0.74rem;
+  }
+  .btn {
+    height: 1.9rem;
+  }
+  .btn-signal {
+    box-shadow: none;
+  }
+  .slab {
+    box-shadow: none;
+  }
+  .toggle-switch {
+    transform: scale(0.85);
+    transform-origin: right center;
+  }
+
+  .tape {
+    height: 15rem;
+    border-top: 1px solid var(--line-2);
+    background: var(--bg-2);
+  }
+  .tape[data-director='true'] {
+    height: 46vh;
+  }
+  .tape-bar {
+    background: var(--bg-3);
+  }
+
+  /* First screen. */
+  .studio-welcome {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    align-items: center;
+    gap: 3rem;
+    padding: clamp(1.5rem, 5vw, 5rem);
+    overflow-y: auto;
+  }
+  @media (min-width: 1024px) {
+    .studio-welcome {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    }
+  }
+  .studio-welcome-card {
+    max-width: 34rem;
+  }
+  .studio-sketch {
+    position: relative;
+    height: 13rem;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg-2);
+  }
+  .studio-sketch-ruler {
+    display: flex;
+    justify-content: space-between;
+    height: 1.6rem;
+    align-items: center;
+    padding: 0 0.6rem;
+    border-bottom: 1px solid var(--line);
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 0.55rem;
+    color: var(--ink-3);
+  }
+  .studio-sketch-track {
+    position: absolute;
+    inset: 2.4rem 0.6rem auto;
+    height: 3.6rem;
+  }
+  .studio-sketch-track > span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 4px;
+    border: 1px solid var(--bg-2);
+    background: color-mix(in srgb, var(--signal-2) 35%, var(--bg-3));
+    animation: studio-snap 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .studio-sketch-track > span:nth-child(odd) {
+    background: color-mix(in srgb, var(--signal-2) 22%, var(--bg-3));
+  }
+  .studio-sketch-track > .studio-sketch-hero {
+    background: var(--signal);
+  }
+  .studio-sketch-wave {
+    position: absolute;
+    inset: auto 0.6rem 1.2rem;
+    height: 3.6rem;
+    background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink) 30%, transparent) 0 2px, transparent 2px 4px);
+    mask: radial-gradient(ellipse 70% 100% at 56% 50%, #000 30%, transparent 70%);
+  }
+  .studio-sketch-head {
+    position: absolute;
+    top: 1.6rem;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    background: var(--ink);
+    animation: studio-head 6s linear infinite;
+  }
+}
+
+@keyframes studio-head {
+  from {
+    left: 0.6rem;
+  }
+  to {
+    left: calc(100% - 0.6rem);
+  }
+}
+@keyframes studio-snap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* The settings rail: inspector tabs. */
+[data-layout='studio'] {
+  .rail {
+    border-bottom: 0;
+  }
+  .rail-nav {
+    gap: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-3);
+  }
+  .rail-tab {
+    padding: 8px 2px 7px;
+    border-radius: 0;
+    font-size: 0.64rem;
+    font-weight: 550;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .rail-tab[data-on='true'] {
+    background: var(--bg-2);
+    box-shadow: inset 0 -2px 0 var(--signal);
+  }
+  .rail-tab[data-on='true'] .rail-tab-icon {
+    color: var(--signal);
+  }
+}

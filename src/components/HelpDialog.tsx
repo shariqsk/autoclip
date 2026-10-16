@@ -69,7 +69,8 @@ export function HelpDialog() {
           {TTS_MODEL.name}
         </a>{' '}
         by {TTS_MODEL.maker} (Apache 2.0) for the announcer, both run on your device through Transformers.js and ONNX Runtime Web. Video is
-        decoded and encoded with Mediabunny and WebCodecs. Type: Anton, Inter Tight, JetBrains Mono.
+        decoded and encoded with Mediabunny and WebCodecs. Type: Space Grotesk, Inter, Bungee, VT323 and JetBrains Mono; Anton and Bricolage
+        Grotesque for captions.
       </p>
     </Modal>
   )

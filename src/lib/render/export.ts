@@ -28,6 +28,8 @@ export interface ExportClip {
   kind: 'video' | 'image'
   file: File
   analysis: ClipAnalysis
+  /** Seconds into the file where this clip starts (moments cut from a longer clip). */
+  offset?: number
 }
 
 export interface ExportOptions {
@@ -77,7 +79,7 @@ export async function exportEdit(opts: ExportOptions): Promise<Blob> {
       if (!l) return null
       const list = perShot.get(l.shot.id) ?? []
       // Decoding needs non-decreasing timestamps; a frame never steps back within a shot.
-      const ts = Math.max(l.srcTime, list.at(-1) ?? 0)
+      const ts = Math.max(l.srcTime + (clipById.get(l.shot.clipId)?.offset ?? 0), list.at(-1) ?? 0)
       list.push(ts)
       perShot.set(l.shot.id, list)
       return { shot: l.shot.id, idx: list.length - 1 }

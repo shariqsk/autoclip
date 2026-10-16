@@ -1,4 +1,7 @@
 @import '@fontsource/anton/400.css';
+@import '@fontsource/vt323/400.css';
+@import '@fontsource/bungee/400.css';
+@import '@fontsource-variable/space-grotesk/index.css';
 @import '@fontsource/bebas-neue/400.css';
 @import '@fontsource-variable/inter-tight/index.css';
 @import '@fontsource-variable/inter/index.css';
@@ -7,6 +10,10 @@
 @import 'tailwindcss';
 @import './styles/themes.css';
 @import './styles/components.css';
+@import './styles/deck.css';
+@import './styles/studio.css';
+@import './styles/flyer.css';
+@import './styles/glass.css';
 
 @theme inline {
   --color-bg: var(--bg);
@@ -21,8 +28,8 @@
   --color-signal-ink: var(--signal-ink);
   --color-signal-2: var(--signal-2);
   --color-good: var(--good);
-  --font-head: 'Anton', Impact, sans-serif;
-  --font-sans: 'Inter Tight Variable', 'Inter Variable', system-ui, sans-serif;
+  --font-head: var(--font-display);
+  --font-sans: var(--font-ui);
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
@@ -35,7 +42,7 @@ body,
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Inter Tight Variable', 'Inter Variable', system-ui, sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -57,7 +64,7 @@ button:disabled {
 }
 
 :focus-visible {
-  outline: 1px solid var(--signal);
+  outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
 

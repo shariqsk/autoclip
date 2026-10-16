@@ -92,6 +92,13 @@ export interface Clip {
   error?: string
   /** Users can mark a clip as a must-use hero or exclude it without deleting it. */
   pin?: 'hero' | 'skip'
+  /**
+   * For a moment cut from a longer clip: where it starts in the file, in seconds. The analysis and
+   * every shot use the moment's own time (from zero); playback adds this when it seeks the file.
+   */
+  offset?: number
+  /** The clip a moment was cut from. */
+  momentOf?: string
 }
 
 export type TransitionType = 'cut' | 'fade' | 'flash' | 'zoom' | 'whip' | 'glitch' | 'dip' | 'spin'

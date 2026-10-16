@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { addFiles } from '../state/actions'
+import { useApp } from '../state/store'
+import { routeLearnDrop } from '../state/learnDrop'
 
 /** Drop files anywhere on the window. */
 export function DropOverlay() {
@@ -23,7 +25,7 @@ export function DropOverlay() {
       depth = 0
       setOver(false)
       const files = [...(e.dataTransfer?.files ?? [])]
-      if (files.length) void addFiles(files)
+      if (files.length && !routeLearnDrop(files)) void addFiles(files)
     }
     window.addEventListener('dragenter', enter)
     window.addEventListener('dragleave', leave)
@@ -36,7 +38,14 @@ export function DropOverlay() {
       window.removeEventListener('drop', drop)
     }
   }, [])
+  const learning = useApp((s) => !!s.learn)
   if (!over) return null
+  if (learning)
+    return (
+      <div className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-black/80 p-8">
+        <div className="head text-center text-[8vw] leading-none text-signal">Learn from these</div>
+      </div>
+    )
   return (
     <div className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-black/80 p-8">
       <div className="crop grid h-full w-full place-items-center">

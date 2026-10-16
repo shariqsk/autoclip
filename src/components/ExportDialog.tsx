@@ -119,7 +119,7 @@ export function ExportDialog() {
       const audio = await buildMix(plan)
       const clips = getState()
         .clips.filter((c) => c.analysis)
-        .map((c) => ({ id: c.id, kind: c.kind, file: c.file, analysis: c.analysis! }))
+        .map((c) => ({ id: c.id, kind: c.kind, file: c.file, analysis: c.analysis!, offset: c.offset }))
       // The encoder stack only loads when someone actually exports.
       const { exportEdit } = await import('../lib/render/export')
       const blob = await exportEdit({

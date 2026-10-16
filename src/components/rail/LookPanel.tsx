@@ -3,7 +3,7 @@ import { GRADES } from '../../lib/render/compositor'
 import type { Grade } from '../../lib/types'
 import { activeDraft, updateSettings, useApp } from '../../state/store'
 import { cx } from '../format'
-import { Slider, Toggle } from '../ui'
+import { Slider, SliderBank, Toggle } from '../ui'
 
 // Each swatch is the same three test colours run through the grade.
 const SWATCH: Record<Grade, string[]> = {
@@ -44,26 +44,28 @@ export function LookPanel() {
           </button>
         ))}
       </div>
-      <Slider
-        label="Effect intensity"
-        hint="Scales punches, shakes, RGB splits and flashes"
-        value={s.intensity}
-        min={0}
-        max={1.6}
-        onChange={(intensity) => updateSettings({ intensity })}
-        format={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
-      />
-      <Slider
-        label="Film grain"
-        value={s.grain === 'style' ? base.grain : s.grain}
-        max={0.6}
-        onChange={(grain) => updateSettings({ grain })}
-      />
-      <Slider
-        label="Vignette"
-        value={s.vignette === 'style' ? base.vignette : s.vignette}
-        onChange={(vignette) => updateSettings({ vignette })}
-      />
+      <SliderBank>
+        <Slider
+          label="Effect intensity"
+          hint="Scales punches, shakes, RGB splits and flashes"
+          value={s.intensity}
+          min={0}
+          max={1.6}
+          onChange={(intensity) => updateSettings({ intensity })}
+          format={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
+        <Slider
+          label="Film grain"
+          value={s.grain === 'style' ? base.grain : s.grain}
+          max={0.6}
+          onChange={(grain) => updateSettings({ grain })}
+        />
+        <Slider
+          label="Vignette"
+          value={s.vignette === 'style' ? base.vignette : s.vignette}
+          onChange={(vignette) => updateSettings({ vignette })}
+        />
+      </SliderBank>
       <Toggle
         label="Letterbox"
         hint="Cinema bars top and bottom"

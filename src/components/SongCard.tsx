@@ -9,7 +9,7 @@ import { makeEdit, openLinkDialog, setSongFile } from '../state/actions'
 import { playhead } from '../state/playhead'
 import { activeDraft, setState, useApp } from '../state/store'
 import { cx, fmtTime } from './format'
-import { Progress } from './ui'
+import { BlockHead, Progress } from './ui'
 
 function drawWave(
   canvas: HTMLCanvasElement,
@@ -146,12 +146,9 @@ export function SongCard() {
   }
 
   return (
-    <section className="border-b border-line">
-      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <div className="rule-head flex-1">
-          <span className="tag text-signal">01</span>
-          <span className="head text-lg">Sound</span>
-        </div>
+    <section className="pane block-sound">
+      <div className="block-top flex items-center gap-2">
+        <BlockHead n="01" title="Sound" className="flex-1" />
         {desktop && (
           <button
             className="btn btn-bare btn-sm btn-sq"
@@ -176,7 +173,7 @@ export function SongCard() {
           }}
         />
       </div>
-      <div className="px-4 pb-4">
+      <div className="block-body">
         <div className="truncate text-[0.95rem] font-semibold" title={song.name}>
           {song.name}
         </div>

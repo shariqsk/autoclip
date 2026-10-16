@@ -90,9 +90,9 @@ The tape along the bottom of the app draws this arc over the song's waveform and
 
 <p align="center"><img src="docs/learn.jpg" width="80%" alt="Learning a style from three edits: each edit's rhythm, and what was learned in plain words" /></p>
 
-**Mix.** AutoClip reads every shot in your footage (on your device) as a big moment, action, b-roll, a celebration, talking or text, and you pick how much of each goes in: none, some or more, or a preset like **Finishes + B-roll** for a montage that mixes fights with press conferences and interviews. The arc uses the types too: b-roll opens the edit, a big moment lands on the drop and a celebration closes it.
+**Mix.** AutoClip reads every shot in your footage (on your device) as a big moment, action, b-roll, a celebration, talking or text, and you pick how much of each goes in: none, some or more, or a preset like **Highlights + B-roll** for footage that mixes the good stuff with interviews and filler. The arc uses the types too: b-roll opens the edit, a big moment lands on the drop and a celebration closes it.
 
-**Cast.** Find everyone in your footage (faces are found and recognized on your device), then star who the edit is about: one fighter, or several for a rivalry or a team. Stars get the drop, open the edit and pull the vertical framing onto their face; anyone you cut is kept out. When one person shows up as two (side-on, or behind a glove), merge them and AutoClip remembers.
+**Cast.** Find everyone in your footage (faces are found and recognized on your device), then star who the edit is about: one person, or several for a duo, a crew or a team. Stars get the drop, open the edit and pull the framing onto their face; anyone you cut is kept out. When one person shows up as two (side-on, or half hidden), merge them and AutoClip remembers. Framing follows faces even without a star: when wide footage goes into a vertical edit, the faces are found for you.
 
 **Moments.** Long clips (a full round, a whole game) get a **Moments** button: AutoClip suggests their best few seconds, previews each on a loop, lets you trim them or drag out your own on the clip's action line, and adds the ones you pick as clips of their own. Nothing is re-encoded.
 

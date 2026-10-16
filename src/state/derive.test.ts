@@ -70,3 +70,12 @@ describe('derived render state', () => {
     expect(voiceoverAt(plan, 'intro', 2)).toBe(0.2)
   })
 })
+
+describe('cinema bars', () => {
+  it('draws a style’s bars on widescreen only, but always when you turn them on', () => {
+    expect(lookFor('cinematic', { ...DEFAULT_SETTINGS, aspect: '16:9' }).letterbox).toBe(true)
+    expect(lookFor('cinematic', { ...DEFAULT_SETTINGS, aspect: '9:16' }).letterbox).toBe(false)
+    expect(lookFor('cinematic', { ...DEFAULT_SETTINGS, aspect: '1:1' }).letterbox).toBe(false)
+    expect(lookFor('hype', { ...DEFAULT_SETTINGS, aspect: '9:16', letterbox: true }).letterbox).toBe(true)
+  })
+})

@@ -8,6 +8,19 @@ contextBridge.exposeInMainWorld('autoclipDesktop', {
   releaseImport: (name) => ipcRenderer.invoke('links:release', name),
   copyVideo: (data, name) => ipcRenderer.invoke('share:copy-video', { data, name }),
   postVideo: (data, name, url) => ipcRenderer.invoke('share:post', { data, name, url }),
+  library: {
+    list: () => ipcRenderer.invoke('library:list'),
+    add: (item) => ipcRenderer.invoke('library:add', item),
+    update: (id, patch) => ipcRenderer.invoke('library:update', { id, patch }),
+    remove: (ids) => ipcRenderer.invoke('library:remove', ids),
+    handoff: (id, platform) => ipcRenderer.invoke('library:handoff', { id, platform }),
+    reveal: (id) => ipcRenderer.invoke('library:reveal', id),
+    onChange: (fn) => {
+      const handler = () => fn()
+      ipcRenderer.on('library:changed', handler)
+      return () => ipcRenderer.removeListener('library:changed', handler)
+    },
+  },
   onImportProgress: (fn) => {
     const handler = (_event, progress) => fn(progress)
     ipcRenderer.on('links:progress', handler)

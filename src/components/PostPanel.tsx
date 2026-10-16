@@ -2,12 +2,12 @@
 // to go with it (all editable), then one button saves the video, copies the words and opens the
 // platform's upload page.
 
-import { Check, Copy, ExternalLink, Plus, Shuffle } from 'lucide-react'
+import { Check, Copy, ExternalLink, Library, Plus, Shuffle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { desktop } from '../lib/desktop'
 import { getStyle } from '../lib/edit/presets'
 import { PLATFORMS, postKit, postText, toHashtag, TONES, type Platform, type Tone } from '../lib/share/post'
-import { toast, useApp } from '../state/store'
+import { setState, toast, useApp } from '../state/store'
 import { cx } from './format'
 import { Seg } from './ui'
 
@@ -17,6 +17,29 @@ async function copyText(text: string, what: string) {
     toast(`${what} copied.`, 'success')
   } catch {
     toast("Couldn't copy that.", 'error')
+  }
+}
+
+/** A poster frame for the library: a third of the way in (past any fade up), as a small JPEG. */
+async function posterOf(blob: Blob): Promise<Uint8Array | null> {
+  const url = URL.createObjectURL(blob)
+  try {
+    const v = document.createElement('video')
+    v.muted = true
+    v.src = url
+    await new Promise((r, j) => ((v.onloadeddata = r), (v.onerror = j)))
+    v.currentTime = Math.min(1.5, v.duration / 3)
+    await new Promise((r) => (v.onseeked = r))
+    const c = document.createElement('canvas')
+    c.width = 270
+    c.height = Math.round((v.videoHeight / v.videoWidth) * 270)
+    c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height)
+    const jpg = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', 0.8))
+    return jpg ? new Uint8Array(await jpg.arrayBuffer()) : null
+  } catch {
+    return null
+  } finally {
+    URL.revokeObjectURL(url)
   }
 }
 
@@ -49,6 +72,46 @@ export function PostPanel({ blob, name, platform: initial, seconds }: { blob: Bl
   const p = PLATFORMS[platform]
   const text = postText(caption, tags)
   const tooLong = seconds > p.maxSeconds
+
+  const [saved, setSaved] = useState(false)
+  // Kept with words for every platform: yours for this one, written in the same tone for the rest.
+  const save = async () => {
+    try {
+      const posts = Object.fromEntries(
+        (Object.keys(PLATFORMS) as Platform[]).map((id) => {
+          const k = id === platform ? kit : postKit({ platform: id, subjects, title, song, style: getStyle(style), seed: seed + shuffle })
+          return [
+            id,
+            { caption: id === platform ? caption : k.captions[tone], hashtags: id === platform ? tags : k.hashtags, title: k.title },
+          ]
+        }),
+      )
+      const size = await new Promise<{ w: number; h: number }>((r) => {
+        const v = document.createElement('video')
+        const url = URL.createObjectURL(blob)
+        const done = (w: number, h: number) => {
+          URL.revokeObjectURL(url)
+          r({ w, h })
+        }
+        v.onloadedmetadata = () => done(v.videoWidth, v.videoHeight)
+        v.onerror = () => done(0, 0)
+        v.src = url
+      })
+      await desktop!.library.add({
+        video: new Uint8Array(await blob.arrayBuffer()),
+        thumb: await posterOf(blob),
+        name: name.replace(/-/g, ' '),
+        duration: seconds,
+        width: size.w,
+        height: size.h,
+        posts,
+      })
+      setSaved(true)
+      toast('Saved to the library.', 'success')
+    } catch (err) {
+      toast(`Couldn't save it: ${err instanceof Error ? err.message : err}`, 'error')
+    }
+  }
 
   const post = async () => {
     await copyText(platform === 'shorts' ? `${kit.title}\n\n${text}` : text, 'Caption')
@@ -173,6 +236,16 @@ export function PostPanel({ blob, name, platform: initial, seconds }: { blob: Bl
           <Copy className="size-3.5" />
         </button>
       </div>
+      {desktop && (
+        <div className="grid grid-cols-2 gap-1.5">
+          <button className="btn" disabled={saved} onClick={() => void save()}>
+            {saved ? <Check className="size-3.5" /> : <Library className="size-3.5" />} {saved ? 'In the library' : 'Save to library'}
+          </button>
+          <button className="btn btn-bare" onClick={() => setState({ exportOpen: false, libraryOpen: true })}>
+            Open library · schedule
+          </button>
+        </div>
+      )}
       <p className="tag leading-snug">
         {desktop
           ? `Saves the video to Movies/AutoClip, shows it, copies the caption and opens ${p.name}: drag the video in and paste.`

@@ -117,6 +117,15 @@ export const GRADES: Record<Grade, GradeParams & { name: string }> = {
     highlight: [0.06, 0.03, -0.02],
     mono: false,
   },
+  bleach: {
+    name: 'Bleach',
+    contrast: 1.28,
+    saturation: 0.42,
+    lift: [0, 0, 0],
+    shadow: [-0.015, -0.01, 0],
+    highlight: [0.01, 0.01, 0.01],
+    mono: false,
+  },
   neon: {
     name: 'Neon',
     contrast: 1.12,

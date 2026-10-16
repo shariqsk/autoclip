@@ -211,7 +211,7 @@ export type AspectId = '9:16' | '16:9' | '1:1' | '4:5'
 /** Fill: crop to fill the frame. Blur: the whole shot over a blurred copy. Bars: the whole shot on black. */
 export type FitMode = 'fill' | 'blur' | 'bars'
 
-export type Grade = 'none' | 'punch' | 'teal-orange' | 'mono' | 'warm' | 'cold' | 'vintage' | 'neon'
+export type Grade = 'none' | 'punch' | 'teal-orange' | 'mono' | 'warm' | 'cold' | 'vintage' | 'neon' | 'bleach'
 
 /** One face seen in one sampled frame of a clip. */
 export interface FaceSighting {

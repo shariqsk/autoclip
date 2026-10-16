@@ -15,6 +15,7 @@ const SWATCH: Record<Grade, string[]> = {
   cold: ['#b8d6ff', '#4d7eb8', '#1f3b5a'],
   vintage: ['#e8c99a', '#8f9a84', '#6b5a48'],
   neon: ['#ff4fd8', '#29e0ff', '#7a2cff'],
+  bleach: ['#c9c2b8', '#5f6468', '#101214'],
 }
 
 export function LookPanel() {

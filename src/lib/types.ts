@@ -167,7 +167,13 @@ export interface Hit {
   kind: 'beat' | 'downbeat' | 'drop'
 }
 
-export type CaptionStyle = 'pop' | 'karaoke' | 'impact' | 'clean' | 'glitch' | 'typewriter'
+export type CaptionStyle = 'pop' | 'karaoke' | 'impact' | 'clean' | 'glitch' | 'typewriter' | 'subtitle' | 'stack'
+
+/** How a title card moves: slammed in, or letters spreading apart after a glitch. */
+export type TitleLook = 'slam' | 'spread'
+
+/** Where the title card goes in the edit. */
+export type TitleAt = 'start' | 'drop' | 'end'
 export type CaptionPosition = 'top' | 'center' | 'bottom'
 
 export interface CaptionWord {

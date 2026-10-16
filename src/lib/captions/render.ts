@@ -5,8 +5,10 @@
 //   clean      a calm lower third on a soft pill
 //   glitch     RGB-split mono type that jitters on each word
 //   typewriter characters typed out with a blinking cursor
+//   subtitle   small italic lyrics that build up word by word
+//   stack      tall bold capitals that stack up word by word, the line's last word in the accent
 
-import type { CaptionLine, CaptionPosition, CaptionStyle, CaptionWord } from '../types'
+import type { CaptionLine, CaptionPosition, CaptionStyle, CaptionWord, TitleLook } from '../types'
 
 export const CAPTION_STYLES: { id: CaptionStyle; name: string; sample: string }[] = [
   { id: 'pop', name: 'Pop', sample: 'One word at a time' },
@@ -15,6 +17,8 @@ export const CAPTION_STYLES: { id: CaptionStyle; name: string; sample: string }[
   { id: 'clean', name: 'Clean', sample: 'Calm lower third' },
   { id: 'glitch', name: 'Glitch', sample: 'RGB-split jitter' },
   { id: 'typewriter', name: 'Typewriter', sample: 'Typed out live' },
+  { id: 'subtitle', name: 'Subtitle', sample: 'Small italic lyrics, word by word' },
+  { id: 'stack', name: 'Stack', sample: 'Big capitals that stack up, last word coloured' },
 ]
 
 export const CAPTION_FONTS = {
@@ -33,6 +37,8 @@ export interface CaptionOptions {
   accent: string
   /** "@handle" watermark in the corner, or empty. */
   handle?: string
+  /** How the title card moves. */
+  titleLook?: TitleLook
 }
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -167,7 +173,8 @@ function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOption
   ctx.lineJoin = 'round'
 
   if (line.title) {
-    drawTitle(ctx, line, t, unit, w, h)
+    if (opts.titleLook === 'spread') drawSpreadTitle(ctx, line, t, unit, w, h)
+    else drawTitle(ctx, line, t, unit, w, h)
     return true
   }
 
@@ -307,6 +314,79 @@ function drawLine(ctx: Ctx, lines: CaptionLine[], t: number, opts: CaptionOption
       }
       return true
     }
+    case 'subtitle': {
+      // Lyrics as they're sung: each word fades up beside the last, small and italic.
+      const size = unit * 0.05
+      ctx.font = `italic 500 ${size}px ${CAPTION_FONTS.body}`
+      const shown = line.words.slice(0, Math.max(1, wi + 1))
+      const rows = wrap(
+        ctx,
+        shown.map((x) => x.text.toLowerCase()),
+        maxWidth * 0.8,
+      )
+      const lh = size * 1.3
+      let y = (opts.position === 'top' ? h * 0.18 : opts.position === 'center' ? h * 0.5 : h * 0.86) - ((rows.length - 1) * lh) / 2
+      const out = clamp01(lineLeft / 0.15)
+      ctx.shadowColor = 'rgba(0,0,0,0.75)'
+      ctx.shadowBlur = size * 0.35
+      let k = 0
+      for (const row of rows) {
+        const widths = row.map((word) => ctx.measureText(word + ' ').width)
+        let x = w / 2 - (widths.reduce((a, b) => a + b, 0) - ctx.measureText(' ').width) / 2
+        ctx.textAlign = 'left'
+        for (let j = 0; j < row.length; j++) {
+          const age = t - shown[k].start
+          ctx.globalAlpha = out * clamp01(age / 0.12)
+          ctx.fillStyle = '#fff'
+          ctx.fillText(row[j], x, y + (1 - clamp01(age / 0.12)) * size * 0.15)
+          x += widths[j]
+          k++
+        }
+        y += lh
+      }
+      ctx.textAlign = 'center'
+      ctx.globalAlpha = 1
+      ctx.shadowBlur = 0
+      return true
+    }
+    case 'stack': {
+      // Tall capitals stacking up as they're sung. The line's last word lands in the accent colour.
+      const size = unit * 0.12
+      ctx.font = `${size}px ${CAPTION_FONTS.display}`
+      const shown = line.words.slice(0, Math.max(1, wi + 1))
+      const rows = wrap(
+        ctx,
+        shown.map((x) => x.text.toUpperCase()),
+        maxWidth * 0.9,
+      )
+      const lh = size * 1.02
+      let y = baseY(opts.position, h, rows.length * lh) + lh / 2
+      const out = clamp01(lineLeft / 0.1)
+      const last = line.words.length - 1
+      let k = 0
+      ctx.globalAlpha = out
+      for (const row of rows) {
+        const widths = row.map((word) => ctx.measureText(word + ' ').width)
+        let x = w / 2 - (widths.reduce((a, b) => a + b, 0) - ctx.measureText(' ').width) / 2
+        for (let j = 0; j < row.length; j++) {
+          const age = t - shown[k].start
+          const s = 1 + 0.18 * (1 - clamp01(age / 0.1))
+          ctx.save()
+          ctx.translate(x + (widths[j] - ctx.measureText(' ').width) / 2, y)
+          ctx.scale(s, s)
+          ctx.shadowColor = 'rgba(0,0,0,0.55)'
+          ctx.shadowBlur = size * 0.18
+          ctx.fillStyle = k === last ? opts.accent : '#fff'
+          ctx.fillText(row[j], 0, 0)
+          ctx.restore()
+          x += widths[j]
+          k++
+        }
+        y += lh
+      }
+      ctx.globalAlpha = 1
+      return true
+    }
     case 'typewriter': {
       const size = unit * 0.058
       ctx.font = `600 ${size}px ${CAPTION_FONTS.mono}`
@@ -365,6 +445,63 @@ function drawTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: numb
     ctx.fillText(r.join(' '), 0, 0)
     ctx.restore()
     y += lh
+  }
+  ctx.restore()
+}
+
+/**
+ * A title that glitches in, then lets its letters drift apart (and glitches out at the end), like the
+ * opening card of a broadcast package.
+ */
+function drawSpreadTitle(ctx: Ctx, line: CaptionLine, t: number, unit: number, w: number, h: number) {
+  const age = t - line.start
+  const left = line.end - t
+  const text = line.words
+    .map((x) => x.text)
+    .join(' ')
+    .toUpperCase()
+  const life = Math.max(0.5, line.end - line.start)
+  const size = unit * 0.16
+  // Letters start tight and drift apart for the whole time the card is up.
+  const spread = size * (0.04 + 0.3 * clamp01(age / life))
+  ctx.save()
+  ctx.font = `${size}px ${CAPTION_FONTS.display}`
+  ctx.letterSpacing = `${spread}px`
+  // Shrink to fit the frame.
+  const natural = ctx.measureText(text).width
+  const fit = Math.min(1, (w * 0.88) / Math.max(1, natural))
+  const glitch = Math.max(clamp01(1 - age / 0.22), clamp01(1 - left / 0.18))
+  ctx.translate(w / 2, h / 2)
+  ctx.scale(fit, fit)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'
+  ctx.shadowBlur = size * 0.25
+  if (glitch > 0.02) {
+    // Torn into horizontal slices, each nudged sideways, with a red and cyan ghost.
+    const slices = 7
+    const sh = size * 1.2
+    const seed = Math.floor(t * 24)
+    for (let i = 0; i < slices; i++) {
+      const y0 = -sh / 2 + (sh / slices) * i
+      const r = Math.sin((seed + 1) * 12.9898 + i * 78.233) * 43758.5453
+      const dx = (r - Math.floor(r) - 0.5) * size * 1.2 * glitch
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(-w, y0, w * 2, sh / slices)
+      ctx.clip()
+      ctx.globalAlpha = 1 - glitch * 0.3
+      ctx.fillStyle = 'rgba(255,40,70,0.8)'
+      ctx.fillText(text, dx - size * 0.06 * glitch, 0)
+      ctx.fillStyle = 'rgba(40,230,255,0.8)'
+      ctx.fillText(text, dx + size * 0.06 * glitch, 0)
+      ctx.fillStyle = '#fff'
+      ctx.fillText(text, dx, 0)
+      ctx.restore()
+    }
+  } else {
+    ctx.fillStyle = '#fff'
+    ctx.fillText(text, 0, 0)
   }
   ctx.restore()
 }

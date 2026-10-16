@@ -6,7 +6,9 @@ import type { ClipFaces } from '../types'
 let worker: Worker | null = null
 let nextId = 1
 
-const modelUrl = () => new URL(`${import.meta.env.BASE_URL}models/face/`, location.href).href
+// A path, not a full URL: face-api only understands http(s) addresses and mangles app:// (the desktop
+// app's) into app:/, so the worker resolves the path against its own origin instead.
+const modelUrl = () => `${import.meta.env.BASE_URL}models/face/`
 
 export function scanClipFaces(file: File, offset: number, duration: number, onProgress: (f: number) => void): Promise<ClipFaces> {
   worker ??= new Worker(new URL('../../workers/faces.worker.ts', import.meta.url), { type: 'module' })

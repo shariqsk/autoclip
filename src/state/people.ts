@@ -23,6 +23,8 @@ export async function findPeopleInFootage() {
   if (!todo.length) return regroup()
   scanning = true
   setState({ peopleScan: { done: 0, total: todo.length, fraction: 0 } })
+  let failed = 0
+  let lastError = ''
   try {
     for (const [i, clip] of todo.entries()) {
       try {
@@ -31,9 +33,15 @@ export async function findPeopleInFootage() {
         )
         setState((s) => ({ faces: { ...s.faces, [clip.id]: faces } }))
       } catch (err) {
-        toast(`Couldn't look for faces in ${clip.name}: ${err instanceof Error ? err.message : err}`, 'error')
+        failed++
+        lastError = err instanceof Error ? err.message : String(err)
       }
     }
+    if (failed === todo.length) {
+      toast(`Couldn't look for faces: ${lastError}`, 'error')
+      return
+    }
+    if (failed) toast(`Couldn't look for faces in ${failed} of ${todo.length} clips: ${lastError}`, 'error')
     await regroup()
   } finally {
     scanning = false

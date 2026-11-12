@@ -209,7 +209,11 @@ export function assignFootage(
   const filtering = !!opts.mix && Object.values(opts.mix).includes('none') && wanted.some((c) => c.content)
   const all = index(wanted, cast, opts.mix)
   const footage = (c: Indexed) => (c.clip.kind === 'image' ? STILL : c.prefix.usable[c.prefix.usable.length - 1] * c.dt)
-  const share = footageShares(all.map((c) => ({ duration: footage(c), share: c.clip.share })))
+  const need = slots.reduce((a, s, i) => a + sourceDuration(speeds[i], s.end - s.start), 0)
+  const share = footageShares(
+    all.map((c) => ({ duration: footage(c), share: c.clip.share })),
+    need,
+  )
   const pool = all.filter((_, i) => share[i] > 0)
   if (!pool.length) return result
   let at = 0
@@ -225,7 +229,6 @@ export function assignFootage(
   const fixed = opts.fixed ?? new Map<number, Assignment>()
   // With less footage than music, everything plays a little slower before anything plays twice.
   const have = pool.reduce((a, c) => a + (c.clip.kind === 'image' ? STILL : c.clip.analysis.duration), 0)
-  const need = slots.reduce((a, s, i) => a + sourceDuration(speeds[i], s.end - s.start), 0)
   const slow = Math.max(0.6, Math.min(1, have / (need * 1.1)))
   const paced = speeds.map((sp, i) => (slow < 1 && sp.kind === 'constant' && !fixed.has(i) ? { ...sp, speed: sp.speed * slow } : sp))
 
@@ -287,7 +290,7 @@ export function assignFootage(
       const off = Math.abs(c.from + progressAt(c, s + len / 2) * (c.to - c.from) - here)
       if (!walk) return 0.6 * off
       const behind = c.order < cursor.order || (c.order === cursor.order && s < cursor.end - 0.02)
-      return 0.3 * Math.min(9, (off / span) ** 2) + (behind ? 3 : 0)
+      return 0.3 * Math.min(9, (off / span) ** 2) + (behind ? 4 : 0)
     }
 
     for (const c of pool) {

@@ -28,6 +28,18 @@ describe('footageShares', () => {
     expect(sum(footageShares([{ duration: 30, share: 90 }, { duration: 30, share: 90 }, { duration: 5 }]))).toBeCloseTo(1)
   })
 
+  it("doesn't give a clip more of the edit than it has footage for", () => {
+    const [short, long] = footageShares([{ duration: 6, share: 60 }, { duration: 60 }], 30)
+    expect(short).toBeCloseTo(0.2)
+    expect(long).toBeCloseTo(0.8)
+  })
+
+  it('splits by what there is when there is too little footage altogether', () => {
+    const shares = footageShares([{ duration: 4 }, { duration: 8 }], 30)
+    expect(shares[0]).toBeCloseTo(1 / 3)
+    expect(shares[1]).toBeCloseTo(2 / 3)
+  })
+
   it('falls back to an even split when everything is set to nothing', () => {
     expect(
       footageShares([

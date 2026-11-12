@@ -79,6 +79,22 @@ export function FormatPanel() {
         />
       </div>
 
+      <div className="space-y-1.5">
+        <div className="tag">Cuts</div>
+        <Seg
+          value={s.pace}
+          onChange={(pace) => {
+            updateSettings({ pace })
+            recut()
+          }}
+          options={[
+            { value: 'slow', label: 'Slower', title: 'Hold every shot about twice as long' },
+            { value: 'style', label: 'Style', title: "The style's own pace" },
+            { value: 'fast', label: 'Faster', title: 'Cut about twice as often, down to the shortest shot the style allows' },
+          ]}
+        />
+      </div>
+
       <Toggle
         label="Collage intro"
         hint="The first shots arrive in picture-in-picture panels over each other"

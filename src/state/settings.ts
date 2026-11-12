@@ -6,6 +6,10 @@ import type { LengthChoice } from '../lib/edit/window'
 import type { Platform } from '../lib/share/post'
 import type { AspectId, CaptionPosition, CaptionStyle, ContentMix, FitMode, Grade, TitleAt, TitleLook } from '../lib/types'
 
+export type Pace = 'slow' | 'style' | 'fast'
+/** How much longer each shot runs at each pace. */
+export const PACE: Record<Pace, number> = { slow: 2, style: 1, fast: 0.5 }
+
 export type CaptionSource = 'off' | 'auto' | 'file' | 'text'
 
 export interface VoiceoverSettings {
@@ -25,6 +29,8 @@ export interface Settings {
   framing: FitMode | 'style'
   /** Move through the footage from start to end, or put the strongest moments on the biggest hits. */
   flow: Flow
+  /** How often it cuts: the style's own pace, or half or twice as often. */
+  pace: Pace
   /** Cut on standout hits in the music (strums, stabs, fills), not only the beat. */
   hitCuts: boolean
   /** How much of each shot type (big moments, action, b-roll…) the edit uses. */
@@ -84,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aspect: '9:16',
   framing: 'style',
   flow: 'story',
+  pace: 'style',
   hitCuts: true,
   mix: { finish: 'some', action: 'some', broll: 'some', celebrate: 'some', talk: 'some', text: 'none' },
   variety: 0.6,

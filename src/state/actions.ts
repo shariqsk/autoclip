@@ -11,6 +11,7 @@ import { newSeed } from '../lib/edit/rng'
 import { speak, toWhisperPcm, transcribe, type ModelStatus } from '../lib/ml/client'
 import type { CaptionLine, Clip, EditPlan } from '../lib/types'
 import { clearSaved } from './persist'
+import { PACE } from './settings'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
 import { sliceAnalysis } from '../lib/video/moments'
@@ -270,6 +271,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
       style,
       length: s.settings.length,
       flow: s.settings.flow,
+      pace: PACE[s.settings.pace],
       hitCuts: s.settings.hitCuts,
       collage: s.settings.collage === 'style' ? undefined : s.settings.collage,
       mix: s.settings.mix,

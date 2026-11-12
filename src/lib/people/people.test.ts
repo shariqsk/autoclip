@@ -60,6 +60,18 @@ describe('finding people', () => {
     expect(findPeople(faces).people).toHaveLength(3)
   })
 
+  it('finds the lead of a short new clip next to a long video full of faces', () => {
+    const faces = footage()
+    const star = faces.a.sightings[0]
+    faces.long = { step: 2.5, sightings: Array.from({ length: 600 }, (_, i) => ({ ...star, t: i * 2.5 })) }
+    const before = findPeople(faces).people
+    const someoneNew = Float32Array.from({ length: 128 }, (_, i) => (i % 2 ? 0.09 : -0.09))
+    faces.added = { step: 0.75, sightings: Array.from({ length: 5 }, (_, i) => ({ ...star, t: i * 0.75, descriptor: someoneNew })) }
+    const after = findPeople(faces, before).people
+    expect(after).toHaveLength(before.length + 1)
+    expect(after.some((p) => p.clipIds.includes('added'))).toBe(true)
+  })
+
   it('keeps names and roles when people are found again', () => {
     const faces = footage()
     const first = findPeople(faces).people

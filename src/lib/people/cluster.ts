@@ -70,9 +70,12 @@ export function findPeople(faces: Record<string, ClipFaces>, previous: Person[] 
     }
   }
 
-  // Someone seen once or twice is a passer-by, not cast.
+  // Someone seen once or twice is a passer-by, not cast. So is a face in the crowd of a long video,
+  // unless a clip is theirs: a short clip's lead counts however much other footage there is.
   const total = all.length
-  const kept = groups.filter((g) => g.n >= Math.max(3, Math.round(total * 0.01)))
+  const leads = (g: Group) =>
+    Object.entries(faces).some(([clipId, cf]) => g.members.filter((m) => m.clipId === clipId).length >= cf.sightings.length * 0.2)
+  const kept = groups.filter((g) => g.n >= 3 && (g.n >= total * 0.01 || leads(g)))
 
   // Keep the names and roles of people found before. A person can own several groups (they were
   // merged by hand, or look different side-on), and then those groups become one person again.

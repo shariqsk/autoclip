@@ -40,20 +40,23 @@ function ActionLine({ clip, used }: { clip: Clip; used: [number, number][] }) {
   )
 }
 
-/** How much of the edit comes from this clip: drag to set it, tap the number to hand it back. */
-function Share({ clip, auto }: { clip: Clip; auto: number }) {
+/**
+ * How much of the edit comes from this clip: drag to set it, tap the number to hand it back. The
+ * number is what the clip really gets, which is less than you asked for when it runs out of footage.
+ */
+function Share({ clip, share }: { clip: Clip; share: number }) {
   const set = clip.share !== undefined
-  const percent = Math.round(clip.share ?? auto * 100)
+  const percent = Math.round(share * 100)
   return (
-    <div className="mt-1 flex items-center gap-2">
+    <div className="mt-0.5 flex items-center gap-2">
       <input
         type="range"
         className={cx('slider min-w-0 flex-1', !set && 'opacity-50')}
         min={0}
         max={100}
         step={5}
-        value={percent}
-        style={{ ['--fill' as string]: `${percent}%` }}
+        value={clip.share ?? percent}
+        style={{ ['--fill' as string]: `${clip.share ?? percent}%` }}
         aria-label={`Share of the edit from ${clip.name}`}
         title="How much of the edit comes from this clip"
         onChange={(e) => setShare(clip.id, Number(e.target.value))}
@@ -100,7 +103,7 @@ function Row({ clip, index, count, used, share }: { clip: Clip; index: number; c
         {clip.status === 'ready' ? (
           <>
             <ActionLine clip={clip} used={used} />
-            {share !== undefined && <Share clip={clip} auto={share} />}
+            {share !== undefined && <Share clip={clip} share={share} />}
           </>
         ) : clip.status === 'error' ? (
           <div className="tag mt-1 flex items-center gap-1 text-signal" title={clip.error}>
@@ -149,7 +152,10 @@ export function ClipBin() {
 
   // Shares only mean something once there are two clips to split the edit between.
   const sharing = clips.filter((c) => c.status === 'ready' && c.analysis && c.pin !== 'skip')
-  const shares = footageShares(sharing.map((c) => ({ duration: c.kind === 'image' ? STILL : c.analysis!.duration, share: c.share })))
+  const shares = footageShares(
+    sharing.map((c) => ({ duration: c.kind === 'image' ? STILL : c.analysis!.duration, share: c.share })),
+    draft ? draft.plan.songEnd - draft.plan.songStart : undefined,
+  )
   const shareOf = (c: Clip) => (sharing.length > 1 && sharing.includes(c) ? shares[sharing.indexOf(c)] : undefined)
 
   const usedBy = (id: string): [number, number][] =>

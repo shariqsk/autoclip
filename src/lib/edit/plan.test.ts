@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeSong } from '../audio/analyze'
 import { synthesizeDemoSong } from '../demo/song'
-import type { ClipAnalysis } from '../types'
+import type { ClipAnalysis, EditPlan, Shot } from '../types'
 import type { AssignableClip } from './assign'
 import { makePlan } from './plan'
 import { STYLES } from './presets'
@@ -189,5 +189,40 @@ describe('transitions', () => {
     ]
     const plan = makePlan(song, moments, { style: 'hype', length: 30, flow: 'peaks', variety: 0.5, seed: 3 })
     for (const shot of plan.shots) expect(shot.transition.type).toBe('cut')
+  })
+})
+
+describe('beat punches', () => {
+  const beat = (time: number, kind: 'beat' | 'downbeat'): EditPlan['hits'][number] => ({ time, strength: 1, kind })
+  const shot = (id: string, start: number, end: number): Shot => ({
+    id,
+    clipId: 'a',
+    start,
+    end,
+    srcStart: start,
+    speed: { kind: 'constant', speed: 1 },
+    transition: { type: 'cut', duration: 0 },
+    fx: { pulse: 0.1, shake: 1, rgb: 0, flash: 0, push: 0 },
+    reason: '',
+    energy: 1,
+  })
+  const plan: EditPlan = {
+    songStart: 0,
+    songEnd: 8,
+    shots: [shot('one', 0, 3), shot('two', 3, 8)],
+    hits: [beat(1, 'beat'), beat(2, 'downbeat'), beat(3, 'beat')],
+    captions: [],
+    seed: 1,
+  }
+  const at = (t: number) => frameAt(plan, t + 0.01).fx
+
+  it('punches in on bar lines and cuts, and only nudges on the beats between', () => {
+    expect(at(2).zoom).toBeGreaterThan(at(1).zoom * 3)
+    expect(at(3).zoom).toBeGreaterThan(at(1).zoom * 3)
+  })
+
+  it('keeps the camera still on a plain beat', () => {
+    expect(Math.abs(at(1).shakeX)).toBe(0)
+    expect(at(2).shakeX).not.toBe(0)
   })
 })

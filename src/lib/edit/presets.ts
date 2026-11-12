@@ -59,6 +59,8 @@ export interface StylePreset {
   hitCuts: { everyBars: number }
   /** Transition length in beats. */
   transitionBeats: number
+  /** The shortest shot the style ever cuts, in seconds, whatever the tempo (0.4 when not set). */
+  minShot?: number
   fx: { pulse: number; shake: number; rgb: number; flash: number; push: number }
   /** Speed ramps on flurry shots long enough to feel them. */
   velocity: boolean
@@ -101,6 +103,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: true,
     hitCuts: { everyBars: 2 },
     transitionBeats: 0.5,
+    minShot: 0.4,
     fx: { pulse: 0.07, shake: 0.7, rgb: 0.45, flash: 0.9, push: 0.05 },
     velocity: false,
     look: { grade: 'punch', grain: 0.14, vignette: 0.4, letterbox: false },
@@ -121,6 +124,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: true,
     hitCuts: { everyBars: 1 },
     transitionBeats: 0.35,
+    minShot: 0.22,
     fx: { pulse: 0.06, shake: 0.5, rgb: 0.2, flash: 0.5, push: 0.04 },
     velocity: true,
     look: { grade: 'punch', grain: 0.06, vignette: 0.3, letterbox: false, blur: 0.7, glow: 0.15 },
@@ -142,6 +146,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: true,
     hitCuts: { everyBars: 1 },
     transitionBeats: 0.35,
+    minShot: 0.22,
     fx: { pulse: 0.09, shake: 1, rgb: 0.9, flash: 1, push: 0.02 },
     velocity: false,
     look: { grade: 'mono', grain: 0.22, vignette: 0.55, letterbox: false },
@@ -162,6 +167,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: false,
     hitCuts: { everyBars: 2 },
     transitionBeats: 0.5,
+    minShot: 0.5,
     fx: { pulse: 0.05, shake: 0.25, rgb: 0.25, flash: 0.6, push: 0.03 },
     velocity: true,
     look: { grade: 'teal-orange', grain: 0.08, vignette: 0.3, letterbox: false },
@@ -182,6 +188,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: false,
     hitCuts: { everyBars: 4 },
     transitionBeats: 1,
+    minShot: 1,
     fx: { pulse: 0.015, shake: 0.08, rgb: 0, flash: 0.35, push: 0.07 },
     velocity: false,
     look: { grade: 'teal-orange', grain: 0.1, vignette: 0.45, letterbox: true },
@@ -202,6 +209,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: false,
     hitCuts: { everyBars: 4 },
     transitionBeats: 0.75,
+    minShot: 0.8,
     fx: { pulse: 0.02, shake: 0.05, rgb: 0, flash: 0.4, push: 0.06 },
     velocity: false,
     look: { grade: 'teal-orange', grain: 0.08, vignette: 0.4, letterbox: false, leaks: 0.7, glow: 0.45 },
@@ -223,6 +231,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: false,
     hitCuts: { everyBars: 2 },
     transitionBeats: 0.4,
+    minShot: 0.5,
     fx: { pulse: 0.04, shake: 0.3, rgb: 0.25, flash: 0.6, push: 0.04 },
     velocity: false,
     look: { grade: 'bleach', grain: 0.12, vignette: 0.6, letterbox: false, fit: 'bars' },
@@ -245,6 +254,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: false,
     hitCuts: { everyBars: 2 },
     transitionBeats: 0.5,
+    minShot: 0.8,
     fx: { pulse: 0.025, shake: 0, rgb: 0, flash: 0.2, push: 0.05 },
     velocity: false,
     look: { grade: 'warm', grain: 0.04, vignette: 0.2, letterbox: false, glow: 0.15 },
@@ -266,6 +276,7 @@ export const STYLES: StylePreset[] = [
     coldOpen: false,
     hitCuts: { everyBars: 4 },
     transitionBeats: 1,
+    minShot: 1,
     fx: { pulse: 0.02, shake: 0.1, rgb: 0.1, flash: 0.5, push: 0.05 },
     velocity: false,
     look: { grade: 'vintage', grain: 0.35, vignette: 0.5, letterbox: false },

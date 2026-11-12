@@ -6,7 +6,7 @@ import type { AssignableClip } from './assign'
 import { makePlan } from './plan'
 import { createRng } from './rng'
 import { buildSlots } from './slots'
-import { getStyle } from './presets'
+import { getStyle, STYLES } from './presets'
 import { chooseWindow } from './window'
 
 const song = analyzeSong(synthesizeDemoSong(22050).samples, { sampleRate: 22050 })
@@ -96,7 +96,7 @@ describe('cutting on hits', () => {
     for (const t of strums) expect(analysis.hits!.some((h) => Math.abs(h.time - t) < 0.05)).toBe(true)
   })
 
-  for (const style of ['hype', 'phonk', 'velocity', 'cinematic', 'smooth', 'throwback'] as const) {
+  for (const style of ['hype', 'phonk'] as const) {
     it(`cuts on each strum of the riff (${style})`, () => {
       const slots = buildSlots(analysis, { start: 0, end: 30 }, getStyle(style), createRng(3))
       for (const t of strums) expect(slots.some((s) => Math.abs(s.start - t) < 0.06)).toBe(true)
@@ -112,5 +112,48 @@ describe('cutting on hits', () => {
   it('can be switched off', () => {
     const slots = buildSlots(analysis, { start: 0, end: 30 }, getStyle('hype'), createRng(3), { hitCuts: false })
     expect(slots.some((s) => s.hit)).toBe(false)
+  })
+})
+
+describe('pace', () => {
+  const window = chooseWindow(song, 30)
+  /** The same song played faster: every time in its analysis scaled down. */
+  const sped = (k: number): typeof song => ({
+    ...song,
+    duration: song.duration / k,
+    bpm: song.bpm * k,
+    beats: song.beats.map((b) => ({ ...b, time: b.time / k })),
+    sections: song.sections.map((x) => ({ ...x, start: x.start / k, end: x.end / k })),
+    drops: song.drops.map((d) => ({ ...d, time: d.time / k })),
+    hits: song.hits?.map((h) => ({ ...h, time: h.time / k })),
+    envelopeRate: song.envelopeRate / k,
+  })
+  const lengths = (s: ReturnType<typeof buildSlots>) => s.filter((x) => x.role !== 'hero' && x.role !== 'tease').map((x) => x.end - x.start)
+
+  for (const style of STYLES) {
+    it(`never cuts faster than ${style.name} allows, at any tempo`, () => {
+      for (const k of [1, 1.4, 2]) {
+        const fast = sped(k)
+        for (const seed of [1, 2, 3]) {
+          const slots = buildSlots(fast, chooseWindow(fast, 20), style, createRng(seed))
+          expect(Math.min(...lengths(slots))).toBeGreaterThanOrEqual(style.minShot! * 0.8 - 0.001)
+          for (let i = 1; i < slots.length; i++) expect(slots[i].start).toBeCloseTo(slots[i - 1].end, 6)
+        }
+      }
+    })
+  }
+
+  it('holds shots longer in the calm styles than in the fast ones', () => {
+    const median = (id: 'rush' | 'cinematic') => {
+      const xs = lengths(buildSlots(song, window, getStyle(id), createRng(3))).sort((a, b) => a - b)
+      return xs[xs.length >> 1]
+    }
+    expect(median('cinematic')).toBeGreaterThan(median('rush') * 1.5)
+  })
+
+  it('cuts less often when slowed down, and more often when sped up', () => {
+    const count = (pace: number) => buildSlots(song, window, getStyle('cinematic'), createRng(3), { pace }).length
+    expect(count(2)).toBeLessThan(count(1))
+    expect(count(0.5)).toBeGreaterThan(count(1))
   })
 })

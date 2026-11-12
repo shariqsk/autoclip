@@ -49,6 +49,7 @@ export function renderPlan(d: Draft, state: CaptionInputs): EditPlan {
         : d.plan.shots.map((shot) => ({
             ...shot,
             fx: {
+              ...shot.fx,
               pulse: shot.fx.pulse * k,
               shake: shot.fx.shake * k,
               rgb: shot.fx.rgb * k,

@@ -50,6 +50,11 @@ describe('derived render state', () => {
     expect(renderPlan(draft, inputs({}, 1)).shots).toBe(plan.shots)
   })
 
+  it('keeps the black and white and the strobe when the intensity changes', () => {
+    const mono = { ...draft, plan: { ...plan, shots: [{ ...plan.shots[0], fx: { ...plan.shots[0].fx, mono: 1, strobe: 0.5 } }] } }
+    expect(renderPlan(mono, inputs({}, 0.5)).shots[0].fx).toMatchObject({ mono: 1, strobe: 0.5 })
+  })
+
   it('lands beat text right before the drop', () => {
     const lines = captionsFor(draft, inputs({ source: 'text', beatText: 'WHO IS THE GOAT' }))
     expect(lines.map((l) => l.words[0].text)).toEqual(['WHO', 'IS', 'THE', 'GOAT'])

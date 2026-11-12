@@ -21,6 +21,7 @@ interface SavedClip {
   pin?: 'hero' | 'skip'
   offset?: number
   momentOf?: string
+  share?: number
 }
 
 export interface SavedProject {
@@ -89,6 +90,7 @@ async function snapshot(s: AppState): Promise<SavedProject | null> {
       pin: c.pin,
       offset: c.offset,
       momentOf: c.momentOf,
+      share: c.share,
     })),
   )
   return {
@@ -168,6 +170,7 @@ export async function restore(p: SavedProject) {
       pin: c.pin,
       offset: c.offset,
       momentOf: c.momentOf,
+      share: c.share,
     })),
     drafts: p.drafts.map((d) => ({ ...d, past: [], future: [] })),
     activeDraftId: p.activeDraftId ?? p.drafts.at(-1)?.id ?? null,

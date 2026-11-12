@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeSong } from '../audio/analyze'
 import { synthesizeDemoSong } from '../demo/song'
-import type { ClipAnalysis } from '../types'
+import type { ClipAnalysis, EditPlan, Shot } from '../types'
 import type { AssignableClip } from './assign'
 import { makePlan } from './plan'
 import { STYLES } from './presets'
@@ -75,7 +75,7 @@ describe('speed ramps', () => {
 
 for (const style of STYLES) {
   describe(`makePlan (${style.name})`, () => {
-    const plan = makePlan(song, clips, { style: style.id, length: 30, order: 'best', variety: 0.5, seed: 42 })
+    const plan = makePlan(song, clips, { style: style.id, length: 30, flow: 'peaks', variety: 0.5, seed: 42 })
     const beatPeriod = 60 / song.bpm
 
     it('covers the edit with back-to-back shots', () => {
@@ -123,7 +123,7 @@ for (const style of STYLES) {
 
 describe('makePlan', () => {
   it('is reproducible from its seed, and remixes change it', () => {
-    const opts = { style: 'hype', length: 30, order: 'best', variety: 1 } as const
+    const opts = { style: 'hype', length: 30, flow: 'peaks', variety: 1 } as const
     const a = makePlan(song, clips, { ...opts, seed: 1 })
     const b = makePlan(song, clips, { ...opts, seed: 1 })
     const c = makePlan(song, clips, { ...opts, seed: 99 })
@@ -133,7 +133,7 @@ describe('makePlan', () => {
   })
 
   it('keeps locked shots through a remix', () => {
-    const opts = { style: 'hype', length: 30, order: 'best', variety: 1 } as const
+    const opts = { style: 'hype', length: 30, flow: 'peaks', variety: 1 } as const
     const a = makePlan(song, clips, { ...opts, seed: 1 })
     const lock = { ...a.shots[3], locked: true }
     const b = makePlan(song, clips, { ...opts, seed: 7, locked: [lock] })
@@ -142,19 +142,10 @@ describe('makePlan', () => {
     expect(kept.srcStart).toBe(lock.srcStart)
     expect(kept.locked).toBe(true)
   })
-
-  it('keeps clips in order in story mode', () => {
-    const plan = makePlan(song, clips, { style: 'cinematic', length: 30, order: 'story', variety: 0, seed: 3 })
-    const order = clips.map((c) => c.id)
-    const firstHalf = plan.shots.slice(0, Math.floor(plan.shots.length / 3)).map((s) => order.indexOf(s.clipId))
-    const lastThird = plan.shots.slice(Math.floor((plan.shots.length * 2) / 3)).map((s) => order.indexOf(s.clipId))
-    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-    expect(mean(firstHalf)).toBeLessThan(mean(lastThird))
-  })
 })
 
 describe('frameAt', () => {
-  const plan = makePlan(song, clips, { style: 'smooth', length: 30, order: 'best', variety: 0.5, seed: 5 })
+  const plan = makePlan(song, clips, { style: 'smooth', length: 30, flow: 'peaks', variety: 0.5, seed: 5 })
   it('blends two shots during a transition and one otherwise', () => {
     const withTrans = plan.shots.find((s, i) => i > 0 && s.transition.duration > 0)!
     const mid = frameAt(plan, withTrans.start)
@@ -175,14 +166,14 @@ describe('frameAt', () => {
 describe('transitions', () => {
   it('cuts straight between shots of the same footage', () => {
     for (const style of STYLES) {
-      const one = makePlan(song, [fakeClip('only', 120, 30)], { style: style.id, length: 30, order: 'best', variety: 0.5, seed: 3 })
+      const one = makePlan(song, [fakeClip('only', 120, 30)], { style: style.id, length: 30, flow: 'peaks', variety: 0.5, seed: 3 })
       expect(one.shots.length).toBeGreaterThan(4)
       for (const shot of one.shots) if (shot.transition.type !== 'panels') expect(shot.transition).toEqual({ type: 'cut', duration: 0 })
     }
   })
 
   it('opens on a collage when the style or you ask for one', () => {
-    const opts = { length: 30 as const, order: 'best' as const, variety: 0.5, seed: 3 }
+    const opts = { length: 30 as const, flow: 'peaks' as const, variety: 0.5, seed: 3 }
     const panels = (p: ReturnType<typeof makePlan>) => p.shots.filter((x) => x.transition.type === 'panels')
     const smooth = makePlan(song, clips, { ...opts, style: 'smooth' })
     expect(panels(smooth).length).toBeGreaterThan(0)
@@ -196,7 +187,42 @@ describe('transitions', () => {
       { ...fakeClip('m1', 20, 4), source: 'long' },
       { ...fakeClip('m2', 20, 12), source: 'long' },
     ]
-    const plan = makePlan(song, moments, { style: 'hype', length: 30, order: 'best', variety: 0.5, seed: 3 })
+    const plan = makePlan(song, moments, { style: 'hype', length: 30, flow: 'peaks', variety: 0.5, seed: 3 })
     for (const shot of plan.shots) expect(shot.transition.type).toBe('cut')
+  })
+})
+
+describe('beat punches', () => {
+  const beat = (time: number, kind: 'beat' | 'downbeat'): EditPlan['hits'][number] => ({ time, strength: 1, kind })
+  const shot = (id: string, start: number, end: number): Shot => ({
+    id,
+    clipId: 'a',
+    start,
+    end,
+    srcStart: start,
+    speed: { kind: 'constant', speed: 1 },
+    transition: { type: 'cut', duration: 0 },
+    fx: { pulse: 0.1, shake: 1, rgb: 0, flash: 0, push: 0 },
+    reason: '',
+    energy: 1,
+  })
+  const plan: EditPlan = {
+    songStart: 0,
+    songEnd: 8,
+    shots: [shot('one', 0, 3), shot('two', 3, 8)],
+    hits: [beat(1, 'beat'), beat(2, 'downbeat'), beat(3, 'beat')],
+    captions: [],
+    seed: 1,
+  }
+  const at = (t: number) => frameAt(plan, t + 0.01).fx
+
+  it('punches in on bar lines and cuts, and only nudges on the beats between', () => {
+    expect(at(2).zoom).toBeGreaterThan(at(1).zoom * 3)
+    expect(at(3).zoom).toBeGreaterThan(at(1).zoom * 3)
+  })
+
+  it('keeps the camera still on a plain beat', () => {
+    expect(Math.abs(at(1).shakeX)).toBe(0)
+    expect(at(2).shakeX).not.toBe(0)
   })
 })

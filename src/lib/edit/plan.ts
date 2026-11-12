@@ -1,7 +1,7 @@
 // The auto-editor: song analysis + clip analyses + a style → a complete edit plan.
 
 import type { CaptionLine, ContentMix, EditPlan, Hit, Shot, ShotFx, SongAnalysis, SpeedRamp, Transition, TransitionType } from '../types'
-import { assignFootage, type AssignableClip, type Assignment } from './assign'
+import { assignFootage, type AssignableClip, type Assignment, type Flow } from './assign'
 import { getStyle, type StyleId, type StylePreset } from './presets'
 import { createRng, weightedPick, type Rng } from './rng'
 import { buildHits, buildSlots, type Slot } from './slots'
@@ -10,7 +10,8 @@ import { chooseWindow, type LengthChoice, type SongWindow } from './window'
 export interface PlanOptions {
   style: StyleId
   length: LengthChoice
-  order: 'best' | 'story'
+  /** Move through the footage from start to end, or put the strongest moments on the biggest hits. */
+  flow: Flow
   /** 0–1: how adventurous a remix is. */
   variety: number
   seed: number
@@ -21,6 +22,8 @@ export interface PlanOptions {
   captions?: CaptionLine[]
   /** Cut on standout hits in the music, not only on the beat grid. Defaults to on. */
   hitCuts?: boolean
+  /** Stretch every shot by this much: 2 cuts half as often, 0.5 twice as often. Defaults to the style's own pace. */
+  pace?: number
   /** How much of each shot type to use (when the footage has been read for them). */
   mix?: ContentMix
   /** Open on a collage of picture-in-picture panels. Defaults to the style's choice. */
@@ -101,7 +104,7 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
   const window = opts.window ?? chooseWindow(song, opts.length)
   const beatPeriod = 60 / Math.max(40, song.bpm)
 
-  const slots = buildSlots(song, window, style, rng, { hitCuts: opts.hitCuts })
+  const slots = buildSlots(song, window, style, rng, { hitCuts: opts.hitCuts, pace: opts.pace })
   const speeds = slots.map((s) => speedFor(s, style, beatPeriod))
 
   // Locked shots keep their footage if their slot still exists.
@@ -114,7 +117,7 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     }
   }
 
-  const assignments = assignFootage(slots, speeds, clips, rng, { order: opts.order, variety: opts.variety, fixed, mix: opts.mix })
+  const assignments = assignFootage(slots, speeds, clips, rng, { flow: opts.flow, variety: opts.variety, fixed, mix: opts.mix })
   const lockedByIndex = new Map([...fixed.keys()].map((i) => [i, opts.locked!.find((l) => Math.abs(l.start - slots[i].start) < 0.03)!]))
 
   const shots: Shot[] = []

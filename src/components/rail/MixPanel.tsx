@@ -42,10 +42,10 @@ export function MixPanel() {
       {scan ? (
         <div className="space-y-1.5">
           <Progress value={scan.fraction} />
-          <div className="tag">
+          <div className="tag truncate">
             {scan.stage === 'download'
               ? `Getting the shot model · 89 MB, first time only · ${Math.round(scan.fraction * 100)}%`
-              : `Reading clip ${Math.min(scan.done + 1, scan.total)} of ${scan.total}`}
+              : `Reading ${scan.clip} · ${Math.min(scan.done + 1, scan.total)} of ${scan.total}`}
           </div>
         </div>
       ) : (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ClipAnalysis, ClipContent, ContentKind } from '../types'
-import { classify, CONTENT_KINDS, contentSeries, contentShares, smoothByScene } from './classify'
+import { classify, CONTENT_KINDS, contentSeries, contentShares, smoothByScene, contentTimes } from './classify'
 
 /** Prompt fingerprints for a toy 6-dimensional space: one axis per shot type. */
 const axis = (k: number, w = 1) => Array.from({ length: 6 }, (_, i) => (i === k ? w : 0))
@@ -33,5 +33,21 @@ describe('shot types', () => {
     expect(series.talk[0]).toBeCloseTo(0.9)
     expect(series.broll[9]).toBeCloseTo(0.9)
     expect(contentShares(content)).toMatchObject({ talk: 0.4, broll: 0.6 })
+  })
+})
+
+describe('contentTimes', () => {
+  it('looks at every scene once, and at long scenes every couple of seconds', () => {
+    const { times } = contentTimes(20, [3, 4, 14])
+    expect(times.filter((t) => t < 3)).toHaveLength(2)
+    expect(times.filter((t) => t > 3 && t < 4)).toEqual([3.5])
+    expect(times.filter((t) => t > 4 && t < 14)).toHaveLength(5)
+    expect(times.filter((t) => t > 14)).toHaveLength(3)
+  })
+
+  it('looks less often at very long footage', () => {
+    const { step, times } = contentTimes(3600, [])
+    expect(step).toBe(12)
+    expect(times).toHaveLength(300)
   })
 })

@@ -55,10 +55,10 @@ function load(modelUrl: string): Promise<void> {
 }
 
 /**
- * How often to look: twice a second for short clips, less for long ones (about 360 looks at most).
- * Screen time doesn't need more, and even fast montages hold a shot for longer than a look.
+ * How often to look: every three quarters of a second for short clips, less for long ones (about
+ * 240 looks at most). Screen time doesn't need more, and even fast montages hold a shot that long.
  */
-export const scanStep = (duration: number) => Math.max(0.5, Math.round((duration / 360) * 10) / 10)
+export const scanStep = (duration: number) => Math.max(0.75, Math.round((duration / 240) * 10) / 10)
 
 export async function scanFaces(
   file: Blob,

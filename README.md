@@ -84,6 +84,12 @@ The tape along the bottom of the app draws this arc over the song's waveform and
 | **Smooth**    | Vlogs, travel, products       | Whip pans and an easy rhythm                                            |
 | **Throwback** | Recaps, friends, old footage  | Film grain and warm fades                                               |
 
+**Start to end.** The edit moves through your footage the way it was shot: clip by clip in the order they sit in the bin, and forward through each one, with the strongest moment nearby saved for the drop. A moment is never shown twice while there's fresh footage, and a shot never stops just short of the action it was building to. Prefer the biggest moments on the biggest hits, wherever they come from? Switch **Flow** to **Best on the hits**.
+
+**Shares.** With more than one clip in the bin, each gets a slider for how much of the edit comes from it. Leave them alone and the edit is split by how much footage each clip has.
+
+**Pace.** Every style has a shortest shot it will ever cut, so a fast song doesn't turn a calm style into rapid cuts. **Cuts** in the Format tab holds every shot longer or cuts more often.
+
 **Cut on hits.** Strums, stabs and fills between the beats get their own cuts (on by default), a run at most every few bars, so a three-strum riff lands three cuts without every beat becoming one.
 
 **Learn a style from your edits.** Drop in edits you love (or paste TikTok, YouTube or Instagram links in the desktop app). AutoClip watches each one frame by frame and listens to its music, lines every cut up with the beat, and learns the pacing, how the build tightens, what happens on the drop (a hero shot, a freeze-frame, a flash), how it cuts after, the effects and the look. It shows what it learned in plain words and saves it as a style of your own, next to the built-in six. Teach it more edits any time. Three to ten edits in one vibe work best.

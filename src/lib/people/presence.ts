@@ -2,6 +2,7 @@
 // stars (or the people to keep out) are in each moment, and where the stars' faces are, for framing.
 
 import type { ClipAnalysis, ClipFaces } from '../types'
+import { smoothSeries } from '../video/metrics'
 
 export interface Presence {
   /** 0–1 per analysis sample: a star on screen, more for a bigger face. */
@@ -55,19 +56,20 @@ export function presence(a: ClipAnalysis, faces: ClipFaces | undefined, starIds:
   return { star, avoid, others, focus }
 }
 
+/** Seconds either side that the frame's position is averaged over. */
+const STEADY = 1.5
+
 /** The analysis with framing pulled onto the stars' faces wherever they're on screen. */
 export function framedOnStars(a: ClipAnalysis, p: Pick<Presence, 'focus'> | null): ClipAnalysis {
   if (!p || !p.focus.some(Boolean)) return a
   const fx = a.focusX.map((x, i) => (p.focus[i] ? 0.25 * x + 0.75 * p.focus[i]!.x : x))
   const fy = a.focusY.map((y, i) => (p.focus[i] ? 0.25 * y + 0.75 * p.focus[i]!.y : y))
-  // Glide between samples rather than snap, but never across a cut: a new shot frames itself.
-  const scene = a.times.map((t) => a.cuts.filter((c) => c <= t).length)
-  const glide = (xs: number[]) =>
-    xs.map((_, i) => {
-      const prev = i > 0 && scene[i - 1] === scene[i] ? xs[i - 1] : xs[i]
-      const next = i < xs.length - 1 && scene[i + 1] === scene[i] ? xs[i + 1] : xs[i]
-      return (prev + 2 * xs[i] + next) / 4
-    })
+  // Faces are found a couple of times a second and jump between looks. Hold the frame steady over a
+  // few seconds instead of chasing each one, but never across a cut: a new shot frames itself.
+  const dt = a.times.length > 1 ? a.times[1] - a.times[0] : 1
+  const radius = Math.max(1, Math.round(STEADY / dt))
+  const scenes = a.cuts.map((c) => a.times.findIndex((t) => t >= c)).filter((i) => i > 0)
+  const glide = (xs: number[]) => smoothSeries(xs, radius, scenes)
   return { ...a, focusX: glide(fx), focusY: glide(fy) }
 }
 

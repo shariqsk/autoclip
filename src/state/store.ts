@@ -84,11 +84,11 @@ export interface AppState {
   /** The people found across the footage, and who's the star. */
   people: Person[]
   /** Looking for people: how far along, or null when idle. */
-  peopleScan: { done: number; total: number; fraction: number } | null
+  peopleScan: { done: number; total: number; fraction: number; clip: string } | null
   /** Shot types found in each clip, by clip id. */
   content: Record<string, ClipContent>
   /** Reading shot types: how far along (downloading the model first, once), or null when idle. */
-  contentScan: { done: number; total: number; fraction: number; stage: 'download' | 'scan' } | null
+  contentScan: { done: number; total: number; fraction: number; stage: 'download' | 'scan'; clip: string } | null
   selectedShotId: string | null
   selectedCaptionId: string | null
   demoLoading: number | null

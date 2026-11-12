@@ -128,9 +128,12 @@ export function frameAt(plan: EditPlan, t: number, clipDurations: Record<string,
   let rgb = 0
   for (const h of hitsNear(plan.hits, t)) {
     const dt = t - h.time
-    const k = h.kind === 'drop' ? 1.8 : h.kind === 'downbeat' ? 1.15 : 0.8
+    // The picture punches in on drops, bar lines and cuts. The beats between them only nudge it:
+    // a full punch on every beat reads as the frame bobbing, not as rhythm.
+    const accent = h.kind !== 'beat' || Math.abs(h.time - active.start) < 0.05
+    const k = h.kind === 'drop' ? 1.6 : accent ? 1 : 0.2
     zoom += fx.pulse * h.strength * k * decay(dt, 0.11)
-    if (h.strength > 0.55) {
+    if (accent && h.strength > 0.55) {
       shake += fx.shake * h.strength * k * decay(dt, 0.09)
       rgb += fx.rgb * h.strength * k * decay(dt, 0.07)
     }

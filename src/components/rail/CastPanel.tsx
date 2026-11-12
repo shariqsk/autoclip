@@ -91,10 +91,10 @@ export function CastPanel() {
       <div className="space-y-2">
         <div className="text-sm font-semibold">Looking for faces…</div>
         <Progress value={scan.fraction} />
-        <div className="tag">
+        <div className="tag truncate">
           {scan.fraction === 0
             ? 'Warming up the face models · the first time takes up to half a minute'
-            : `Clip ${Math.min(scan.done + 1, scan.total)} of ${scan.total} · on this device`}
+            : `${scan.clip} · ${Math.min(scan.done + 1, scan.total)} of ${scan.total}`}
         </div>
       </div>
     )

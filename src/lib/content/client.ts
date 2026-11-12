@@ -10,6 +10,7 @@ export function scanClipContent(
   file: File,
   offset: number,
   duration: number,
+  cuts: number[],
   onProgress: (fraction: number, stage: 'download' | 'scan') => void,
 ): Promise<ClipContent> {
   worker ??= new Worker(new URL('../../workers/content.worker.ts', import.meta.url), { type: 'module' })
@@ -27,6 +28,6 @@ export function scanClipContent(
       }
     }
     w.addEventListener('message', onMessage)
-    w.postMessage({ id, file, offset, duration } satisfies ContentWorkerRequest)
+    w.postMessage({ id, file, offset, duration, cuts } satisfies ContentWorkerRequest)
   })
 }

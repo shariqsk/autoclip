@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { analyzeSong } from '../audio/analyze'
 import { synthesizeDemoSong } from '../demo/song'
 import type { ClipAnalysis } from '../types'
-import type { AssignableClip } from './assign'
+import type { AssignableClip, Flow } from './assign'
 import { MIX_PRESETS } from '../../state/settings'
 import { CONTENT_KINDS } from '../content/classify'
-import type { ContentKind } from '../types'
+import type { ContentKind, EditPlan, Shot } from '../types'
 import { makePlan } from './plan'
 import { sourceDuration } from './speed'
 
@@ -35,8 +35,100 @@ function clip(id: string, duration: number, peaks: number[], cuts: number[] = []
   return { id, kind: 'video', analysis }
 }
 
-const plan = (clips: AssignableClip[], seed = 3, mix = MIX_PRESETS[0].mix) =>
-  makePlan(song, clips, { style: 'hype', length: 30, order: 'best', hitCuts: true, variety: 0.5, seed, mix })
+const plan = (clips: AssignableClip[], seed = 3, mix = MIX_PRESETS[0].mix, flow: Flow = 'peaks') =>
+  makePlan(song, clips, { style: 'hype', length: 30, flow, hitCuts: true, variety: 0.5, seed, mix })
+const story = (clips: AssignableClip[], seed = 3) => plan(clips, seed, MIX_PRESETS[0].mix, 'story')
+
+/** The seconds of its clip a shot shows. */
+const range = (s: Shot): [number, number] => [s.srcStart, s.srcStart + sourceDuration(s.speed, s.end - s.start)]
+/** The shots that tell the story: everything but the drop and the cold open, which may reach ahead. */
+const walk = (p: EditPlan) => p.shots.filter((s) => s.phase !== 'hero' && s.phase !== 'tease')
+
+describe('story flow', () => {
+  const fight = clip('fight', 300, [20, 80, 150, 290])
+
+  it('moves through one long clip from its start to its end', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const shots = walk(story([fight], seed))
+      for (let i = 1; i < shots.length; i++) expect(shots[i].srcStart).toBeGreaterThanOrEqual(range(shots[i - 1])[1] - 0.05)
+      expect(shots[0].srcStart).toBeLessThan(60)
+      expect(range(shots.at(-1)!)[1]).toBeGreaterThan(240)
+    }
+  })
+
+  it('never shows the same seconds twice', () => {
+    for (const seed of [1, 2, 3]) {
+      const ranges = story([fight], seed)
+        .shots.map(range)
+        .sort((a, b) => a[0] - b[0])
+      for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBeGreaterThanOrEqual(ranges[i - 1][1] - 0.05)
+    }
+  })
+
+  it('plays the clips in the order they are in, each from its start', () => {
+    const shots = walk(story([clip('a', 60, [10, 30, 50]), clip('b', 40, [5, 15, 30]), clip('c', 50, [12, 40])]))
+    const ids = shots.map((s) => s.clipId)
+    expect([...new Set(ids)]).toEqual(['a', 'b', 'c'])
+    expect(ids).toEqual([...ids].sort())
+    for (let i = 1; i < shots.length; i++)
+      if (shots[i].clipId === shots[i - 1].clipId) expect(shots[i].srcStart).toBeGreaterThanOrEqual(shots[i - 1].srcStart)
+  })
+
+  it('still lands a peak of the action on the drop', () => {
+    const hero = story([fight]).shots.find((s) => s.phase === 'hero')!
+    const [from, to] = range(hero)
+    expect([20, 80, 150, 290].some((peak) => peak > from - 0.5 && peak < to + 0.5)).toBe(true)
+  })
+
+  it('gives each clip the share of the edit you set', () => {
+    const a = { ...clip('a', 60, [10, 30, 50]), share: 80 }
+    const b = clip('b', 60, [5, 25, 45])
+    for (const flow of ['story', 'peaks'] as const) {
+      const p = plan([a, b], 3, MIX_PRESETS[0].mix, flow)
+      const onA = p.shots.filter((s) => s.clipId === 'a').reduce((t, s) => t + s.end - s.start, 0)
+      const part = onA / (p.songEnd - p.songStart)
+      expect(part).toBeGreaterThan(0.65)
+      expect(part).toBeLessThan(0.95)
+    }
+  })
+
+  it('leaves out a clip given no share', () => {
+    const p = story([clip('a', 60, [10, 30]), { ...clip('b', 60, [5, 25]), share: 0 }])
+    expect(p.shots.every((s) => s.clipId === 'a')).toBe(true)
+  })
+
+  it('follows the star through a montage, skipping the stretches of other people', () => {
+    const montage = clip(
+      'montage',
+      200,
+      Array.from({ length: 60 }, (_, i) => 1.5 + i * 3),
+    )
+    // The star is in the first and last minute; the middle is somebody else.
+    const theirs = (t: number) => t < 60 || t > 140
+    montage.star = montage.analysis.times.map((t) => (theirs(t) ? 0.8 : 0))
+    montage.others = montage.analysis.times.map((t) => (theirs(t) ? 0 : 0.8))
+    const shots = story([montage]).shots
+    const off = shots.filter((s) => !theirs(s.srcStart)).reduce((t, s) => t + s.end - s.start, 0)
+    expect(off).toBeLessThan(2)
+    expect(shots.some((s) => s.srcStart > 140)).toBe(true)
+  })
+})
+
+describe('payoffs', () => {
+  it("doesn't cut away right before the action it was building to", () => {
+    const peaks = [14, 41, 67, 95, 122, 149, 176]
+    for (const flow of ['story', 'peaks'] as const) {
+      for (const seed of [1, 2, 3]) {
+        const p = plan([clip('game', 190, peaks)], seed, MIX_PRESETS[0].mix, flow)
+        // A shot that ends inside the second before a peak showed the wind-up and not the hit.
+        const teased = p.shots
+          .filter((s) => s.phase !== 'intro' && s.phase !== 'outro')
+          .filter((s) => peaks.some((peak) => peak - range(s)[1] > 0.4 && peak - range(s)[1] < 1))
+        expect(teased.map((s) => `${s.phase}@${s.srcStart}`)).toEqual([])
+      }
+    }
+  })
+})
 
 describe('flow', () => {
   it('plays a montage forward instead of jumping around it', () => {

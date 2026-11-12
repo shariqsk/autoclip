@@ -338,6 +338,21 @@
     background: var(--ink);
   }
 
+  /* The share slider sits inside a clip row, so it's slimmer than the ones in the panels. */
+  .clip-row .slider {
+    height: 0.75rem;
+  }
+  .clip-row .slider::-webkit-slider-thumb {
+    width: 10px;
+    height: 10px;
+    margin-top: -3px;
+    box-shadow: none;
+  }
+  .clip-row .slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+  }
+
   .kbd {
     display: inline-flex;
     min-width: 1.3rem;

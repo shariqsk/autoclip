@@ -5,7 +5,7 @@
 import { AutoProcessor, CLIPVisionModelWithProjection, RawImage, type ProgressInfo } from '@huggingface/transformers'
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny'
 import type { ClipContent, ContentKind } from '../types'
-import { classify } from './classify'
+import { classify, contentTimes } from './classify'
 import prompts from './prompts.json'
 
 type Loaded = {
@@ -30,12 +30,9 @@ function load(onDownload: (fraction: number | null) => void): Promise<Loaded> {
   return ready
 }
 
-/** How often to look: shots change type far less often than faces move. */
-export const contentStep = (duration: number) => Math.max(0.75, Math.round((duration / 300) * 10) / 10)
-
 export async function scanContent(
   file: Blob,
-  opts: { offset: number; duration: number },
+  opts: { offset: number; duration: number; cuts: number[] },
   onProgress: (fraction: number, stage: 'download' | 'scan') => void,
 ): Promise<ClipContent> {
   const { processor, vision } = await load((f) => onProgress(f ?? 0, 'download'))
@@ -48,9 +45,7 @@ export async function scanContent(
     // CLIP looks at 224×224; a little more keeps the resize sharp.
     const w = 320
     const h = Math.max(2, Math.round((height / width) * w))
-    const step = contentStep(opts.duration)
-    const times: number[] = []
-    for (let t = step / 2; t < opts.duration - 0.05; t += step) times.push(Math.round(t * 1000) / 1000)
+    const { step, times } = contentTimes(opts.duration, opts.cuts)
     const sink = new CanvasSink(track, { width: w, height: h, fit: 'fill', poolSize: 2 })
     const scratch = new OffscreenCanvas(w, h)
     const ctx = scratch.getContext('2d', { willReadFrequently: true })!

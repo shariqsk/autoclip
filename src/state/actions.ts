@@ -11,11 +11,12 @@ import { newSeed } from '../lib/edit/rng'
 import { speak, toWhisperPcm, transcribe, type ModelStatus } from '../lib/ml/client'
 import type { CaptionLine, Clip, EditPlan } from '../lib/types'
 import { clearSaved } from './persist'
+import { PACE } from './settings'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
 import { sliceAnalysis } from '../lib/video/moments'
-import { clipContent } from './content'
-import { autoFindFaces, castPresence } from './people'
+import { clipContent, readNewClips } from './content'
+import { castPresence, scanNewClips } from './people'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -117,9 +118,12 @@ function pump() {
       .finally(() => {
         running--
         pump()
-        maybeAutoEdit()
-        // Wide footage going into a tall edit (or the other way): find the faces to frame on.
-        autoFindFaces()
+        if (running || queue.length) return
+        // The first edit makes itself; after that, new footage goes into the take on screen.
+        if (getState().drafts.length) footageChanged()
+        else maybeAutoEdit()
+        scanNewClips()
+        void readNewClips()
       })
   }
 }
@@ -135,6 +139,7 @@ export function removeClip(id: string) {
     const { [id]: _read, ...content } = s.content
     return { clips: s.clips.filter((c) => c.id !== id), faces, content }
   })
+  if (activeDraft()?.plan.shots.some((shot) => shot.clipId === id)) footageChanged()
 }
 
 /**
@@ -189,6 +194,7 @@ export function addMoments(sourceId: string, moments: { start: number; end: numb
     return { clips, faces: { ...s.faces, ...faces }, content: { ...s.content, ...content } }
   })
   toast(`${added.length} moment${added.length === 1 ? '' : 's'} added${benchSource ? `; the full clip is benched` : ''}.`, 'success')
+  binChanged()
 }
 
 const fmtClock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
@@ -196,6 +202,7 @@ const fmtClock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 6
 export function pinClip(id: string, pin: Clip['pin']) {
   const clip = getState().clips.find((c) => c.id === id)
   updateClip(id, { pin: clip?.pin === pin ? undefined : pin })
+  binChanged()
 }
 
 export function moveClip(id: string, delta: number) {
@@ -207,10 +214,38 @@ export function moveClip(id: string, delta: number) {
     ;[clips[i], clips[j]] = [clips[j], clips[i]]
     return { clips }
   })
+  binChanged()
 }
 
 export function readyClips(): Clip[] {
   return getState().clips.filter((c) => c.status === 'ready' && c.analysis)
+}
+
+/** Re-cut the take on screen with the current footage and settings, once there's one to re-cut. */
+export function recut() {
+  const s = getState()
+  if (s.song?.analysis && s.drafts.length && readyClips().length) makeEdit({ recut: true })
+}
+
+/** The footage changed under the edit: re-cut it, unless it's a take you've worked on or kept. */
+function footageChanged() {
+  const d = activeDraft()
+  if (!d) return
+  if (!d.edited && !d.starred) recut()
+  else toast('Your footage changed. This take is as you left it.', 'info', { label: 'Cut a new take', run: recut })
+}
+
+let settling: ReturnType<typeof setTimeout> | undefined
+/** The bin was rearranged: re-cut once it comes to rest, not on every step of a drag. */
+function binChanged() {
+  clearTimeout(settling)
+  settling = setTimeout(footageChanged, 250)
+}
+
+/** Give a clip a share of the edit (0–100), or hand it back to the automatic split. */
+export function setShare(id: string, share: number | undefined) {
+  updateClip(id, { share: share === undefined ? undefined : Math.max(0, Math.min(100, Math.round(share))) })
+  binChanged()
 }
 
 /** The first edit makes itself as soon as there's a song and footage, which is the whole point. */
@@ -258,6 +293,8 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
         analysis: c.analysis!,
         pin: c.pin,
         source: c.momentOf,
+        offset: c.offset,
+        share: c.share,
         star: cast?.star,
         avoid: cast?.avoid,
         others: cast?.others,
@@ -267,7 +304,8 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
     {
       style,
       length: s.settings.length,
-      order: s.settings.order,
+      flow: s.settings.flow,
+      pace: PACE[s.settings.pace],
       hitCuts: s.settings.hitCuts,
       collage: s.settings.collage === 'style' ? undefined : s.settings.collage,
       mix: s.settings.mix,
@@ -532,7 +570,7 @@ export async function loadDemo() {
 /** Set (or clear) the drop by hand, in song seconds, and re-cut around it. */
 export function setDrop(time: number | null) {
   setState({ dropOverride: time })
-  if (getState().song?.analysis && readyClips().length) makeEdit({ recut: true })
+  recut()
 }
 
 export function resetProject() {

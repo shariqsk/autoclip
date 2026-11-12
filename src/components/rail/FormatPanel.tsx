@@ -1,11 +1,9 @@
-import { makeEdit } from '../../state/actions'
-import { autoFindFaces } from '../../state/people'
+import { recut } from '../../state/actions'
+import { scanNewClips } from '../../state/people'
 import { ASPECTS, LENGTHS } from '../../state/settings'
 import { getStyle } from '../../lib/edit/presets'
-import { activeDraft, getState, setState, updateSettings, useApp } from '../../state/store'
+import { activeDraft, setState, updateSettings, useApp } from '../../state/store'
 import { Seg, Slider, Toggle } from '../ui'
-
-const recut = () => getState().song?.analysis && getState().drafts.length && makeEdit({ recut: true })
 
 export function FormatPanel() {
   const s = useApp((st) => st.settings)
@@ -26,7 +24,7 @@ export function FormatPanel() {
               data-on={s.aspect === a.id}
               onClick={() => {
                 updateSettings({ aspect: a.id })
-                autoFindFaces()
+                scanNewClips()
               }}
               title={`${a.label}: ${a.note}`}
             >
@@ -65,16 +63,32 @@ export function FormatPanel() {
       </div>
 
       <div className="space-y-1.5">
-        <div className="tag">Shot order</div>
+        <div className="tag">Flow</div>
         <Seg
-          value={s.order}
-          onChange={(order) => {
-            updateSettings({ order })
+          value={s.flow}
+          onChange={(flow) => {
+            updateSettings({ flow })
             recut()
           }}
           options={[
-            { value: 'best', label: 'Best on the drop', title: 'Put the strongest moments where the music hits hardest' },
-            { value: 'story', label: 'Keep my order', title: 'Use the clips in the order they are in the bin' },
+            { value: 'story', label: 'Start to end', title: 'Move through your footage in order, clip by clip, from its start to its end' },
+            { value: 'peaks', label: 'Best on the hits', title: 'Put the strongest moments wherever the music hits hardest' },
+          ]}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="tag">Cuts</div>
+        <Seg
+          value={s.pace}
+          onChange={(pace) => {
+            updateSettings({ pace })
+            recut()
+          }}
+          options={[
+            { value: 'slow', label: 'Slower', title: 'Hold every shot about twice as long' },
+            { value: 'style', label: 'Style', title: "The style's own pace" },
+            { value: 'fast', label: 'Faster', title: 'Cut about twice as often, down to the shortest shot the style allows' },
           ]}
         />
       </div>

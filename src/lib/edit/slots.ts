@@ -10,7 +10,8 @@
 //   ride    steadier cutting between drops
 //   outro   one last held shot, slowed, fading out
 //
-// Every boundary sits on a beat (half-beats only in the last moments of a build).
+// Every boundary sits on a beat (half-beats only in the last moments of a build), and no shot is
+// shorter than the style allows, however fast the song is.
 
 import type { Hit, ShotPhase, SongAnalysis } from '../types'
 import type { StylePreset } from './presets'
@@ -51,13 +52,20 @@ const MAX_ANCHORS = 3
 export interface SlotOptions {
   /** Cut on standout hits in the music (strums, stabs, fills), not only on the beat grid. */
   hitCuts?: boolean
+  /** Stretch every shot by this much: 2 cuts half as often, 0.5 twice as often. */
+  pace?: number
 }
+
+/** A shot may come in a little under the style's shortest: cuts move a few hundredths to land on a hit. */
+const SLACK = 0.8
 
 export function buildSlots(song: SongAnalysis, window: SongWindow, style: StylePreset, rng: Rng, opts: SlotOptions = {}): Slot[] {
   const { start: w0, end: w1 } = window
   const W = w1 - w0
   const bp = 60 / Math.max(40, song.bpm)
   const bar = bp * 4
+  const pace = opts.pace ?? 1
+  const shortest = (style.minShot ?? 0.4) * Math.max(0.75, Math.min(1.5, pace))
 
   const beats = song.beats.filter((b) => b.time >= w0 - 0.02 && b.time < w1 - 0.05).map((b) => ({ ...b, t: Math.max(0, b.time - w0) }))
   const beatT = beats.map((b) => b.t)
@@ -159,7 +167,7 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
         let t = r.start
         let first = true
         while (t < r.end - 0.05) {
-          let next = snap(t + style.intro.beats * bp)
+          let next = snap(t + Math.max(1, style.intro.beats * pace) * bp)
           const onBar = downT.filter((d) => d > t + bp * 2 && d <= next + bp * 1.5)
           if (onBar.length) next = onBar[onBar.length - 1]
           if (next <= t + 0.05 || r.end - next < bp * 1.5) next = r.end
@@ -173,12 +181,15 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
         // Lay the acceleration pattern backwards from the drop so the fastest cuts land right before it.
         const len = r.end - r.start
         const cuts: number[] = []
-        let t = r.end
+        let at = r.end
+        let last = r.end
         for (const beatsLen of [...style.build.pattern].reverse()) {
-          const prev = t - beatsLen * bp
-          if (prev < r.start + bp * 0.4) break
-          cuts.unshift(beatsLen >= 1 ? snap(prev) : prev)
-          t = prev
+          at -= beatsLen * pace * bp
+          if (at < r.start + bp * 0.4) break
+          // Too fast for this style at this tempo: let the pattern run on to the next cut.
+          if (last - at < shortest - 0.01) continue
+          cuts.unshift(beatsLen * pace >= 1 ? snap(at) : at)
+          last = at
         }
         const bounds = [r.start, ...cuts.filter((c) => c > r.start + 0.05 && c < r.end - 0.05), r.end]
         for (let i = 0; i < bounds.length - 1; i++) {
@@ -191,7 +202,8 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
         // Cut on accents: from each cut, try the allowed shot lengths and take the one that lands on
         // the strongest beat (with a little variety), instead of counting a fixed grid.
         const quiet = r.phase === 'ride' && env(r.start, r.end) < 0.45
-        const choices = (r.phase === 'flurry' ? style.flurry.choices : style.ride.choices).map((c) => (quiet ? c * 2 : c))
+        let choices = (r.phase === 'flurry' ? style.flurry.choices : style.ride.choices).map((c) => Math.max(1, c * pace * (quiet ? 2 : 1)))
+        while (Math.min(...choices) * bp < shortest - 0.01) choices = choices.map((c) => c * 2)
         let t = r.start
         let first = true
         while (t < r.end - 0.05) {
@@ -203,9 +215,10 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
             if (score > best.score) best = { at: Math.min(at, r.end), score }
           }
           // A standout hit in range (a stab, a fill) beats a plain beat, off the grid or not.
-          const shortest = Math.min(...choices) * bp
+          const quickest = Math.min(...choices) * bp
           for (const h of hitsIn) {
-            if (h.t < t + shortest * 0.75 || h.t > t + Math.max(...choices) * bp + 0.01 || h.t > r.end - bp * 0.5) continue
+            if (h.t < t + Math.max(shortest, quickest * 0.75) || h.t > t + Math.max(...choices) * bp + 0.01 || h.t > r.end - bp * 0.5)
+              continue
             if (h.strength < 0.35) continue
             const score = 0.6 + h.strength * 1.2 + rng() * 0.2
             if (score > best.score) best = { at: h.t, score }
@@ -221,14 +234,17 @@ export function buildSlots(song: SongAnalysis, window: SongWindow, style: StyleP
     }
   }
 
-  if (useHits && hitsIn.length) addHitCuts(slots, hitsIn, style, bp)
+  if (useHits && hitsIn.length) addHitCuts(slots, hitsIn, style, bp, shortest)
 
-  // Merge any sliver into its neighbour.
-  for (let i = slots.length - 1; i > 0; i--) {
-    if (slots[i].end - slots[i].start < bp * 0.3 && slots[i].role !== 'build' && !slots[i].hit) {
-      slots[i - 1].end = slots[i].end
-      slots.splice(i, 1)
-    }
+  // Anything still too short joins its neighbour. The drop and the cold open keep their place.
+  const set = (s: Slot | undefined) => !s || s.role === 'hero' || s.role === 'tease'
+  for (let i = slots.length - 1; i >= 0; i--) {
+    const s = slots[i]
+    if (set(s) || s.end - s.start >= shortest * SLACK) continue
+    if (!set(slots[i - 1])) slots[i - 1].end = s.end
+    else if (!set(slots[i + 1])) slots[i + 1].start = s.start
+    else continue
+    slots.splice(i, 1)
   }
 
   const beatsOf = (s: Slot) => {
@@ -259,9 +275,10 @@ const HIT_SPLIT_ROLES = new Set<SlotRole>(['intro', 'ride', 'outro'])
  * Cut on the hits you can hear. In held parts (intro, ride, outro), a cluster of standout hits (a
  * riff of strums, a run of stabs) gets one cut per hit, then the shot holds again. "Standout" is
  * relative to the part itself, so a quiet intro's strums count and the steady groove doesn't, and
- * each style decides how often it's allowed. Elsewhere, a cut near a hit snaps onto it.
+ * each style decides how often it's allowed and how close together. Elsewhere, a cut near a hit
+ * snaps onto it.
  */
-function addHitCuts(slots: Slot[], hits: { t: number; strength: number }[], style: StylePreset, bp: number) {
+function addHitCuts(slots: Slot[], hits: { t: number; strength: number }[], style: StylePreset, bp: number, shortest: number) {
   const bar = bp * 4
   let lastClusterEnd = -Infinity
   for (let i = 0; i < slots.length; i++) {
@@ -297,7 +314,9 @@ function addHitCuts(slots: Slot[], hits: { t: number; strength: number }[], styl
               .sort((a, b) => b.strength - a.strength)
               .slice(0, 4)
               .sort((a, b) => a.t - b.t)
-      for (const h of pick) if (h.t > slot.start + 0.15 && h.t < slot.end - 0.15) cuts.push(h.t)
+      // Loudest first, and never closer together than the style's shortest shot.
+      for (const h of [...pick].sort((x, y) => y.strength - x.strength))
+        if ([slot.start, slot.end, ...cuts].every((x) => Math.abs(x - h.t) >= shortest)) cuts.push(h.t)
       lastClusterEnd = c[c.length - 1].t
     }
     if (!cuts.length) continue

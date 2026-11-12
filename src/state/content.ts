@@ -4,7 +4,7 @@
 import { contentSeries, smoothByScene } from '../lib/content/classify'
 import { scanClipContent } from '../lib/content/client'
 import type { Clip, ClipAnalysis, ContentKind } from '../lib/types'
-import { makeEdit } from './actions'
+import { recut } from './actions'
 import { getState, setState, toast, updateSettings } from './store'
 import type { Settings } from './settings'
 
@@ -15,41 +15,44 @@ export function unreadClips(s = getState()): Clip[] {
 
 let reading = false
 
-/** Read the shot types of every clip not read yet, then re-cut so the mix takes effect. */
+/** Once you've had your footage read, new clips are read as they come in, so the mix keeps up with the bin. */
+export function readNewClips() {
+  const s = getState()
+  if (Object.keys(s.content).length && unreadClips(s).length) return readFootage()
+}
+
+/** Read the shot types of every clip not read yet (those added meanwhile too), then re-cut so the mix takes effect. */
 export async function readFootage() {
   if (reading) return
-  const todo = unreadClips()
-  if (!todo.length) return
   reading = true
-  setState({ contentScan: { done: 0, total: todo.length, fraction: 0, stage: 'scan' } })
+  const tried = new Set<string>()
   let failed = 0
   let lastError = ''
   try {
-    for (const [i, clip] of todo.entries()) {
-      try {
-        const content = await scanClipContent(clip.file, clip.offset ?? 0, clip.analysis!.duration, (f, stage) =>
-          setState({
-            contentScan: { done: i, total: todo.length, fraction: stage === 'download' ? f : (i + f) / todo.length, stage },
-          }),
-        )
-        setState((s) => ({ content: { ...s.content, [clip.id]: smoothByScene(content, clip.analysis!.cuts) } }))
-      } catch (err) {
-        failed++
-        lastError = err instanceof Error ? err.message : String(err)
+    for (let todo = unreadClips(); todo.length; todo = unreadClips().filter((c) => !tried.has(c.id))) {
+      for (const [i, clip] of todo.entries()) {
+        tried.add(clip.id)
+        const { duration, cuts } = clip.analysis!
+        const progress = (fraction: number, stage: 'download' | 'scan') =>
+          setState({ contentScan: { done: i, total: todo.length, fraction, stage, clip: clip.name } })
+        progress(i / todo.length, 'scan')
+        try {
+          const content = await scanClipContent(clip.file, clip.offset ?? 0, duration, cuts, (f, stage) =>
+            progress(stage === 'download' ? f : (i + f) / todo.length, stage),
+          )
+          setState((s) => ({ content: { ...s.content, [clip.id]: smoothByScene(content, cuts) } }))
+        } catch (err) {
+          failed++
+          lastError = err instanceof Error ? err.message : String(err)
+        }
       }
     }
-    if (failed)
-      toast(`Couldn't read ${failed === todo.length ? 'the footage' : `${failed} of ${todo.length} clips`}: ${lastError}`, 'error')
-    recut()
+    if (failed) toast(`Couldn't read ${failed === tried.size ? 'the footage' : `${failed} of ${tried.size} clips`}: ${lastError}`, 'error')
+    if (failed < tried.size) recut()
   } finally {
     reading = false
     setState({ contentScan: null })
   }
-}
-
-function recut() {
-  const s = getState()
-  if (s.song?.analysis && s.drafts.length && s.clips.some((c) => c.status === 'ready')) makeEdit({ recut: true })
 }
 
 /** Change the mix; reads any footage not read yet (the mix needs it), then re-cuts. */

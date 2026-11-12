@@ -15,8 +15,8 @@ import { PACE } from './settings'
 import { desktop } from '../lib/desktop'
 import { linkProblem, parseLink, toFile } from '../lib/links'
 import { sliceAnalysis } from '../lib/video/moments'
-import { clipContent } from './content'
-import { autoFindFaces, castPresence } from './people'
+import { clipContent, readNewClips } from './content'
+import { castPresence, scanNewClips } from './people'
 import { activeDraft, getState, setState, toast, updateClip, updateDraft, type AppState, type Download, type Draft } from './store'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba)$/i
@@ -118,9 +118,12 @@ function pump() {
       .finally(() => {
         running--
         pump()
-        maybeAutoEdit()
-        // Wide footage going into a tall edit (or the other way): find the faces to frame on.
-        autoFindFaces()
+        if (running || queue.length) return
+        // The first edit makes itself; after that, new footage goes into the take on screen.
+        if (getState().drafts.length) footageChanged()
+        else maybeAutoEdit()
+        scanNewClips()
+        void readNewClips()
       })
   }
 }
@@ -136,6 +139,7 @@ export function removeClip(id: string) {
     const { [id]: _read, ...content } = s.content
     return { clips: s.clips.filter((c) => c.id !== id), faces, content }
   })
+  if (activeDraft()?.plan.shots.some((shot) => shot.clipId === id)) footageChanged()
 }
 
 /**
@@ -212,6 +216,25 @@ export function moveClip(id: string, delta: number) {
 
 export function readyClips(): Clip[] {
   return getState().clips.filter((c) => c.status === 'ready' && c.analysis)
+}
+
+/** Re-cut the take on screen with the current footage and settings, once there's one to re-cut. */
+export function recut() {
+  const s = getState()
+  if (s.song?.analysis && s.drafts.length && readyClips().length) makeEdit({ recut: true })
+}
+
+/** The footage changed under the edit: re-cut it, unless it's a take you've worked on or kept. */
+function footageChanged() {
+  const d = activeDraft()
+  if (!d) return
+  if (!d.edited && !d.starred) recut()
+  else toast('Your footage changed. This take is as you left it.', 'info', { label: 'Cut a new take', run: recut })
+}
+
+/** Give a clip a share of the edit (0–100), or hand it back to the automatic split. */
+export function setShare(id: string, share: number | undefined) {
+  updateClip(id, { share: share === undefined ? undefined : Math.max(0, Math.min(100, Math.round(share))) })
 }
 
 /** The first edit makes itself as soon as there's a song and footage, which is the whole point. */
@@ -536,7 +559,7 @@ export async function loadDemo() {
 /** Set (or clear) the drop by hand, in song seconds, and re-cut around it. */
 export function setDrop(time: number | null) {
   setState({ dropOverride: time })
-  if (getState().song?.analysis && readyClips().length) makeEdit({ recut: true })
+  recut()
 }
 
 export function resetProject() {

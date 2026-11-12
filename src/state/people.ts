@@ -6,7 +6,7 @@ import { findPeople } from '../lib/people/cluster'
 import { scanClipFaces } from '../lib/people/client'
 import type { CastRole, Clip, ClipAnalysis, ClipFaces, Person } from '../lib/types'
 import { grabFaces } from '../lib/video/posters'
-import { makeEdit } from './actions'
+import { recut } from './actions'
 import { ASPECTS } from './settings'
 import { getState, setState, toast } from './store'
 
@@ -18,48 +18,47 @@ export function unscannedClips(s = getState()): Clip[] {
 let scanning = false
 
 /**
- * Clips that have to be cropped hard for the output's shape (wide footage in a vertical edit, say),
- * where knowing where the faces are makes the crop. Their faces are found quietly in the background.
+ * New footage gets its faces found quietly in the background when it has to be cropped hard for the
+ * output's shape (wide footage in a vertical edit, say), where the faces make the crop, or when
+ * you've already looked for people, so the cast keeps up with the bin.
  */
-export function autoFindFaces() {
+export function scanNewClips() {
   const s = getState()
-  if (scanning || s.clips.some((c) => c.status === 'queued' || c.status === 'analyzing')) return
+  if (s.clips.some((c) => c.status === 'queued' || c.status === 'analyzing')) return
   const out = ASPECTS.find((a) => a.id === s.settings.aspect)!
   const outAspect = out.w / out.h
-  const needs = unscannedClips(s).filter((c) => {
+  const cropped = unscannedClips(s).some((c) => {
     const a = c.analysis!.width / Math.max(1, c.analysis!.height)
     return Math.max(a / outAspect, outAspect / a) > 1.3
   })
-  if (needs.length) void findPeopleInFootage({ quiet: true })
+  if (cropped || (Object.keys(s.faces).length && unscannedClips(s).length)) void findPeopleInFootage({ quiet: true })
 }
 
-/** Look for faces in every clip not searched yet, then group them into people. */
+/** Look for faces in every clip not searched yet (those added meanwhile too), then group them into people. */
 export async function findPeopleInFootage(opts: { quiet?: boolean } = {}) {
   if (scanning) return
-  const todo = unscannedClips()
-  if (!todo.length) return regroup(opts.quiet)
   scanning = true
-  setState({ peopleScan: { done: 0, total: todo.length, fraction: 0 } })
+  const tried = new Set<string>()
   let failed = 0
   let lastError = ''
   try {
-    for (const [i, clip] of todo.entries()) {
-      try {
-        const faces = await scanClipFaces(clip.file, clip.offset ?? 0, clip.analysis!.duration, (f) =>
-          setState({ peopleScan: { done: i, total: todo.length, fraction: (i + f) / todo.length } }),
-        )
-        setState((s) => ({ faces: { ...s.faces, [clip.id]: faces } }))
-      } catch (err) {
-        failed++
-        lastError = err instanceof Error ? err.message : String(err)
+    for (let todo = unscannedClips(); todo.length; todo = unscannedClips().filter((c) => !tried.has(c.id))) {
+      for (const [i, clip] of todo.entries()) {
+        tried.add(clip.id)
+        const progress = (fraction: number) => setState({ peopleScan: { done: i, total: todo.length, fraction, clip: clip.name } })
+        progress(i / todo.length)
+        try {
+          const faces = await scanClipFaces(clip.file, clip.offset ?? 0, clip.analysis!.duration, (f) => progress((i + f) / todo.length))
+          setState((s) => ({ faces: { ...s.faces, [clip.id]: faces } }))
+        } catch (err) {
+          failed++
+          lastError = err instanceof Error ? err.message : String(err)
+        }
       }
     }
-    if (failed === todo.length) {
-      if (!opts.quiet) toast(`Couldn't look for faces: ${lastError}`, 'error')
-      return
-    }
-    if (failed && !opts.quiet) toast(`Couldn't look for faces in ${failed} of ${todo.length} clips: ${lastError}`, 'error')
-    await regroup(opts.quiet)
+    if (failed && !opts.quiet)
+      toast(`Couldn't look for faces${failed === tried.size ? '' : ` in ${failed} of ${tried.size} clips`}: ${lastError}`, 'error')
+    if (!tried.size || failed < tried.size) await regroup(opts.quiet)
   } finally {
     scanning = false
     setState({ peopleScan: null })
@@ -76,6 +75,8 @@ async function regroup(quiet = false) {
   const oldThumbs = new Map(s.people.map((p) => [p.id, p.thumb]))
   setState({ faces, people: people.map((p) => ({ ...p, thumb: oldThumbs.get(p.id) })) })
   if (!people.length && !quiet) toast('No faces big enough to recognize in this footage.', 'info')
+  // New footage of someone you starred or cut changes what the edit should show.
+  if (people.some((p) => p.role)) recut()
   await portraits()
 }
 
@@ -95,11 +96,6 @@ async function portraits() {
     const thumbs = new Map(list.map((p, i) => [p.id, urls[i]]))
     setState((st) => ({ people: st.people.map((p) => (thumbs.get(p.id) ? { ...p, thumb: thumbs.get(p.id) } : p)) }))
   }
-}
-
-const recut = () => {
-  const s = getState()
-  if (s.song?.analysis && s.drafts.length && s.clips.some((c) => c.status === 'ready')) makeEdit({ recut: true })
 }
 
 export function setRole(id: string, role: CastRole) {

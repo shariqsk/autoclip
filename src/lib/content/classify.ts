@@ -37,6 +37,26 @@ export function classify(image: ArrayLike<number>, prompts: Record<ContentKind, 
   return ex.map((x) => Math.round((x / z) * 1000) / 1000)
 }
 
+/** Seconds between looks inside one long shot. */
+const LOOK_EVERY = 2
+const MAX_LOOKS = 300
+
+/**
+ * When to look at a clip: every scene once, in its middle, and long scenes every couple of seconds.
+ * A shot doesn't change type between two cuts, so more looks than that only cost time.
+ */
+export function contentTimes(duration: number, cuts: number[]): { step: number; times: number[] } {
+  const step = Math.max(LOOK_EVERY, Math.round((duration / MAX_LOOKS) * 10) / 10)
+  const bounds = [0, ...cuts.filter((c) => c > 0 && c < duration), duration]
+  const times: number[] = []
+  for (let i = 0; i < bounds.length - 1; i++) {
+    const length = bounds[i + 1] - bounds[i]
+    const looks = Math.max(1, Math.round(length / step))
+    for (let k = 0; k < looks; k++) times.push(Math.round((bounds[i] + (length * (k + 0.5)) / looks) * 1000) / 1000)
+  }
+  return { step, times }
+}
+
 /**
  * One reading per scene: a shot doesn't change type halfway through, so the odds of every sample
  * between two cuts are averaged. Steadier than frame by frame, and a stray frame can't flip a shot.

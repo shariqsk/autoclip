@@ -1,11 +1,9 @@
-import { makeEdit } from '../../state/actions'
-import { autoFindFaces } from '../../state/people'
+import { recut } from '../../state/actions'
+import { scanNewClips } from '../../state/people'
 import { ASPECTS, LENGTHS } from '../../state/settings'
 import { getStyle } from '../../lib/edit/presets'
-import { activeDraft, getState, setState, updateSettings, useApp } from '../../state/store'
+import { activeDraft, setState, updateSettings, useApp } from '../../state/store'
 import { Seg, Slider, Toggle } from '../ui'
-
-const recut = () => getState().song?.analysis && getState().drafts.length && makeEdit({ recut: true })
 
 export function FormatPanel() {
   const s = useApp((st) => st.settings)
@@ -26,7 +24,7 @@ export function FormatPanel() {
               data-on={s.aspect === a.id}
               onClick={() => {
                 updateSettings({ aspect: a.id })
-                autoFindFaces()
+                scanNewClips()
               }}
               title={`${a.label}: ${a.note}`}
             >

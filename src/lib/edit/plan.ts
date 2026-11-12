@@ -1,7 +1,7 @@
 // The auto-editor: song analysis + clip analyses + a style → a complete edit plan.
 
 import type { CaptionLine, ContentMix, EditPlan, Hit, Shot, ShotFx, SongAnalysis, SpeedRamp, Transition, TransitionType } from '../types'
-import { assignFootage, type AssignableClip, type Assignment } from './assign'
+import { assignFootage, type AssignableClip, type Assignment, type Flow } from './assign'
 import { getStyle, type StyleId, type StylePreset } from './presets'
 import { createRng, weightedPick, type Rng } from './rng'
 import { buildHits, buildSlots, type Slot } from './slots'
@@ -10,7 +10,8 @@ import { chooseWindow, type LengthChoice, type SongWindow } from './window'
 export interface PlanOptions {
   style: StyleId
   length: LengthChoice
-  order: 'best' | 'story'
+  /** Move through the footage from start to end, or put the strongest moments on the biggest hits. */
+  flow: Flow
   /** 0–1: how adventurous a remix is. */
   variety: number
   seed: number
@@ -114,7 +115,7 @@ export function makePlan(song: SongAnalysis, clips: AssignableClip[], opts: Plan
     }
   }
 
-  const assignments = assignFootage(slots, speeds, clips, rng, { order: opts.order, variety: opts.variety, fixed, mix: opts.mix })
+  const assignments = assignFootage(slots, speeds, clips, rng, { flow: opts.flow, variety: opts.variety, fixed, mix: opts.mix })
   const lockedByIndex = new Map([...fixed.keys()].map((i) => [i, opts.locked!.find((l) => Math.abs(l.start - slots[i].start) < 0.03)!]))
 
   const shots: Shot[] = []

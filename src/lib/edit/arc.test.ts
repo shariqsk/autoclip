@@ -71,7 +71,7 @@ describe('the edit arc', () => {
   })
 
   it('runs the intro in black and white and brings the colour back on the drop', () => {
-    const plan = makePlan(song, clips, { style: 'hype', length: 30, order: 'best', variety: 0.3, seed: 2 })
+    const plan = makePlan(song, clips, { style: 'hype', length: 30, flow: 'peaks', variety: 0.3, seed: 2 })
     const intro = plan.shots.filter((s) => s.phase === 'intro')
     const hero = plan.shots.find((s) => s.phase === 'hero')!
     expect(intro.every((s) => (s.fx.mono ?? 0) > 0.9)).toBe(true)

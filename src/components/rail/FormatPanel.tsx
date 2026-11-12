@@ -65,16 +65,16 @@ export function FormatPanel() {
       </div>
 
       <div className="space-y-1.5">
-        <div className="tag">Shot order</div>
+        <div className="tag">Flow</div>
         <Seg
-          value={s.order}
-          onChange={(order) => {
-            updateSettings({ order })
+          value={s.flow}
+          onChange={(flow) => {
+            updateSettings({ flow })
             recut()
           }}
           options={[
-            { value: 'best', label: 'Best on the drop', title: 'Put the strongest moments where the music hits hardest' },
-            { value: 'story', label: 'Keep my order', title: 'Use the clips in the order they are in the bin' },
+            { value: 'story', label: 'Start to end', title: 'Move through your footage in order, clip by clip, from its start to its end' },
+            { value: 'peaks', label: 'Best on the hits', title: 'Put the strongest moments wherever the music hits hardest' },
           ]}
         />
       </div>

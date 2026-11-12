@@ -99,6 +99,8 @@ export interface Clip {
   offset?: number
   /** The clip a moment was cut from. */
   momentOf?: string
+  /** The share of the edit this clip gets, 0–100. Unset: split by how much footage there is. */
+  share?: number
 }
 
 export type TransitionType = 'cut' | 'fade' | 'flash' | 'zoom' | 'whip' | 'glitch' | 'dip' | 'spin' | 'panels'

@@ -258,6 +258,8 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
         analysis: c.analysis!,
         pin: c.pin,
         source: c.momentOf,
+        offset: c.offset,
+        share: c.share,
         star: cast?.star,
         avoid: cast?.avoid,
         others: cast?.others,
@@ -267,7 +269,7 @@ export function makeEdit(opts: { remix?: boolean; recut?: boolean } = {}) {
     {
       style,
       length: s.settings.length,
-      order: s.settings.order,
+      flow: s.settings.flow,
       hitCuts: s.settings.hitCuts,
       collage: s.settings.collage === 'style' ? undefined : s.settings.collage,
       mix: s.settings.mix,

@@ -1,13 +1,18 @@
 // Footage matching: decide which part of which clip fills each slot.
 //
-// The highest-stakes slots are filled first (the drop's hero shot gets the single best moment in
-// all your footage), loud slots get high-motion moments and calm slots get steadier ones, moments
-// are never reused while fresh ones remain, the same clip never plays twice in a row, and a shot
-// never runs across a hard cut that's already inside a clip.
+// Every slot takes the window of footage that suits it best: loud slots get high-motion moments
+// whose peak lands on the accent, calm slots get steadier ones, the drop gets the strongest moment
+// of all. A moment is never shown twice while fresh footage remains, a shot never runs across a hard
+// cut inside a clip, and it never stops just short of the action it was building to.
+//
+// In 'story' flow the edit also moves through the footage from start to end: each clip owns a
+// stretch of the edit (its share), and the shots walk forward through it. In 'peaks' flow the
+// strongest moments go wherever the music hits hardest.
 
 import { CONTENT_KINDS } from '../content/classify'
 import type { ClipAnalysis, ClipKind, ContentKind, ContentMix, SpeedRamp } from '../types'
 import type { Rng } from './rng'
+import { footageShares } from './shares'
 import type { Slot, SlotRole } from './slots'
 import { sourceDuration, sourceOffset } from './speed'
 
@@ -18,6 +23,10 @@ export interface AssignableClip {
   pin?: 'hero' | 'skip'
   /** The clip this one was cut from, for moments: shots from the same footage are one source. */
   source?: string
+  /** Where a moment starts in its source, in seconds, so moments of one clip can't replay each other. */
+  offset?: number
+  /** The share of the edit you gave this clip, 0–100. Unset: split by how much footage there is. */
+  share?: number
   /** 0–1 per analysis sample: one of your stars on screen (see lib/people). */
   star?: number[]
   /** 0–1 per analysis sample: someone you cut on screen. */
@@ -34,9 +43,11 @@ export interface Assignment {
   speed: SpeedRamp
 }
 
+export type Flow = 'story' | 'peaks'
+
 export interface AssignOptions {
-  /** 'best' puts the strongest moments where they hit hardest; 'story' keeps your clips in order. */
-  order: 'best' | 'story'
+  /** 'story' moves through the footage from start to end; 'peaks' puts the strongest moments on the biggest hits. */
+  flow: Flow
   /** 0–1: how much randomness a remix adds. */
   variety: number
   /** Slots already decided (locked shots), by slot index. */
@@ -68,6 +79,15 @@ const MIX_WEIGHT = { none: -3, some: 0, more: 1 } as const
 const TARGET_MOTION: Record<SlotRole, number> = { tease: 0.95, intro: 0.22, build: 0.65, hero: 1, flurry: 0.85, ride: 0.55, outro: 0.3 }
 const PRIORITY: Record<SlotRole, number> = { hero: 6, tease: 4, flurry: 3, build: 2, intro: 1.6, outro: 1.5, ride: 1 }
 
+/** How close on the timeline a moment may come back: a replay this soon looks like a glitch. */
+const REPLAY_GAP = 3
+/** Skipping less than this within one scene reads as a dropped frame, not a cut. */
+const JUMP_CUT = 1
+/** How far past the end of a shot to look for the action it was building to. */
+const PAYOFF = 1.2
+/** How long a still counts for when footage is shared out. */
+const STILL = 3
+
 /** Which scene of a clip a time falls in (clips that are already edits have several). */
 const sceneOf = (cuts: number[], t: number) => cuts.filter((c) => c <= t + 0.02).length
 
@@ -84,14 +104,16 @@ interface Indexed {
     avoid: Float64Array | null
     others: Float64Array | null
     content: Record<ContentKind, Float64Array> | null
+    /** Footage worth showing: not someone else, not someone you cut, not a shot type you ruled out. */
+    usable: Float64Array
   }
-  /** Source ranges already on screen, and the slot each one fills. */
-  used: [number, number, number][]
+  /** This clip's stretch of the edit, as fractions of it. */
+  from: number
+  to: number
   uses: number
+  /** Seconds on screen so far. */
+  screen: number
 }
-
-/** How close on the timeline a moment may come back: a replay this soon looks like a glitch. */
-const REPLAY_GAP = 3
 
 function prefixSum(xs: number[]): Float64Array {
   const p = new Float64Array(xs.length + 1)
@@ -99,9 +121,15 @@ function prefixSum(xs: number[]): Float64Array {
   return p
 }
 
-function index(clips: AssignableClip[]): Indexed[] {
+function index(clips: AssignableClip[], cast: boolean, mix: ContentMix | undefined): Indexed[] {
+  const out = CONTENT_KINDS.filter((k) => mix?.[k] === 'none')
   return clips.map((clip, order) => {
     const a = clip.analysis
+    const usable = a.times.map((_, i) => {
+      const people = (1 - (clip.avoid?.[i] ?? 0)) * (cast ? 1 - (clip.others?.[i] ?? 0) : 1)
+      const ruledOut = clip.content ? out.reduce((s, k) => s + clip.content![k][i], 0) : 0
+      return Math.max(0.02, people * (1 - Math.min(1, ruledOut)))
+    })
     return {
       clip,
       order,
@@ -117,9 +145,12 @@ function index(clips: AssignableClip[]): Indexed[] {
         content: clip.content
           ? (Object.fromEntries(CONTENT_KINDS.map((k) => [k, prefixSum(clip.content![k])])) as Record<ContentKind, Float64Array>)
           : null,
+        usable: prefixSum(usable),
       },
-      used: [],
+      from: 0,
+      to: 1,
       uses: 0,
+      screen: 0,
     }
   })
 }
@@ -129,6 +160,24 @@ function meanOver(p: Float64Array, dt: number, from: number, to: number): number
   const i0 = Math.max(0, Math.min(n - 1, Math.floor(from / dt)))
   const i1 = Math.max(i0 + 1, Math.min(n, Math.ceil(to / dt)))
   return (p[i1] - p[i0]) / (i1 - i0)
+}
+
+/** How far through a clip's usable footage a time is, 0–1. */
+function progressAt(c: Indexed, t: number): number {
+  const p = c.prefix.usable
+  const n = p.length - 1
+  if (c.clip.kind === 'image' || n < 1) return 0.5
+  const x = Math.max(0, Math.min(n, t / c.dt))
+  const i = Math.min(n - 1, Math.floor(x))
+  return (p[i] + (x - i) * (p[i + 1] - p[i])) / p[n]
+}
+
+/** The strongest the action gets between two times. */
+function peakIn(c: Indexed, from: number, to: number): number {
+  const xs = c.clip.analysis.interest
+  let peak = 0
+  for (let i = Math.max(0, Math.ceil(from / c.dt)); i < xs.length && i * c.dt <= to; i++) peak = Math.max(peak, xs[i])
+  return peak
 }
 
 /** Seconds into the source where the peak of the action should be, so it lands on the slot's accent. */
@@ -141,7 +190,7 @@ function alignmentOffset(speed: SpeedRamp, duration: number, accent: number): nu
 }
 
 interface Candidate {
-  clipId: string
+  clip: Indexed
   score: number
   srcStart: number
   speed: SpeedRamp
@@ -154,62 +203,112 @@ export function assignFootage(
   rng: Rng,
   opts: AssignOptions,
 ): (Assignment | null)[] {
-  const pool = index(clips.filter((c) => c.pin !== 'skip'))
-  // Once there's a star, footage nobody has looked for faces in is a weaker pick.
-  const cast = pool.some((c) => c.prefix.star)
-  // Likewise, once you've ruled shot types out, footage nobody has looked at is a weaker pick.
-  const filtering = !!opts.mix && Object.values(opts.mix).includes('none') && pool.some((c) => c.prefix.content)
   const result: (Assignment | null)[] = slots.map(() => null)
+  const wanted = clips.filter((c) => c.pin !== 'skip')
+  // Once there's a star, footage of anyone else is the wrong footage, however good it is.
+  const cast = wanted.some((c) => c.star?.some((v) => v > 0))
+  // Once you've ruled shot types out, footage nobody has looked at is a weaker pick.
+  const filtering = !!opts.mix && Object.values(opts.mix).includes('none') && wanted.some((c) => c.content)
+  const all = index(wanted, cast, opts.mix)
+  const footage = (c: Indexed) => (c.clip.kind === 'image' ? STILL : c.prefix.usable[c.prefix.usable.length - 1] * c.dt)
+  const share = footageShares(all.map((c) => ({ duration: footage(c), share: c.clip.share })))
+  const pool = all.filter((_, i) => share[i] > 0)
   if (!pool.length) return result
-  const totalFootage = pool.reduce((a, c) => a + (c.clip.kind === 'image' ? 3 : c.clip.analysis.duration), 0)
-  const totalNeeded = slots.reduce((a, s, i) => a + sourceDuration(speeds[i], s.end - s.start), 0)
-  // When there's less footage than music, reuse has to be allowed, just discouraged.
-  const reusePenalty = totalFootage > totalNeeded * 1.3 ? 1.4 : 0.5
-
-  for (const [i, fixed] of opts.fixed ?? []) {
-    result[i] = fixed
-    const c = pool.find((p) => p.clip.id === fixed.clipId)
-    if (c) {
-      c.used.push([fixed.srcStart, fixed.srcStart + sourceDuration(fixed.speed, slots[i].end - slots[i].start), i])
-      c.uses++
-    }
+  let at = 0
+  for (const c of pool) {
+    c.from = at
+    at += share[all.indexOf(c)]
+    c.to = at
   }
 
-  const orderIdx = slots.map((_, i) => i).filter((i) => !result[i])
-  orderIdx.sort((a, b) => PRIORITY[slots[b].role] + slots[b].energy - (PRIORITY[slots[a].role] + slots[a].energy))
+  const story = opts.flow === 'story'
+  const budgeted = pool.some((c) => c.clip.share !== undefined)
+  const total = slots.length ? slots[slots.length - 1].end : 0
+  const fixed = opts.fixed ?? new Map<number, Assignment>()
+  // With less footage than music, everything plays a little slower before anything plays twice.
+  const have = pool.reduce((a, c) => a + (c.clip.kind === 'image' ? STILL : c.clip.analysis.duration), 0)
+  const need = slots.reduce((a, s, i) => a + sourceDuration(speeds[i], s.end - s.start), 0)
+  const slow = Math.max(0.6, Math.min(1, have / (need * 1.1)))
+  const paced = speeds.map((sp, i) => (slow < 1 && sp.kind === 'constant' && !fixed.has(i) ? { ...sp, speed: sp.speed * slow } : sp))
+
+  // What's already on screen, by source file and in its time, with the slot each range fills.
+  const used = new Map<string, [number, number, number][]>()
+  const usedOf = (c: Indexed) => {
+    const key = c.clip.source ?? c.clip.id
+    if (!used.has(key)) used.set(key, [])
+    return used.get(key)!
+  }
+  const take = (i: number, c: Indexed, a: Assignment) => {
+    const dur = slots[i].end - slots[i].start
+    const from = a.srcStart + (c.clip.offset ?? 0)
+    result[i] = a
+    usedOf(c).push([from, from + sourceDuration(a.speed, dur), i])
+    c.uses++
+    c.screen += dur
+  }
+  for (const [i, a] of fixed) {
+    const c = pool.find((p) => p.clip.id === a.clipId)
+    if (c) take(i, c, a)
+    else result[i] = a
+  }
+
+  // The drop and the cold open pick first. After that a story is told in order; otherwise the
+  // highest-stakes slots keep picking first.
+  const lead = (i: number) => slots[i].role === 'hero' || slots[i].role === 'tease'
+  const rank = (i: number) => (story && !lead(i) ? -i : PRIORITY[slots[i].role] + slots[i].energy)
+  const open = slots.map((_, i) => i).filter((i) => !result[i])
+  open.sort((a, b) => rank(b) - rank(a))
 
   const sceneKey = (a: Assignment | null | undefined) => {
     if (!a) return null
     const c = pool.find((p) => p.clip.id === a.clipId)
     return c ? `${a.clipId}#${sceneOf(c.clip.analysis.cuts, a.srcStart)}` : a.clipId
   }
+  // Where the story has got to: the clip, and the second of it, the last shot ended on.
+  let cursor = { order: -1, end: 0, scene: -1 }
 
-  for (const si of orderIdx) {
+  for (const si of open) {
     const slot = slots[si]
     const dur = slot.end - slot.start
     const target = slot.hit ? 0.75 : TARGET_MOTION[slot.role]
     const neighbours = [result[si - 1], result[si + 1]]
     const neighbourClips = neighbours.map((n) => n?.clipId)
     const neighbourScenes = neighbours.map(sceneKey)
-    const slotPos = slots.length > 1 ? si / (slots.length - 1) : 0
     // A shot cut on a hit wants something happening the moment it starts.
     const action = slot.role === 'hero' || slot.role === 'tease' || slot.role === 'flurry' || !!slot.hit
     const calm = (slot.role === 'intro' || slot.role === 'outro') && !slot.hit
+    const walk = story && !lead(si)
+    // Where in the edit this slot sits, and how much of it the slot covers.
+    const here = total > 0 ? (slot.start + slot.end) / 2 / total : 0
+    const span = Math.max(0.02, total > 0 ? dur / total : 1)
     let best: Candidate | null = null
+
+    /** What it costs a shot to be out of place in the story: far from its part of the footage, or behind it. */
+    const misplaced = (c: Indexed, s: number, len: number) => {
+      if (!story || slot.role === 'tease') return 0
+      const off = Math.abs(c.from + progressAt(c, s + len / 2) * (c.to - c.from) - here)
+      if (!walk) return 0.6 * off
+      const behind = c.order < cursor.order || (c.order === cursor.order && s < cursor.end - 0.02)
+      return 0.3 * Math.min(9, (off / span) ** 2) + (behind ? 3 : 0)
+    }
 
     for (const c of pool) {
       const a = c.clip.analysis
-      let speed = speeds[si]
+      const image = c.clip.kind === 'image'
+      let speed = paced[si]
       let srcDur = sourceDuration(speed, dur)
-      let base = 0
-      if (neighbourClips.includes(c.clip.id)) base -= 0.15
-      base -= (c.clip.kind === 'image' ? 0.18 : 0.06) * c.uses
+      let base = -(image ? 0.18 : story ? 0 : 0.06) * c.uses
       if (c.clip.pin === 'hero') base += slot.role === 'hero' ? 0.6 : 0.08
-      if (opts.order === 'story' && pool.length > 1) base -= 0.9 * Math.abs(c.order / (pool.length - 1) - slotPos)
+      if (!story) {
+        if (neighbourClips.includes(c.clip.id)) base -= 0.15
+        // Shares you set are a budget: a clip short of its screen time goes first, one past it goes last.
+        if (budgeted && total > 0) base += 8 * (c.to - c.from - (c.screen + dur) / total)
+      }
 
-      if (c.clip.kind === 'image') {
-        const score = base + 0.38 + (1 - Math.abs(0.15 - target)) * 0.25 + (calm ? 0.1 : -0.1) + rng() * 0.12 * opts.variety
-        if (!best || score > best.score) best = { clipId: c.clip.id, score, srcStart: 0, speed: { kind: 'constant', speed: 1 } }
+      if (image) {
+        const score =
+          base + 0.38 + (1 - Math.abs(0.15 - target)) * 0.25 + (calm ? 0.1 : -0.1) + rng() * 0.12 * opts.variety - misplaced(c, 0, 0)
+        if (!best || score > best.score) best = { clip: c, score, srcStart: 0, speed: { kind: 'constant', speed: 1 } }
         continue
       }
 
@@ -223,6 +322,8 @@ export function assignFootage(
 
       const step = Math.max(0.1, c.dt / 2)
       const align = alignmentOffset(speed, dur, slot.accent)
+      const shown = usedOf(c)
+      const offset = c.clip.offset ?? 0
       for (let s = 0; s + srcDur <= a.duration - 0.04; s += step) {
         const e = s + srcDur
         if (a.cuts.some((cut) => cut > s + 0.04 && cut < e - 0.04)) continue
@@ -244,6 +345,9 @@ export function assignFootage(
         } else {
           score += 0.4 * interest + 0.2 * (1 - Math.abs(motion - target)) + 0.1 * sharp + (action ? 0.6 : 0.2) * hitInterest
           if (slot.role === 'hero' || slot.role === 'tease') score += 0.9 * impact
+          // A shot that stops just before the action peaks is a setup with no payoff.
+          const sceneEnd = a.cuts.find((cut) => cut > e - 0.04) ?? a.duration
+          score -= 2 * Math.max(0, peakIn(c, e, Math.min(e + PAYOFF, sceneEnd)) - peakIn(c, s, e))
         }
 
         // Your cast: stars pull the shot their way (hardest on the drop), people you cut push it away.
@@ -257,22 +361,26 @@ export function assignFootage(
             if (w) score += w * meanOver(c.prefix.content[k], c.dt, s, e)
           }
         } else if (filtering) score -= 0.25
-        // With a star, a shot of somebody else entirely is the wrong shot, however good it is.
         if (cast && c.prefix.others) score -= 1.3 * meanOver(c.prefix.others, c.dt, s, e)
 
-        // Never the same scene twice in a row, and no repeats of moments already on screen. Any
-        // overlap is a repeat the viewer sees, and one a few shots apart is a glitch, not a callback.
-        if (neighbourScenes.includes(`${c.clip.id}#${sceneOf(a.cuts, s)}`)) score -= 0.6
+        const scene = sceneOf(a.cuts, s)
+        if (walk) {
+          // Carrying straight on from the last shot is fine; hopping a moment ahead in it is a glitch.
+          const skipped = s - cursor.end
+          if (c.order === cursor.order && scene === cursor.scene && skipped > 0.05 && skipped < JUMP_CUT) score -= 0.6
+        } else if (neighbourScenes.includes(`${c.clip.id}#${scene}`)) score -= 0.6
+        // A moment already on screen stays used: any overlap is a repeat the viewer sees, and one a
+        // few shots apart is a glitch, not a callback.
         let overlap = 0
         let soon = false
-        for (const [u0, u1, j] of c.used) {
-          const o = Math.max(0, Math.min(e, u1) - Math.max(s, u0)) / srcDur
+        for (const [u0, u1, j] of shown) {
+          const o = Math.max(0, Math.min(e, u1 - offset) - Math.max(s, u0 - offset)) / srcDur
           overlap = Math.max(overlap, o)
-          if ((o > 0 || Math.abs(s - u0) < 0.8) && Math.abs(si - j) <= REPLAY_GAP) soon = true
+          if ((o > 0 || Math.abs(s + offset - u0) < 0.8) && Math.abs(si - j) <= REPLAY_GAP) soon = true
         }
-        score -= (overlap > 0 ? reusePenalty * (0.4 + overlap) : 0) + (soon ? 4 : 0)
+        score -= (overlap > 0 ? 4 + overlap : 0) + (soon ? 4 : 0) + misplaced(c, s, srcDur)
         score += rng() * 0.12 * opts.variety
-        if (!best || score > best.score) best = { clipId: c.clip.id, score, srcStart: s, speed }
+        if (!best || score > best.score) best = { clip: c, score, srcStart: s, speed }
       }
     }
 
@@ -280,14 +388,15 @@ export function assignFootage(
       // Nothing fits (every clip is far too short): play the longest one from the top, slowed down.
       const longest = pool.reduce((a, b) => (b.clip.analysis.duration > a.clip.analysis.duration ? b : a))
       const sp = Math.max(0.25, Math.min(1, (longest.clip.analysis.duration - 0.05) / dur))
-      best = { clipId: longest.clip.id, score: 0, srcStart: 0, speed: { kind: 'constant', speed: sp } }
+      best = { clip: longest, score: 0, srcStart: 0, speed: { kind: 'constant', speed: sp } }
     }
-    result[si] = { clipId: best.clipId, srcStart: best.srcStart, speed: best.speed }
-    const c = pool.find((p) => p.clip.id === best.clipId)!
-    c.used.push([best.srcStart, best.srcStart + sourceDuration(best.speed, dur), si])
-    c.uses++
+    take(si, best.clip, { clipId: best.clip.clip.id, srcStart: best.srcStart, speed: best.speed })
+    if (walk) {
+      const end = best.srcStart + sourceDuration(best.speed, dur)
+      cursor = { order: best.clip.order, end, scene: sceneOf(best.clip.clip.analysis.cuts, best.srcStart) }
+    }
   }
-  return inStoryOrder(result, slots, pool, opts.fixed ?? new Map())
+  return story ? result : inStoryOrder(result, slots, pool, fixed)
 }
 
 /**

@@ -1,5 +1,6 @@
 // Every user-facing choice, with defaults. Settings are saved to localStorage; media never is.
 
+import type { Flow } from '../lib/edit/assign'
 import type { StyleId } from '../lib/edit/presets'
 import type { LengthChoice } from '../lib/edit/window'
 import type { Platform } from '../lib/share/post'
@@ -22,7 +23,8 @@ export interface Settings {
   aspect: AspectId
   /** How footage of another shape is framed. 'style' follows the edit style. */
   framing: FitMode | 'style'
-  order: 'best' | 'story'
+  /** Move through the footage from start to end, or put the strongest moments on the biggest hits. */
+  flow: Flow
   /** Cut on standout hits in the music (strums, stabs, fills), not only the beat. */
   hitCuts: boolean
   /** How much of each shot type (big moments, action, b-roll…) the edit uses. */
@@ -81,7 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
   length: 30,
   aspect: '9:16',
   framing: 'style',
-  order: 'best',
+  flow: 'story',
   hitCuts: true,
   mix: { finish: 'some', action: 'some', broll: 'some', celebrate: 'some', talk: 'some', text: 'none' },
   variety: 0.6,
@@ -147,10 +149,12 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULT_SETTINGS
-    const saved = JSON.parse(raw) as Partial<Settings> & { fit?: FitMode }
+    const saved = JSON.parse(raw) as Partial<Settings> & { fit?: FitMode; order?: string }
     // Framing used to be a plain choice; a crop was the default, anything else was picked on purpose.
     if (saved.fit && !saved.framing && saved.fit !== 'fill') saved.framing = saved.fit
     delete saved.fit
+    // Shot order became flow, and moving through the footage became the default.
+    delete saved.order
     return {
       ...DEFAULT_SETTINGS,
       ...saved,

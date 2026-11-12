@@ -3,11 +3,12 @@
 
 import { ArrowDown, ArrowUp, Ban, Crown, Link2, Plus, Scissors, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
+import { footageShares, STILL } from '../lib/edit/shares'
 import { sourceDuration } from '../lib/edit/speed'
 import { MOMENT_MIN_CLIP } from '../lib/video/moments'
 import type { Clip } from '../lib/types'
 import { desktop } from '../lib/desktop'
-import { addClips, moveClip, openLinkDialog, pinClip, removeClip } from '../state/actions'
+import { addClips, moveClip, openLinkDialog, pinClip, removeClip, setShare } from '../state/actions'
 import { activeDraft, setState, useApp } from '../state/store'
 import { cx } from './format'
 import { Progress } from './ui'
@@ -39,7 +40,37 @@ function ActionLine({ clip, used }: { clip: Clip; used: [number, number][] }) {
   )
 }
 
-function Row({ clip, index, count, used }: { clip: Clip; index: number; count: number; used: [number, number][] }) {
+/** How much of the edit comes from this clip: drag to set it, tap the number to hand it back. */
+function Share({ clip, auto }: { clip: Clip; auto: number }) {
+  const set = clip.share !== undefined
+  const percent = Math.round(clip.share ?? auto * 100)
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <input
+        type="range"
+        className={cx('slider min-w-0 flex-1', !set && 'opacity-50')}
+        min={0}
+        max={100}
+        step={5}
+        value={percent}
+        style={{ ['--fill' as string]: `${percent}%` }}
+        aria-label={`Share of the edit from ${clip.name}`}
+        title="How much of the edit comes from this clip"
+        onChange={(e) => setShare(clip.id, Number(e.target.value))}
+      />
+      <button
+        className={cx('mono w-9 shrink-0 text-right text-[0.62rem]', set ? 'text-signal hover:underline' : 'text-ink-3')}
+        disabled={!set}
+        title={set ? 'Back to the automatic split' : 'Split automatically by how much footage there is'}
+        onClick={() => setShare(clip.id, undefined)}
+      >
+        {percent}%
+      </button>
+    </div>
+  )
+}
+
+function Row({ clip, index, count, used, share }: { clip: Clip; index: number; count: number; used: [number, number][]; share?: number }) {
   const thumb = clip.thumbs[Math.min(1, clip.thumbs.length - 1)]
   return (
     <li className={cx('clip-row group relative flex gap-3 border-b border-line px-4 py-2.5', clip.pin === 'skip' && 'opacity-40')}>
@@ -67,7 +98,10 @@ function Row({ clip, index, count, used }: { clip: Clip; index: number; count: n
           )}
         </div>
         {clip.status === 'ready' ? (
-          <ActionLine clip={clip} used={used} />
+          <>
+            <ActionLine clip={clip} used={used} />
+            {share !== undefined && <Share clip={clip} auto={share} />}
+          </>
         ) : clip.status === 'error' ? (
           <div className="tag mt-1 flex items-center gap-1 text-signal" title={clip.error}>
             <TriangleAlert className="size-3" /> Can't read this file
@@ -82,8 +116,8 @@ function Row({ clip, index, count, used }: { clip: Clip; index: number; count: n
         {[
           { icon: Crown, title: 'Hero: save this clip for the drop', on: clip.pin === 'hero', act: () => pinClip(clip.id, 'hero') },
           { icon: Ban, title: "Bench: don't use this clip", on: clip.pin === 'skip', act: () => pinClip(clip.id, 'skip') },
-          { icon: ArrowUp, title: 'Earlier (story order)', on: false, act: () => moveClip(clip.id, -1), hide: index === 0 },
-          { icon: ArrowDown, title: 'Later (story order)', on: false, act: () => moveClip(clip.id, 1), hide: index === count - 1 },
+          { icon: ArrowUp, title: 'Earlier in the edit', on: false, act: () => moveClip(clip.id, -1), hide: index === 0 },
+          { icon: ArrowDown, title: 'Later in the edit', on: false, act: () => moveClip(clip.id, 1), hide: index === count - 1 },
           { icon: Trash2, title: 'Remove', on: false, act: () => removeClip(clip.id) },
         ]
           .filter((b) => !b.hide)
@@ -112,6 +146,11 @@ export function ClipBin() {
   const draft = useApp((s) => activeDraft(s))
   const inputRef = useRef<HTMLInputElement>(null)
   const watching = clips.filter((c) => c.status === 'analyzing' || c.status === 'queued').length
+
+  // Shares only mean something once there are two clips to split the edit between.
+  const sharing = clips.filter((c) => c.status === 'ready' && c.analysis && c.pin !== 'skip')
+  const shares = footageShares(sharing.map((c) => ({ duration: c.kind === 'image' ? STILL : c.analysis!.duration, share: c.share })))
+  const shareOf = (c: Clip) => (sharing.length > 1 && sharing.includes(c) ? shares[sharing.indexOf(c)] : undefined)
 
   const usedBy = (id: string): [number, number][] =>
     draft?.plan.shots
@@ -161,7 +200,7 @@ export function ClipBin() {
       )}
       <ul className="clip-list min-h-0 overflow-y-auto border-t border-line">
         {clips.map((c, i) => (
-          <Row key={c.id} clip={c} index={i} count={clips.length} used={usedBy(c.id)} />
+          <Row key={c.id} clip={c} index={i} count={clips.length} used={usedBy(c.id)} share={shareOf(c)} />
         ))}
         <li>
           <button

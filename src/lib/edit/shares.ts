@@ -1,5 +1,8 @@
 // How the edit is split between your clips.
 
+/** How long a still counts for when footage is shared out, in seconds. */
+export const STILL = 3
+
 export interface Shareable {
   /** Seconds of footage worth using. */
   duration: number

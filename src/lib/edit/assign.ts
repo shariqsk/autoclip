@@ -12,7 +12,7 @@
 import { CONTENT_KINDS } from '../content/classify'
 import type { ClipAnalysis, ClipKind, ContentKind, ContentMix, SpeedRamp } from '../types'
 import type { Rng } from './rng'
-import { footageShares } from './shares'
+import { footageShares, STILL } from './shares'
 import type { Slot, SlotRole } from './slots'
 import { sourceDuration, sourceOffset } from './speed'
 
@@ -85,8 +85,6 @@ const REPLAY_GAP = 3
 const JUMP_CUT = 1
 /** How far past the end of a shot to look for the action it was building to. */
 const PAYOFF = 1.2
-/** How long a still counts for when footage is shared out. */
-const STILL = 3
 
 /** Which scene of a clip a time falls in (clips that are already edits have several). */
 const sceneOf = (cuts: number[], t: number) => cuts.filter((c) => c <= t + 0.02).length

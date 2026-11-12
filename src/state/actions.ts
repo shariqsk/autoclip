@@ -194,6 +194,7 @@ export function addMoments(sourceId: string, moments: { start: number; end: numb
     return { clips, faces: { ...s.faces, ...faces }, content: { ...s.content, ...content } }
   })
   toast(`${added.length} moment${added.length === 1 ? '' : 's'} added${benchSource ? `; the full clip is benched` : ''}.`, 'success')
+  binChanged()
 }
 
 const fmtClock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
@@ -201,6 +202,7 @@ const fmtClock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 6
 export function pinClip(id: string, pin: Clip['pin']) {
   const clip = getState().clips.find((c) => c.id === id)
   updateClip(id, { pin: clip?.pin === pin ? undefined : pin })
+  binChanged()
 }
 
 export function moveClip(id: string, delta: number) {
@@ -212,6 +214,7 @@ export function moveClip(id: string, delta: number) {
     ;[clips[i], clips[j]] = [clips[j], clips[i]]
     return { clips }
   })
+  binChanged()
 }
 
 export function readyClips(): Clip[] {
@@ -232,9 +235,17 @@ function footageChanged() {
   else toast('Your footage changed. This take is as you left it.', 'info', { label: 'Cut a new take', run: recut })
 }
 
+let settling: ReturnType<typeof setTimeout> | undefined
+/** The bin was rearranged: re-cut once it comes to rest, not on every step of a drag. */
+function binChanged() {
+  clearTimeout(settling)
+  settling = setTimeout(footageChanged, 250)
+}
+
 /** Give a clip a share of the edit (0–100), or hand it back to the automatic split. */
 export function setShare(id: string, share: number | undefined) {
   updateClip(id, { share: share === undefined ? undefined : Math.max(0, Math.min(100, Math.round(share))) })
+  binChanged()
 }
 
 /** The first edit makes itself as soon as there's a song and footage, which is the whole point. */
